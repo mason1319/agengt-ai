@@ -1,0 +1,38 @@
+node_modules
+
+dist
+.vite
+
+# Capacitor generated
+ios
+android
+.capacitor
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary or agent artifacts
+.codex-artifacts
+.tmp-*
+.playwright-cli
+output
+delivery/web
+
+# Local runtime caches
+.wrangler
+.wrangler/
+
+# Optional local bookkeeping
+git/
+.vscode
+
+# OS files
+.DS_Store
