@@ -623,6 +623,73 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'founder lead convert returns segments for enrollment attempt',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const courseRes = await request({
+          method: 'GET',
+          path: '/api/v1/founder/courses?limit=1',
+          token,
+          expectStatus: 200
+        });
+        ensure(courseRes.ok, `http ${courseRes.status}`);
+        ensure(hasJsonSuccess(courseRes.payload), 'courses response success=false');
+        const courseId = `${courseRes.payload?.data?.courses?.[0]?.id || ''}`.trim();
+        ensure(courseId, 'course id missing');
+
+        const lead = await request({
+          method: 'POST',
+          path: '/api/v1/public/leads',
+          body: {
+            institutionId: 'inst-star',
+            guardianName: `转化报名家长-${Date.now()}`,
+            studentGrade: '小学四年级',
+            needSummary: '希望报名正式课程',
+            privacyConsent: true,
+            initialMessage: '请帮我报名正式课程'
+          },
+          expectStatus: 200
+        });
+        ensure(lead.ok, `http ${lead.status}`);
+        ensure(hasJsonSuccess(lead.payload), 'response success=false');
+        const leadId = `${lead.payload?.data?.lead?.id || ''}`.trim();
+        ensure(leadId, 'lead id missing');
+
+        const conversion = await request({
+          method: 'POST',
+          path: `/api/v1/founder/leads/${encodeURIComponent(leadId)}/convert`,
+          token,
+          body: {
+            studentName: '报名转化测试学生',
+            grade: '四年级',
+            courseId,
+            enroll: '1',
+            paymentStatus: 'paid'
+          },
+          expectStatus: 200
+        });
+        ensure(conversion.ok, `http ${conversion.status}`);
+        ensure(hasJsonSuccess(conversion.payload), 'response success=false');
+        const segments = Array.isArray(conversion.payload?.data?.segments)
+          ? conversion.payload.data.segments
+          : [];
+        ensure(segments.length > 0, 'segments missing');
+        const byStage = Object.fromEntries(segments.map((item) => [item.stage, item]));
+        ensure(Boolean(byStage.student?.status), 'student segment missing');
+        ensure(Boolean(byStage.courseEnrollment?.status), 'courseEnrollment segment missing');
+        ensure(['success', 'failed', 'skipped'].includes(byStage.courseEnrollment.status), 'courseEnrollment status invalid');
+      }
+    },
+    {
       name: 'founder reconciliation',
       role: 'founder',
       ok: async () => {

@@ -41,6 +41,11 @@ const buildCoursePreflightFailure = () => ([
   buildSegment('courseEnrollment', 'failed', '课程不存在或不可报名')
 ]);
 
+const getStageErrorMessage = (error, fallback) => {
+  const message = STR(error?.message || error?.cause?.message);
+  return message ? `${fallback}：${message}` : fallback;
+};
+
 export async function onRequest(context) {
   const ctx = buildApiContext(context);
   const { request, env, params } = ctx;
@@ -157,31 +162,94 @@ export async function onRequest(context) {
     buildSegment('lessonAccount', 'skipped', '当前转化流程未自动创建课时账户')
   ];
 
+  let enrollment;
   if (enrolled && courseId) {
-    await upsertCourseEnrollment(env.DB, {
-      id: '',
-      institutionId: lead.institution_id,
-      courseId,
-      studentId: student.id,
-      status: STR(payload?.enrollmentStatus || 'active'),
-      source: 'founder_convert'
-    });
+    try {
+      enrollment = await upsertCourseEnrollment(env.DB, {
+        id: '',
+        institutionId: lead.institution_id,
+        courseId,
+        studentId: student.id,
+        status: STR(payload?.enrollmentStatus || 'active'),
+        source: 'founder_convert'
+      });
+    } catch (error) {
+      return apiSuccess(
+        {
+          leadId: lead.id,
+          studentId: student.id,
+          courseId,
+          enrolled: false,
+          converted: false,
+          failedStage: 'courseEnrollment',
+          segments: [
+            ...segments,
+            buildSegment('paymentRecord', 'skipped', '课程报名失败，未创建收费记录'),
+            buildSegment('courseEnrollment', 'failed', getStageErrorMessage(error, '课程报名失败'))
+          ],
+          payment: null
+        },
+        ctx
+      );
+    }
+
+    if (!enrollment?.id) {
+      return apiSuccess(
+        {
+          leadId: lead.id,
+          studentId: student.id,
+          courseId,
+          enrolled: false,
+          converted: false,
+          failedStage: 'courseEnrollment',
+          segments: [
+            ...segments,
+            buildSegment('paymentRecord', 'skipped', '课程报名失败，未创建收费记录'),
+            buildSegment('courseEnrollment', 'failed', '课程报名未返回记录')
+          ],
+          payment: null
+        },
+        ctx
+      );
+    }
   }
 
   let payment;
   if (courseId && paymentAmountCents > 0) {
-    payment = await insertPaymentRecord(env.DB, {
-      institutionId: lead.institution_id,
-      studentId: student.id,
-      courseId,
-      amountCents: paymentAmountCents,
-      currency: STR(payload?.currency || 'CNY'),
-      paymentMethod,
-      status: STR(payload?.paymentStatus || 'paid'),
-      paidAt: STR(payload?.paidAt || new Date().toISOString()),
-      notes,
-      orderNo
-    });
+    try {
+      payment = await insertPaymentRecord(env.DB, {
+        institutionId: lead.institution_id,
+        studentId: student.id,
+        courseId,
+        amountCents: paymentAmountCents,
+        currency: STR(payload?.currency || 'CNY'),
+        paymentMethod,
+        status: STR(payload?.paymentStatus || 'paid'),
+        paidAt: STR(payload?.paidAt || new Date().toISOString()),
+        notes,
+        orderNo
+      });
+    } catch (error) {
+      return apiSuccess(
+        {
+          leadId: lead.id,
+          studentId: student.id,
+          courseId: courseId || null,
+          enrolled: Boolean(enrollment?.id),
+          converted: false,
+          failedStage: 'paymentRecord',
+          segments: [
+            ...segments,
+            buildSegment('paymentRecord', 'failed', getStageErrorMessage(error, '收费记录创建失败')),
+            enrolled && courseId
+              ? buildSegment('courseEnrollment', 'success', '已报名课程')
+              : buildSegment('courseEnrollment', 'skipped', '未选择课程报名')
+          ],
+          payment: null
+        },
+        ctx
+      );
+    }
   }
 
   segments.push(payment
