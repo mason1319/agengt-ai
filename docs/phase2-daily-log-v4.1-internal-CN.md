@@ -2,6 +2,13 @@
 
 ## 2026-06-12
 
+- 最新复测记录（Phase2 老师练习下发到学生任务闭环）：新增 1 项老师练习下发到学生今日任务验收
+  - 新增用例：`teacher exercise visible to student today path`
+  - 修复点：新增 `POST /api/v1/teacher/student/{studentId}/exercise`，老师端 AI 练习生成后写入 `student_tasks.task_type=exercise`，学生 `/api/v1/student/today-path` 可读取同一任务。
+  - 验证：`npm run validate:contracts` ✅（77/77）
+  - 验证：`npm test` ✅（28/28）
+  - 验证：`npm run stack:verify` ✅（28/28）
+  - 验证：`npm run build`、`npm run audit:deps`、`npm run audit:dead-code`、`npm run audit:security` ✅
 - 最新复测记录（Phase2 老师反馈家长可见闭环）：新增 1 项老师反馈落库到家长摘要验收
   - 新增用例：`teacher feedback visible to parent summary`
   - 修复点：老师端 AI 反馈生成后 PATCH `/api/v1/institution/lessons` 写入 `lessons.parent_feedback`；家长孩子 summary 返回 `lessonFeedback` / `recentFeedback`；家长首页展示“最近课堂反馈”。

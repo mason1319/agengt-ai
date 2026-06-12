@@ -101,6 +101,7 @@ import {
   submitTeacherAttendanceByCourse,
   updateInstitutionLesson,
   submitTeacherIntervention,
+  assignTeacherExercise,
   loadParentChildren,
   loadChildSummary,
   loadChildCourses,
@@ -1031,6 +1032,7 @@ function TeacherWorkspace({
   onRunAgent,
   onSubmitAttendance,
   onPersistLessonFeedback,
+  onAssignExercise,
   onSubmitIntervention,
   onRefresh,
   loading = false,
@@ -1326,6 +1328,18 @@ function TeacherWorkspace({
         title: output.title || '练习题已同步',
         tasks: Array.isArray(output.tasks) && output.tasks.length ? output.tasks : []
       };
+      const targetStudentId = currentStudent?.id || currentStudent?.studentId || currentLesson.studentId || currentLesson.student_id || '';
+      if (!targetStudentId) {
+        throw new Error('缺少学生ID，无法同步练习题');
+      }
+      await onAssignExercise?.({
+        studentId: targetStudentId,
+        lessonId: currentLesson.id || '',
+        title: exercise.title,
+        tasks: exercise.tasks,
+        topic: currentLesson.topic || '',
+        difficulty: currentLesson.level || 'medium'
+      });
       setActiveState({
         exerciseDone: true,
         status: '练习已同步',
@@ -7850,6 +7864,29 @@ function App() {
     return result?.data?.lesson || null;
   };
 
+  const assignTeacherExerciseTask = async ({
+    studentId = '',
+    lessonId = '',
+    title = '',
+    tasks = [],
+    topic = '',
+    difficulty = ''
+  } = {}) => {
+    const result = await assignTeacherExercise({
+      authToken: initTokenRef.current,
+      studentId,
+      payload: {
+        lessonId,
+        title,
+        tasks,
+        topic,
+        difficulty
+      }
+    });
+    await loadTeacherData().catch(() => {});
+    return result?.data?.task || null;
+  };
+
   const submitTeacherStudentIntervention = async (studentId, payload = {}) => {
     return submitTeacherIntervention({
       authToken: initTokenRef.current,
@@ -8682,6 +8719,7 @@ function App() {
             onRunAgent={invokeAIAgent}
             onSubmitAttendance={submitTeacherCourseAttendance}
             onPersistLessonFeedback={persistTeacherLessonFeedback}
+            onAssignExercise={assignTeacherExerciseTask}
             onSubmitIntervention={submitTeacherStudentIntervention}
             onRefresh={() => loadTeacherData().catch(() => {})}
             loading={teacherDataLoading}
