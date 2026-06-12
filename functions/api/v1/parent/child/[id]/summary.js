@@ -10,7 +10,8 @@ import {
   fetchPaymentRecordsByInstitution,
   fetchStudentCourses,
   fetchReviewByStudent,
-  fetchStudentTasksByStudent
+  fetchStudentTasksByStudent,
+  fetchLessons
 } from '../../../_shared/dbLayer.js';
 import { parseAuthContext } from '../../../_shared/runtimeData.js';
 
@@ -87,6 +88,19 @@ export async function onRequest(context) {
   const tasks = await fetchReviewByStudent(env.DB, childId, institutionId, 50);
   const today = new Date().toISOString().slice(0, 10);
   const todayTasks = await fetchStudentTasksByStudent(env.DB, childId, institutionId, today);
+  const lessons = await fetchLessons(env.DB, { institutionId, studentId: childId, limit: 10 });
+  const lessonFeedback = (lessons?.items || [])
+    .filter((lesson) => STR(lesson.parentFeedback))
+    .slice(0, 5)
+    .map((lesson) => ({
+      id: lesson.id,
+      lessonId: lesson.id,
+      topic: lesson.topic || '',
+      teacherName: lesson.teacherName || '',
+      feedback: lesson.parentFeedback || '',
+      parentFeedback: lesson.parentFeedback || '',
+      createdAt: lesson.createdAt || ''
+    }));
 
   return apiSuccess(
     {
@@ -96,6 +110,8 @@ export async function onRequest(context) {
       lessonAccounts: accounts || [],
       paymentRecords: payments || [],
       todayTasks: todayTasks || [],
+      lessonFeedback,
+      recentFeedback: lessonFeedback,
       recent: (tasks || []).slice(0, 10)
     },
     ctx

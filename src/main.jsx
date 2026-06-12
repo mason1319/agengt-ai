@@ -99,6 +99,7 @@ import {
   loadTeacherStudents,
   loadTeacherExceptions,
   submitTeacherAttendanceByCourse,
+  updateInstitutionLesson,
   submitTeacherIntervention,
   loadParentChildren,
   loadChildSummary,
@@ -1029,6 +1030,7 @@ function TeacherWorkspace({
   exceptions = [],
   onRunAgent,
   onSubmitAttendance,
+  onPersistLessonFeedback,
   onSubmitIntervention,
   onRefresh,
   loading = false,
@@ -1260,14 +1262,22 @@ function TeacherWorkspace({
 
       const output = payload?.output || {};
       const feedbackText = output.content || output.title || '反馈已形成';
+      if (!currentLesson.id) {
+        throw new Error('缺少课程ID，无法同步家长反馈');
+      }
+      await onPersistLessonFeedback?.({
+        lessonId: currentLesson.id,
+        institutionId: currentLesson.institutionId || currentLesson.institution_id || '',
+        parentFeedback: feedbackText
+      });
       setActiveState({
         feedbackDone: true,
-        status: '反馈已形成',
+        status: '反馈已同步',
         feedbackText,
         feedbackSuggestions: Array.isArray(output.suggestions) ? output.suggestions : []
       });
-      onAction?.('teacher', `AI反馈已形成：${currentLesson?.student || '当前课程'}`);
-      setAgentMessage(`AI反馈已形成：${getAIAgentSourceLabel(payload)}`);
+      onAction?.('teacher', `AI反馈已同步家长端：${currentLesson?.student || '当前课程'}`);
+      setAgentMessage(`AI反馈已同步：${getAIAgentSourceLabel(payload)}`);
     } catch (error) {
       onAction?.('teacher', `AI反馈失败：${currentLesson?.student || '当前课程'}`);
       setAgentMessage(`AI反馈失败：${error?.message || '服务异常'}`);
@@ -1610,6 +1620,11 @@ function ParentView({
   const totalPaid = formatCents(totalPaidCents);
   const todayTasks = Array.isArray(summary.todayTasks) ? summary.todayTasks : [];
   const recentRecords = Array.isArray(summary.recent) ? summary.recent : [];
+  const lessonFeedback = Array.isArray(summary.lessonFeedback)
+    ? summary.lessonFeedback
+    : Array.isArray(summary.recentFeedback)
+      ? summary.recentFeedback
+      : [];
   const currentChildId = `${selectedChildId || firstChild?.studentId || firstChild?.id || ''}`.trim();
 
   const refreshParent = () => {
@@ -1687,7 +1702,7 @@ function ParentView({
         <MetricCard icon={BookOpenCheck} label="本周学习" value={`${summary.summary?.doneTasks || 0}项`} note={report.weekLearned} />
         <MetricCard icon={WalletCards} label="剩余课时" value={`${child.hoursLeft}节`} note="到课后可自动保留" tone="yellow" />
         <MetricCard icon={TrendingUp} label="课表课程" value={`${childCourses.length}门`} note={summary.courses?.length ? `当前共 ${summary.courses.length} 门` : '暂无课程数据'} tone="green" />
-        <MetricCard icon={MessageCircleHeart} label="课堂反馈" value={recentRecords.length > 0 ? '已更新' : '未更新'} note={recentRecords[0]?.updatedAt || '待课程跟进更新'} />
+        <MetricCard icon={MessageCircleHeart} label="课堂反馈" value={lessonFeedback.length > 0 ? '已更新' : '未更新'} note={lessonFeedback[0]?.createdAt || '待课程跟进更新'} />
       </div>
 
       <div className="panel wide">
@@ -1762,6 +1777,18 @@ function ParentView({
         <div className="small-note" style={{ marginTop: 8 }}>
           合计金额：{totalPaid}
         </div>
+      </div>
+
+      <div className="panel">
+        <PanelTitle icon={MessageCircleHeart} title="最近课堂反馈" action={`${lessonFeedback.length} 条`} />
+        {lessonFeedback.length === 0 ? <div className="small-note">老师生成并同步后，将在这里展示课堂反馈。</div> : null}
+        {(lessonFeedback || []).slice(0, 5).map((item) => (
+          <div className="pipeline-row" key={item.id || item.lessonId || `${item.topic || ''}-${item.createdAt || ''}`}>
+            <span>{item.createdAt || '刚更新'}</span>
+            <strong>{item.topic || '课堂反馈'}</strong>
+            <small>{item.parentFeedback || item.feedback || '暂无反馈内容'}</small>
+          </div>
+        ))}
       </div>
 
       <div className="panel">
@@ -7804,6 +7831,25 @@ function App() {
     });
   };
 
+  const persistTeacherLessonFeedback = async ({
+    lessonId = '',
+    institutionId = '',
+    parentFeedback = ''
+  } = {}) => {
+    const safeInstitutionId = `${institutionId || runtimeData?.organizations?.[0]?.institutionId || 'inst-star'}`.trim();
+    const result = await updateInstitutionLesson({
+      authToken: initTokenRef.current,
+      role: 'teacher',
+      institutionId: safeInstitutionId,
+      lessonId,
+      patch: {
+        parentFeedback
+      }
+    });
+    await loadTeacherData().catch(() => {});
+    return result?.data?.lesson || null;
+  };
+
   const submitTeacherStudentIntervention = async (studentId, payload = {}) => {
     return submitTeacherIntervention({
       authToken: initTokenRef.current,
@@ -8635,6 +8681,7 @@ function App() {
             exceptions={teacherExceptions}
             onRunAgent={invokeAIAgent}
             onSubmitAttendance={submitTeacherCourseAttendance}
+            onPersistLessonFeedback={persistTeacherLessonFeedback}
             onSubmitIntervention={submitTeacherStudentIntervention}
             onRefresh={() => loadTeacherData().catch(() => {})}
             loading={teacherDataLoading}

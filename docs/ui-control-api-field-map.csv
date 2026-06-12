@@ -70,7 +70,8 @@ POST,/api/v1/teacher/courses/{courseId}/attendance,老师首页,teacher.workspac
 POST,/api/v1/teacher/courses/{courseId}/attendance,老师首页,teacher.workspace.attendance-note,input,点名备注,attendance_records,note,是,submitting
 POST,/api/v1/teacher/courses/{courseId}/attendance,老师首页,teacher.workspace.quick-close,button,提交当前课程点名闭环并同步到课时,attendance_records;lesson_accounts;lessons,course_id;student_id;status;note;attended_at,是,submitting
 POST,/api/v1/teacher/courses/{courseId}/attendance,老师首页,teacher.workspace.quick-close-all,button,一键完成全部课程闭环,attendance_records;lesson_accounts;lessons,course_id;student_ids;status;note;attended_at,是,submitting
-POST,/api/v1/ai/agent,老师首页,teacher.workspace.feedback,button,生成老师端课堂反馈草稿,ai_audit_logs;ai_usage,action;payload;institution_id;request_id,是,loading
+POST,/api/v1/ai/agent,老师首页,teacher.workspace.feedback,button,生成老师端课堂反馈并准备同步,ai_audit_logs;ai_usage,action;payload;institution_id;request_id,是,loading
+PATCH,/api/v1/institution/lessons,老师首页,teacher.workspace.feedback.sync,button,同步老师课堂反馈给家长端,lessons,id;parent_feedback,是,submitting
 POST,/api/v1/ai/agent,老师首页,teacher.workspace.exercise,button,生成老师端学生练习题草稿,ai_audit_logs;ai_usage,action;payload;institution_id;request_id,是,loading
 POST,/api/v1/teacher/student/{studentId}/intervention,老师首页,teacher.workspace.intervention,button,提交老师干预动作,student_tasks,student_id;intervention_type;action;note;priority;channel,是,submitting
 PATCH,/api/v1/admin/institutions,平台后台,admin.institutions.action,button,执行平台机构动作（冻结/恢复/延长）并回写机构状态,institutions,institution_id;status;plan_code;plan_mode;student_limit;teacher_limit;ai_limit_monthly;trial_ends_at,是,submitting

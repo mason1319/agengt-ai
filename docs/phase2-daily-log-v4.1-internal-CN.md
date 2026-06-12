@@ -2,6 +2,13 @@
 
 ## 2026-06-12
 
+- 最新复测记录（Phase2 老师反馈家长可见闭环）：新增 1 项老师反馈落库到家长摘要验收
+  - 新增用例：`teacher feedback visible to parent summary`
+  - 修复点：老师端 AI 反馈生成后 PATCH `/api/v1/institution/lessons` 写入 `lessons.parent_feedback`；家长孩子 summary 返回 `lessonFeedback` / `recentFeedback`；家长首页展示“最近课堂反馈”。
+  - 验证：`npm run validate:contracts` ✅（76/76）
+  - 验证：`npm test` ✅（27/27）
+  - 验证：`npm run stack:verify` ✅（27/27）
+  - 验证：`npm run build`、`npm run audit:deps`、`npm run audit:dead-code`、`npm run audit:security` ✅
 - 2026-06-12 16:00（线上复核）：绑定域名后的全链路再次收口
   - 命令：`bash ./scripts/smoke-check.sh https://aggieai.me && bash ./scripts/smoke-check.sh https://www.aggieai.me`
   - 结果：`Smoke check passed: 26/26 checks`（两域名）

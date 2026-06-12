@@ -675,6 +675,107 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'teacher feedback visible to parent summary',
+      role: 'teacher',
+      ok: async () => {
+        const teacherToken = roleTokens.teacher;
+        const parentToken = roleTokens.parent;
+        if (!teacherToken || !parentToken) {
+          if (strictMode || !allowSkip) {
+            throw new Error('teacher or parent token unavailable');
+          }
+          printStatus('warn', 'teacher or parent token unavailable, skip');
+          return;
+        }
+
+        const children = await request({
+          method: 'GET',
+          path: '/api/v1/parent/children?limit=10',
+          token: parentToken,
+          expectStatus: 200
+        });
+        ensure(children.ok, `http ${children.status}`);
+        ensure(hasJsonSuccess(children.payload), 'response success=false');
+        const child = (children.payload?.data?.children || [])[0] || {};
+        const childId = `${child.studentId || child.id || ''}`.trim();
+        ensure(childId, 'parent child id missing');
+
+        const teacherStudents = await request({
+          method: 'GET',
+          path: '/api/v1/teacher/students?limit=50',
+          token: teacherToken,
+          expectStatus: 200
+        });
+        ensure(teacherStudents.ok, `http ${teacherStudents.status}`);
+        ensure(hasJsonSuccess(teacherStudents.payload), 'teacher students response success=false');
+        const teacherCanAccessChild = (teacherStudents.payload?.data?.students || []).some((item) => {
+          return `${item.id || item.studentId || ''}`.trim() === childId;
+        });
+        ensure(teacherCanAccessChild, 'teacher cannot access parent child');
+
+        const lessons = await request({
+          method: 'GET',
+          path: `/api/v1/institution/lessons?institutionId=inst-star&studentId=${encodeURIComponent(childId)}&limit=5`,
+          token: teacherToken,
+          expectStatus: 200
+        });
+        ensure(lessons.ok, `http ${lessons.status}`);
+        ensure(hasJsonSuccess(lessons.payload), 'lessons response success=false');
+        let lesson = (lessons.payload?.data?.lessons || [])[0] || null;
+
+        if (!lesson?.id) {
+          const created = await request({
+            method: 'POST',
+            path: '/api/v1/institution/lessons?institutionId=inst-star',
+            token: teacherToken,
+            body: {
+              studentId: childId,
+              status: 'completed',
+              topic: 'Phase2 反馈验收课',
+              hoursUsed: 1,
+              teacherNote: 'Smoke: teacher feedback persistence',
+              parentFeedback: '',
+              autoConsumeHours: false
+            },
+            expectStatus: 200
+          });
+          ensure(created.ok, `http ${created.status}`);
+          ensure(hasJsonSuccess(created.payload), 'create lesson response success=false');
+          lesson = created.payload?.data?.lesson || null;
+        }
+
+        const feedbackText = `Phase2家长可见反馈-${Date.now()}`;
+        const updated = await request({
+          method: 'PATCH',
+          path: '/api/v1/institution/lessons?institutionId=inst-star',
+          token: teacherToken,
+          body: {
+            id: lesson.id,
+            parentFeedback: feedbackText
+          },
+          expectStatus: 200
+        });
+        ensure(updated.ok, `http ${updated.status}`);
+        ensure(hasJsonSuccess(updated.payload), 'update lesson response success=false');
+        ensure(updated.payload?.data?.lesson?.parentFeedback === feedbackText, 'lesson parentFeedback not persisted');
+
+        const summary = await request({
+          method: 'GET',
+          path: `/api/v1/parent/child/${encodeURIComponent(childId)}/summary`,
+          token: parentToken,
+          expectStatus: 200
+        });
+        ensure(summary.ok, `http ${summary.status}`);
+        ensure(hasJsonSuccess(summary.payload), 'parent summary response success=false');
+        const feedbackItems = summary.payload?.data?.lessonFeedback || summary.payload?.data?.recentFeedback || [];
+        ensure(Array.isArray(feedbackItems), 'parent summary lessonFeedback missing array');
+        ensure(
+          feedbackItems.some((item) => `${item.parentFeedback || item.feedback || ''}`.trim() === feedbackText),
+          'parent summary missing persisted teacher feedback'
+        );
+      }
+    },
+    {
       name: 'student today path',
       role: 'student',
       ok: async () => {
