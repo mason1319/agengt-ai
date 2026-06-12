@@ -115,6 +115,8 @@ import {
   loadFounderLeads,
   takeoverFounderLead,
   convertFounderLead,
+  createFounderCourse,
+  updateFounderCourse,
   exportParentChildReport,
   exportStudentProfileReport,
   loginWithCredentials,
@@ -5422,7 +5424,9 @@ function CoursesPage({
   onNavigatePage,
   onRunAIAgent,
   onRefreshCourses,
-  onAction
+  onAction,
+  onCreateCourse,
+  onUpdateCourse
 }) {
   const sourceLessons = activeRole === 'student' && Array.isArray(studentCourses) && studentCourses.length
     ? studentCourses
@@ -5430,6 +5434,7 @@ function CoursesPage({
   const courseCards = Array.isArray(sourceLessons) && sourceLessons.length > 0
     ? sourceLessons.map((item, index) => ({
       ...getCourseDisplay(item, '未排课'),
+      sourceLesson: item,
       id: item.id || item.courseId || item.course_id || `course_${index}`,
       course: item.course || item.name || item.courseName || item.title || '课程项',
       topic: item.topic || item.subject || item.course_type || item.type || '综合英语',
@@ -5441,6 +5446,25 @@ function CoursesPage({
   const [selectedId, setSelectedId] = useState(courseCards[0]?.id);
   const [selectedPathId, setSelectedPathId] = useState('story');
   const [courseDetailMode, setCourseDetailMode] = useState('overview');
+  const [courseDrawerOpen, setCourseDrawerOpen] = useState(false);
+  const [courseDrawerMode, setCourseDrawerMode] = useState('create');
+  const [courseDrawerCourseId, setCourseDrawerCourseId] = useState('');
+  const [courseDrawerSubmitting, setCourseDrawerSubmitting] = useState(false);
+  const [courseDrawerError, setCourseDrawerError] = useState('');
+  const [courseDraft, setCourseDraft] = useState({
+    name: '',
+    grade: '',
+    level: '',
+    classType: 'small',
+    schedule: '',
+    startTime: '',
+    durationMinutes: 90,
+    capacity: 12,
+    priceCents: 0,
+    status: 'active',
+    teacherId: '',
+    imageUrl: ''
+  });
   const currentCourse = courseCards.find((item) => item.id === selectedId) || courseCards[0];
   const currentPath = COURSE_PATH_STEPS.find((item) => item.id === selectedPathId) || COURSE_PATH_STEPS[1];
   const reviewSummary = studentReviewSummary?.summary || studentReviewSummary || {};
@@ -5590,6 +5614,9 @@ function CoursesPage({
     setSelectedId(lesson.id);
     setCourseHint(`当前课程：${lesson.course || lesson.topic || lesson.id}`);
     onAction?.('courses.library.item', `选中课程：${lesson.course || lesson.topic || lesson.id}`);
+    if (activeRole === 'founder') {
+      openCourseDrawer(lesson.sourceLesson || lesson);
+    }
   };
 
   const handleSelectPath = async (path) => {
@@ -5643,6 +5670,85 @@ function CoursesPage({
       onAction?.('courses.overview.refresh', `课程总览刷新失败：${message}`);
     } finally {
       setIsRefreshingCourses(false);
+    }
+  };
+
+  const buildDrawerDraft = (lesson = null) => ({
+    name: `${lesson?.sourceLesson?.name || lesson?.sourceLesson?.course || lesson?.course || lesson?.name || lesson?.courseName || lesson?.title || ''}`.trim(),
+    grade: `${lesson?.sourceLesson?.grade || lesson?.grade || lesson?.gradeAlias || ''}`.trim(),
+    level: `${lesson?.sourceLesson?.level || lesson?.level || ''}`.trim(),
+    classType: `${lesson?.sourceLesson?.classType || lesson?.sourceLesson?.class_type || lesson?.classType || lesson?.class_type || 'small'}`.trim() || 'small',
+    schedule: `${lesson?.sourceLesson?.schedule || lesson?.schedule || ''}`.trim(),
+    startTime: `${lesson?.sourceLesson?.startTime || lesson?.sourceLesson?.start_time || lesson?.startTime || lesson?.start_time || ''}`.trim(),
+    durationMinutes: Number(lesson?.sourceLesson?.durationMinutes || lesson?.sourceLesson?.duration_minutes || lesson?.durationMinutes || lesson?.duration_minutes || 90),
+    capacity: Number(lesson?.sourceLesson?.capacity || lesson?.capacity || 12),
+    priceCents: Number(lesson?.sourceLesson?.priceCents || lesson?.sourceLesson?.price_cents || lesson?.priceCents || lesson?.price_cents || 0),
+    status: `${lesson?.sourceLesson?.status || lesson?.status || 'active'}`.trim() || 'active',
+    teacherId: `${lesson?.sourceLesson?.teacherId || lesson?.sourceLesson?.teacher_id || lesson?.teacherId || lesson?.teacher_id || ''}`.trim(),
+    imageUrl: `${lesson?.sourceLesson?.imageUrl || lesson?.sourceLesson?.image_url || lesson?.imageUrl || lesson?.image_url || ''}`.trim()
+  });
+
+  const openCourseDrawer = (lesson = null) => {
+    const isEditing = Boolean(lesson?.id);
+    setCourseDrawerMode(isEditing ? 'edit' : 'create');
+    setCourseDrawerCourseId(isEditing ? `${lesson.id}`.trim() : '');
+    setCourseDrawerError('');
+    setCourseDrawerOpen(true);
+    setCourseDraft(buildDrawerDraft(lesson));
+  };
+
+  const closeCourseDrawer = () => {
+    setCourseDrawerOpen(false);
+    setCourseDrawerError('');
+    setCourseDrawerSubmitting(false);
+    setCourseDrawerMode('create');
+    setCourseDrawerCourseId('');
+    setCourseDraft(buildDrawerDraft(null));
+  };
+
+  const handleCourseDraftChange = (field, value) => {
+    setCourseDraft((current) => ({
+      ...current,
+      [field]: field === 'durationMinutes' || field === 'capacity' || field === 'priceCents'
+        ? Number(value || 0)
+        : value
+    }));
+  };
+
+  const handleSaveCourse = async () => {
+    const normalizedName = `${courseDraft.name || ''}`.trim();
+    if (!normalizedName) {
+      setCourseDrawerError('课程名称不能为空');
+      return;
+    }
+    if (courseDrawerMode === 'edit' && !courseDrawerCourseId) {
+      setCourseDrawerError('课程ID缺失，无法保存');
+      return;
+    }
+    const savePayload = {
+      ...courseDraft,
+      name: normalizedName,
+      id: courseDrawerCourseId || undefined,
+      courseId: courseDrawerCourseId || undefined
+    };
+
+    setCourseDrawerSubmitting(true);
+    setCourseDrawerError('');
+    try {
+      if (courseDrawerMode === 'edit') {
+        await onUpdateCourse?.(savePayload);
+      } else {
+        await onCreateCourse?.(savePayload);
+      }
+      onAction?.(
+        'courses.library.refresh',
+        courseDrawerMode === 'edit' ? `更新课程：${normalizedName}` : `创建课程：${normalizedName}`
+      );
+      closeCourseDrawer();
+    } catch (error) {
+      setCourseDrawerError(error instanceof Error ? error.message : '课程保存失败');
+    } finally {
+      setCourseDrawerSubmitting(false);
     }
   };
 
@@ -5835,19 +5941,26 @@ function CoursesPage({
               <span>在读课程</span>
               <h3>课程表明细（班型/时间/收费标准）</h3>
             </div>
-            <button
-              className="row-action"
-              onClick={async () => {
-                const refreshed = await refreshCoursesContext('courses.library.refresh', '课程列表');
-                if (!refreshed) {
-                  return;
-                }
-                onAction?.('courses.library.refresh', '查看课程列表');
-                onNavigatePage?.('courses');
-              }}
-            >
-              展开课程表
-            </button>
+            <div className="hero-chip-row" style={{ justifyContent: 'flex-end' }}>
+              {activeRole === 'founder' ? (
+                <button className="row-action" onClick={() => openCourseDrawer(null)}>
+                  新建课程
+                </button>
+              ) : null}
+              <button
+                className="row-action"
+                onClick={async () => {
+                  const refreshed = await refreshCoursesContext('courses.library.refresh', '课程列表');
+                  if (!refreshed) {
+                    return;
+                  }
+                  onAction?.('courses.library.refresh', '查看课程列表');
+                  onNavigatePage?.('courses');
+                }}
+              >
+                展开课程表
+              </button>
+            </div>
           </div>
           {courseCards.length === 0 ? (
             <div className="small-note">课程尚未下发，请在课程表设置中完成发布。</div>
@@ -5866,6 +5979,7 @@ function CoursesPage({
                 <p>{lesson.topic}</p>
                 <small>{lesson.grade} · {lesson.classType} · {lesson.fee}</small>
                 <small className="small-note">{lesson.student} · {lesson.time}</small>
+                {activeRole === 'founder' ? <small className="small-note">点击可编辑</small> : null}
               </button>
             ))}
           </div>
@@ -5891,6 +6005,117 @@ function CoursesPage({
           ))}
         </div>
       </section>
+
+      {activeRole === 'founder' && courseDrawerOpen ? (
+        <div className="drawer-backdrop" role="dialog" aria-modal="true" aria-label={courseDrawerMode === 'edit' ? '编辑课程' : '新建课程'}>
+          <aside className="drawer-panel">
+            <div className="drawer-header">
+              <div>
+                <span>{courseDrawerMode === 'edit' ? '编辑课程' : '新建课程'}</span>
+                <h3>{courseDrawerMode === 'edit' ? courseDraft.name || '未命名课程' : '创建一门新课程'}</h3>
+              </div>
+              <button className="row-action ghost" onClick={closeCourseDrawer}>关闭</button>
+            </div>
+            <div className="drawer-body">
+              <label className="drawer-field">
+                <span>课程名称</span>
+                <input value={courseDraft.name} onChange={(event) => handleCourseDraftChange('name', event.target.value)} />
+              </label>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>年级</span>
+                  <input value={courseDraft.grade} onChange={(event) => handleCourseDraftChange('grade', event.target.value)} />
+                </label>
+                <label className="drawer-field">
+                  <span>班型</span>
+                  <select value={courseDraft.classType} onChange={(event) => handleCourseDraftChange('classType', event.target.value)}>
+                    <option value="small">小班课</option>
+                    <option value="one_to_one">一对一</option>
+                    <option value="large">大班课</option>
+                  </select>
+                </label>
+              </div>
+              <label className="drawer-field">
+                <span>课程级别</span>
+                <input value={courseDraft.level} onChange={(event) => handleCourseDraftChange('level', event.target.value)} />
+              </label>
+              <label className="drawer-field">
+                <span>课程安排</span>
+                <textarea value={courseDraft.schedule} onChange={(event) => handleCourseDraftChange('schedule', event.target.value)} rows={3} />
+              </label>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>开课时间</span>
+                  <input
+                    type="datetime-local"
+                    value={courseDraft.startTime}
+                    onChange={(event) => handleCourseDraftChange('startTime', event.target.value)}
+                  />
+                </label>
+                <label className="drawer-field">
+                  <span>课时长度</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={courseDraft.durationMinutes}
+                    onChange={(event) => handleCourseDraftChange('durationMinutes', event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>名额</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={courseDraft.capacity}
+                    onChange={(event) => handleCourseDraftChange('capacity', event.target.value)}
+                  />
+                </label>
+                <label className="drawer-field">
+                  <span>收费标准（分）</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={courseDraft.priceCents}
+                    onChange={(event) => handleCourseDraftChange('priceCents', event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>状态</span>
+                  <select value={courseDraft.status} onChange={(event) => handleCourseDraftChange('status', event.target.value)}>
+                    <option value="active">进行中</option>
+                    <option value="paused">已暂停</option>
+                    <option value="closed">已结课</option>
+                  </select>
+                </label>
+                <label className="drawer-field">
+                  <span>老师ID</span>
+                  <input value={courseDraft.teacherId} onChange={(event) => handleCourseDraftChange('teacherId', event.target.value)} />
+                </label>
+              </div>
+              <label className="drawer-field">
+                <span>封面地址</span>
+                <input value={courseDraft.imageUrl} onChange={(event) => handleCourseDraftChange('imageUrl', event.target.value)} />
+              </label>
+              {courseDrawerError ? <div className="drawer-error">{courseDrawerError}</div> : null}
+            </div>
+            <div className="drawer-footer">
+              <div className="small-note">
+                {courseDrawerMode === 'edit' ? `课程ID：${courseDrawerCourseId}` : '新课程会写入课程库并同步到公开课程列表'}
+              </div>
+              <div className="hero-chip-row">
+                <button className="row-action ghost" onClick={closeCourseDrawer} disabled={courseDrawerSubmitting}>取消</button>
+                <button className="row-action" onClick={() => void handleSaveCourse()} disabled={courseDrawerSubmitting}>
+                  {courseDrawerSubmitting ? '保存中...' : '保存课程'}
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -8200,6 +8425,33 @@ function App() {
     payload
   });
 
+  const createFounderCourseRecord = async (payload = {}) => {
+    const result = await createFounderCourse({
+      authToken: initTokenRef.current,
+      payload: {
+        ...payload,
+        institutionId: payload.institutionId || runtimeData?.organizations?.[0]?.id || runtimeData?.organizations?.[0]?.institutionId || ''
+      }
+    });
+    await Promise.all([
+      loadFounderData(founderFilters).catch(() => {}),
+      loadPublicCourses().catch(() => {})
+    ]);
+    return result;
+  };
+
+  const updateFounderCourseRecord = async (payload = {}) => {
+    const result = await updateFounderCourse({
+      authToken: initTokenRef.current,
+      payload
+    });
+    await Promise.all([
+      loadFounderData(founderFilters).catch(() => {}),
+      loadPublicCourses().catch(() => {})
+    ]);
+    return result;
+  };
+
   const loadRoleData = async () => {
     if (!isAuthenticated || !isApiMode()) {
       return;
@@ -9039,6 +9291,8 @@ function App() {
             selectedCourseId={pageContext.selectedCourseId || ''}
             onNavigatePage={switchPage}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
+            onCreateCourse={activeRole === 'founder' ? createFounderCourseRecord : null}
+            onUpdateCourse={activeRole === 'founder' ? updateFounderCourseRecord : null}
             onRefreshCourses={
               activeRole === 'student'
                 ? () => loadStudentData().catch(() => {})

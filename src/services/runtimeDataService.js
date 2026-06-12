@@ -2355,6 +2355,128 @@ export async function loadFounderCourses({
   });
 }
 
+export async function createFounderCourse({
+  authToken,
+  payload = {}
+} = {}) {
+  const normalizedName = `${payload.name || ''}`.trim();
+  const normalizedInstitutionId = `${payload.institutionId || ''}`.trim();
+  const normalizedCourse = {
+    institutionId: normalizedInstitutionId,
+    teacherId: `${payload.teacherId || ''}`.trim(),
+    name: normalizedName,
+    grade: `${payload.grade || ''}`.trim(),
+    level: `${payload.level || ''}`.trim(),
+    classType: `${payload.classType || ''}`.trim(),
+    schedule: `${payload.schedule || ''}`.trim(),
+    startTime: `${payload.startTime || ''}`.trim(),
+    durationMinutes: toIntSafe(payload.durationMinutes, 90),
+    capacity: toIntSafe(payload.capacity, 12),
+    priceCents: toIntSafe(payload.priceCents, 0),
+    status: `${payload.status || 'active'}`.trim(),
+    imageUrl: `${payload.imageUrl || ''}`.trim()
+  };
+
+  if (!normalizedName) {
+    throw new Error('name is required');
+  }
+  if (!normalizedInstitutionId && !shouldUseDemoFallback(authToken)) {
+    throw new Error('institutionId is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        created: true,
+        course: {
+          id: `course-${Date.now()}`,
+          ...normalizedCourse
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/founder/courses',
+    token: trimEnv(authToken),
+    role: 'founder',
+    body: normalizedCourse
+  });
+}
+
+export async function updateFounderCourse({
+  authToken,
+  payload = {}
+} = {}) {
+  const courseId = `${payload.id || payload.courseId || ''}`.trim();
+  if (!courseId) {
+    throw new Error('courseId is required');
+  }
+
+  const patch = {
+    id: courseId
+  };
+  if (payload.teacherId !== undefined) {
+    patch.teacherId = `${payload.teacherId || ''}`.trim();
+  }
+  if (payload.name !== undefined) {
+    patch.name = `${payload.name || ''}`.trim();
+  }
+  if (payload.grade !== undefined) {
+    patch.grade = `${payload.grade || ''}`.trim();
+  }
+  if (payload.level !== undefined) {
+    patch.level = `${payload.level || ''}`.trim();
+  }
+  if (payload.classType !== undefined) {
+    patch.classType = `${payload.classType || ''}`.trim();
+  }
+  if (payload.schedule !== undefined) {
+    patch.schedule = `${payload.schedule || ''}`.trim();
+  }
+  if (payload.startTime !== undefined) {
+    patch.startTime = `${payload.startTime || ''}`.trim();
+  }
+  if (payload.durationMinutes !== undefined) {
+    patch.durationMinutes = toIntSafe(payload.durationMinutes, 90);
+  }
+  if (payload.capacity !== undefined) {
+    patch.capacity = toIntSafe(payload.capacity, 12);
+  }
+  if (payload.priceCents !== undefined) {
+    patch.priceCents = toIntSafe(payload.priceCents, 0);
+  }
+  if (payload.status !== undefined) {
+    patch.status = `${payload.status || ''}`.trim();
+  }
+  if (payload.imageUrl !== undefined) {
+    patch.imageUrl = `${payload.imageUrl || ''}`.trim();
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        updated: true,
+        course: {
+          id: courseId,
+          ...patch
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'PATCH',
+    path: '/v1/founder/courses',
+    token: trimEnv(authToken),
+    role: 'founder',
+    body: patch
+  });
+}
+
 export async function loadFounderPaymentRecords({
   authToken,
   filters = {}

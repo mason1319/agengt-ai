@@ -2124,7 +2124,7 @@ const insertCourseRaw = async (db, payload = {}) => {
       `INSERT INTO courses
        (id, institution_id, teacher_id, name, grade, level, class_type, schedule, start_time,
         duration_minutes, capacity, price_cents, currency, status, image_url)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`
     )
     .bind(
       id,

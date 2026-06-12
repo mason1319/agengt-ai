@@ -755,6 +755,115 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'founder course drawer create/edit flow',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const cockpit = await request({
+          method: 'GET',
+          path: '/api/v1/founder/cockpit?courseStatus=active',
+          token,
+          expectStatus: 200
+        });
+        ensure(cockpit.ok, `http ${cockpit.status}`);
+        ensure(hasJsonSuccess(cockpit.payload), 'response success=false');
+        const institutionId = `${cockpit.payload?.data?.institution?.id || ''}`.trim();
+        ensure(Boolean(institutionId), 'founder cockpit institution id missing');
+
+        const tag = Date.now();
+        const createPayload = {
+          institutionId,
+          teacherId: '',
+          name: `SMOKE 课程抽屉 ${tag}`,
+          grade: '五年级',
+          level: '基础',
+          classType: 'small',
+          schedule: `第 ${tag % 100} 周周三 19:30`,
+          startTime: new Date(Date.now() + 3600_000).toISOString().slice(0, 16),
+          durationMinutes: 90,
+          capacity: 12,
+          priceCents: 18800,
+          status: 'active',
+          imageUrl: ''
+        };
+
+        const created = await request({
+          method: 'POST',
+          path: '/api/v1/founder/courses',
+          token,
+          body: createPayload,
+          expectStatus: 200
+        });
+        ensure(created.ok, `http ${created.status}`);
+        ensure(hasJsonSuccess(created.payload), 'response success=false');
+        const createdCourse = created.payload?.data?.course || {};
+        const courseId = `${createdCourse.id || ''}`.trim();
+        ensure(courseId, 'created course id missing');
+        ensure(`${createdCourse.name || ''}`.trim() === createPayload.name, 'created course name mismatch');
+
+        const patchedName = `SMOKE 课程抽屉 ${tag} - 已更新`;
+        const updated = await request({
+          method: 'PATCH',
+          path: '/api/v1/founder/courses',
+          token,
+          body: {
+            id: courseId,
+            name: patchedName,
+            grade: '六年级',
+            level: '进阶',
+            classType: 'one_to_one',
+            schedule: `第 ${tag % 100} 周周五 20:00`,
+            startTime: new Date(Date.now() + 7200_000).toISOString().slice(0, 16),
+            priceCents: 20800,
+            capacity: 8,
+            status: 'active'
+          },
+          expectStatus: 200
+        });
+        ensure(updated.ok, `http ${updated.status}`);
+        ensure(hasJsonSuccess(updated.payload), 'response success=false');
+        const updatedCourse = updated.payload?.data?.course || {};
+        ensure(`${updatedCourse.id || ''}`.trim() === courseId, 'updated course id mismatch');
+        ensure(`${updatedCourse.name || ''}`.trim() === patchedName, 'updated course name mismatch');
+
+        const founderList = await request({
+          method: 'GET',
+          path: `/api/v1/founder/courses?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(founderList.ok, `http ${founderList.status}`);
+        ensure(hasJsonSuccess(founderList.payload), 'response success=false');
+        const founderCourses = Array.isArray(founderList.payload?.data?.courses)
+          ? founderList.payload.data.courses
+          : [];
+        const founderMatch = founderCourses.find((item) => `${item.id || ''}`.trim() === courseId);
+        ensure(Boolean(founderMatch), 'created course missing from founder list');
+        ensure(`${founderMatch?.name || ''}`.trim() === patchedName, 'founder list did not reflect update');
+
+        const publicList = await request({
+          method: 'GET',
+          path: '/api/v1/public/courses?limit=200',
+          expectStatus: 200
+        });
+        ensure(publicList.ok, `http ${publicList.status}`);
+        ensure(hasJsonSuccess(publicList.payload), 'response success=false');
+        const publicCourses = Array.isArray(publicList.payload?.data?.courses)
+          ? publicList.payload.data.courses
+          : [];
+        const publicMatch = publicCourses.find((item) => `${item.id || ''}`.trim() === courseId || `${item.name || ''}`.trim() === patchedName);
+        ensure(Boolean(publicMatch), 'created course missing from public list');
+      }
+    },
+    {
       name: 'founder lesson account adjustment requires reason',
       role: 'founder',
       ok: async () => {
