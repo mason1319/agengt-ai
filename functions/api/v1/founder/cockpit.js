@@ -68,7 +68,7 @@ export async function onRequest(context) {
   })) || [];
   const leads = (await fetchLeadsByInstitution(env.DB, {
     institutionId,
-    status: STR(parsed.searchParams.get('leadStatus')), 
+    status: STR(parsed.searchParams.get('leadStatus')),
     limit: 200,
     offset: 0
   })) || [];

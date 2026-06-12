@@ -1,9 +1,9 @@
 # 星伴英语（StarMate English）第一阶段架构方案（v1.0）
 
-**项目**：星伴英语（StarMate English）  
-**阶段**：Phase 1（内部可用）  
-**技术栈**：React + Vite + Cloudflare Pages/Functions + D1 + R2  
-**日期**：2026-06-06  
+**项目**：星伴英语（StarMate English）
+**阶段**：Phase 1（内部可用）
+**技术栈**：React + Vite + Cloudflare Pages/Functions + D1 + R2
+**日期**：2026-06-06
 **边界声明**：第一阶段不设计数据库表结构、不过度实现 UI 细节，仅输出可直接执行架构框架与部署方案。
 
 ## 1. 架构目标

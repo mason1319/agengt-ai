@@ -2977,7 +2977,7 @@ function PlatformAiPage({
                 <small>{selectedAgent?.for || '选择智能体能力'}</small>
               </div>
               <span className={`pill tiny ${selectedAgentAction ? 'success' : 'muted'}`}>
-                {selectedAgentAction ? '可执行' : '待选择'} 
+                {selectedAgentAction ? '可执行' : '待选择'}
               </span>
             </div>
             <p>{selectedAgent?.desc || '选择后可直接执行并查看结果。'}</p>

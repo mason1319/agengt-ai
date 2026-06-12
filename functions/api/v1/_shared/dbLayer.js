@@ -457,7 +457,7 @@ function safeParseDb(fn) {
 const fetchInstitutionByIdRaw = async (db, institutionId) => {
   const row = await db
     .prepare(
-      `SELECT i.*, 
+      `SELECT i.*,
          (SELECT COUNT(1) FROM students s WHERE s.institution_id = i.id) AS student_count,
          (SELECT COUNT(1) FROM users u WHERE u.institution_id = i.id AND u.role = 'teacher') AS teacher_count
        FROM institutions i
@@ -477,7 +477,7 @@ const fetchInstitutionByIdRaw = async (db, institutionId) => {
 const fetchOrganizationsForPlatformRaw = async (db) => {
   const { results } = await db
     .prepare(
-      `SELECT i.*, 
+      `SELECT i.*,
          (SELECT COUNT(1) FROM students s WHERE s.institution_id = i.id) AS student_count,
          (SELECT COUNT(1) FROM users u WHERE u.institution_id = i.id AND u.role = 'teacher') AS teacher_count
        FROM institutions i
@@ -491,7 +491,7 @@ const fetchOrganizationsForPlatformRaw = async (db) => {
 const fetchPlatformSummaryRaw = async (db) => {
   const { results } = await db
     .prepare(
-      `SELECT 
+      `SELECT
          (SELECT COUNT(1) FROM institutions) AS institution_total,
          (SELECT COUNT(1) FROM institutions WHERE status = 'expired') AS expired_count,
          (SELECT COUNT(1) FROM institutions WHERE status IN ('normal', 'trial')) AS active_like,
@@ -2312,7 +2312,7 @@ const insertLeadMessageRaw = async (db, payload = {}) => {
 
   await db
     .prepare(
-      `INSERT INTO lead_messages (id, lead_id, actor_role, sender, message, tone) 
+      `INSERT INTO lead_messages (id, lead_id, actor_role, sender, message, tone)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
     )
     .bind(id, leadId, actorRole, sender, message, tone)

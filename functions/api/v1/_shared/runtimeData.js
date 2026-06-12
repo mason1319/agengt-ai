@@ -103,7 +103,7 @@ export const DEMO_USERS = [
     password: 'Founder@123',
     role: 'founder',
     name: '星伴英语本部',
-    institutionId: 'inst-star' 
+    institutionId: 'inst-star'
   },
   {
     id: 'u_teacher_01',
