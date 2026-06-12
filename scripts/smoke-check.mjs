@@ -776,6 +776,65 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'teacher exercise visible to student today path',
+      role: 'teacher',
+      ok: async () => {
+        const teacherToken = roleTokens.teacher;
+        const studentToken = roleTokens.student;
+        if (!teacherToken || !studentToken) {
+          if (strictMode || !allowSkip) {
+            throw new Error('teacher or student token unavailable');
+          }
+          printStatus('warn', 'teacher or student token unavailable, skip');
+          return;
+        }
+
+        const before = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token: studentToken,
+          expectStatus: 200
+        });
+        ensure(before.ok, `http ${before.status}`);
+        ensure(hasJsonSuccess(before.payload), 'student today response success=false');
+        const studentId = `${before.payload?.data?.studentId || ''}`.trim();
+        ensure(studentId, 'student id missing');
+
+        const title = `Phase2练习下发-${Date.now()}`;
+        const assigned = await request({
+          method: 'POST',
+          path: `/api/v1/teacher/student/${encodeURIComponent(studentId)}/exercise`,
+          token: teacherToken,
+          body: {
+            title,
+            tasks: ['完成 3 句跟读', '整理 5 个关键词'],
+            lessonId: 'smoke-lesson',
+            topic: 'Phase2 练习下发验收',
+            difficulty: 'medium'
+          },
+          expectStatus: 200
+        });
+        ensure(assigned.ok, `http ${assigned.status}`);
+        ensure(hasJsonSuccess(assigned.payload), 'assign exercise response success=false');
+        ensure(assigned.payload?.data?.task?.title === title, 'assigned exercise title mismatch');
+
+        const after = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token: studentToken,
+          expectStatus: 200
+        });
+        ensure(after.ok, `http ${after.status}`);
+        ensure(hasJsonSuccess(after.payload), 'student today response success=false');
+        const tasks = after.payload?.data?.tasks || [];
+        ensure(Array.isArray(tasks), 'student today tasks missing array');
+        ensure(
+          tasks.some((item) => `${item.title || ''}`.trim() === title && `${item.taskType || item.task_type || ''}`.trim() === 'exercise'),
+          'student today path missing assigned exercise'
+        );
+      }
+    },
+    {
       name: 'student today path',
       role: 'student',
       ok: async () => {

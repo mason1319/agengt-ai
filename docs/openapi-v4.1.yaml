@@ -421,6 +421,45 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiResponse' }
 
+  /api/v1/teacher/student/{studentId}/exercise:
+    post:
+      summary: 下发老师生成的练习题
+      tags: [teacher]
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: 练习任务标题
+                tasks:
+                  type: array
+                  items: { type: string }
+                  description: 题目或练习步骤
+                lessonId:
+                  type: string
+                  description: 来源课次 ID
+                topic:
+                  type: string
+                  description: 来源课程主题
+                difficulty:
+                  type: string
+                  description: 难度
+      responses:
+        '200':
+          description: 练习下发结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
   /api/v1/teacher/courses:
     get:
       summary: 老师课程列表

@@ -1992,6 +1992,51 @@ export async function submitTeacherIntervention({
   });
 }
 
+export async function assignTeacherExercise({
+  authToken,
+  studentId,
+  payload = {}
+} = {}) {
+  const safeStudentId = `${studentId || payload.studentId || ''}`.trim();
+  if (!safeStudentId) {
+    throw new Error('studentId is required');
+  }
+
+  const taskPayload = {
+    title: `${payload.title || '课后练习'}`.trim(),
+    tasks: Array.isArray(payload.tasks)
+      ? payload.tasks.map((item) => `${item || ''}`.trim()).filter(Boolean)
+      : [],
+    lessonId: `${payload.lessonId || ''}`.trim(),
+    topic: `${payload.topic || ''}`.trim(),
+    difficulty: `${payload.difficulty || 'medium'}`.trim()
+  };
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        studentId: safeStudentId,
+        task: {
+          id: `exercise-${Date.now()}`,
+          taskType: 'exercise',
+          title: taskPayload.title,
+          status: 'pending',
+          payload: taskPayload
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: `/v1/teacher/student/${encodeURIComponent(safeStudentId)}/exercise`,
+    token: trimEnv(authToken),
+    role: 'teacher',
+    body: taskPayload
+  });
+}
+
 export async function loadParentChildren({
   authToken,
   filters = {}

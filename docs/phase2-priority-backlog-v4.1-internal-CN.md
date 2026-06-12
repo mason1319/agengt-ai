@@ -107,6 +107,11 @@
 - 学生提交后，复盘/错题或今日任务状态有可见变化。
 - smoke 增加一项“老师练习下发 -> 学生任务读取”。
 
+当前进展：
+- 2026-06-12 已新增 `POST /api/v1/teacher/student/{studentId}/exercise`，复用 `student_tasks.task_type=exercise`。
+- 老师端 AI 练习生成后会同步写入学生今日任务。
+- 本地 `npm test` 已新增并通过 `teacher exercise visible to student today path` 验收。
+
 ### P1-3：课时调整审计原因与扣减明细
 
 来源：
