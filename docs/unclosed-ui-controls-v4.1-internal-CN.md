@@ -44,7 +44,7 @@
 |---|---|---|---|---|
 | `teacher.workspace.feedback` | 老师工作台 | AI 可生成课堂反馈 | 反馈文本不落库为家长可见记录 | 写入 `lessons.parent_feedback` 或沟通记录表 |
 | `teacher.workspace.exercise` | 老师工作台 | AI 可生成练习题 | 练习题只在当前状态展示，不下发到学生任务 | 写入 `student_tasks` 并带课程/老师来源 |
-| `teacher.workspace.quick-close-all` | 老师工作台 | 可批量完成课程闭环 | 批量失败时缺少逐条错误展示 | 返回逐项结果，前端展示失败学生/课程 |
+| `teacher.workspace.quick-close-all` | 老师工作台 | 可批量完成课程闭环 | 已补逐条失败明细展示 | 保留逐项结果与失败学生/课程提示 |
 | `teacher.course.attendance.submit` | 老师点名/消课 | 可提交到课记录并同步课时 | 扣课时规则只展示规则文本，缺少最终扣减明细确认 | 提交后显示本次扣减小时数和课时余额 |
 
 ## 5. 创始人端

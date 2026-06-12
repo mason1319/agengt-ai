@@ -1194,6 +1194,7 @@ function TeacherWorkspace({
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [teacherMessage, setTeacherMessage] = useState('');
   const [bulkClosing, setBulkClosing] = useState(false);
+  const [bulkCloseReport, setBulkCloseReport] = useState([]);
   const [agentBusy, setAgentBusy] = useState({
     feedback: false,
     exercise: false
@@ -1329,27 +1330,47 @@ function TeacherWorkspace({
       return;
     }
     setBulkClosing(true);
+    setBulkCloseReport([]);
     try {
-      const results = await Promise.allSettled(
+      const results = await Promise.all(
         visibleLessons.map(async (lesson) => {
           if (!onSubmitAttendance) {
             throw new Error('缺少点名接口');
           }
-          await onSubmitAttendance(lesson.id, {
-            studentId: lesson.studentId || lesson.student_id || '',
-            status: attendanceStatus || 'attended',
-            sourceLessonId: lesson.id,
-        note: attendanceNote || '教师课时记录（批量）',
-            teacherId: lesson.teacherId || ''
-          });
-          return lesson.id;
+
+          try {
+            const result = await onSubmitAttendance(lesson.id, {
+              studentId: lesson.studentId || lesson.student_id || '',
+              status: attendanceStatus || 'attended',
+              sourceLessonId: lesson.id,
+              note: attendanceNote || '教师课时记录（批量）',
+              teacherId: lesson.teacherId || ''
+            });
+            const summary = result?.data?.summary || {};
+            const shortages = Array.isArray(summary.shortages) ? summary.shortages : [];
+            const deductions = Array.isArray(summary.lessons) ? summary.lessons : [];
+            return {
+              status: shortages.length > 0 ? 'partial' : 'ok',
+              lessonId: lesson.id,
+              lessonTitle: lesson.student || lesson.studentName || lesson.course || lesson.topic || lesson.id,
+              shortages,
+              deduction: deductions.find((item) => `${item.studentId || ''}`.trim() === `${lesson.studentId || lesson.student_id || ''}`.trim()) || deductions[0] || null
+            };
+          } catch (error) {
+            return {
+              status: 'failed',
+              lessonId: lesson.id,
+              lessonTitle: lesson.student || lesson.studentName || lesson.course || lesson.topic || lesson.id,
+              error: error instanceof Error ? error.message : '批量记录失败'
+            };
+          }
         })
       );
 
-      const succeededIds = results
-        .filter((item) => item.status === 'fulfilled')
-        .map((item) => item.value);
-      const failedCount = results.length - succeededIds.length;
+      const succeededIds = results.filter((item) => item.status === 'ok' || item.status === 'partial').map((item) => item.lessonId);
+      const failedItems = results.filter((item) => item.status !== 'ok');
+      const failedCount = failedItems.length;
+      setBulkCloseReport(failedItems);
 
       setLessonStates((prev) => {
         const nextStates = { ...prev };
@@ -1369,8 +1390,19 @@ function TeacherWorkspace({
       });
 
       if (failedCount > 0) {
+        const failedNames = failedItems.slice(0, 3).map((item) => item.lessonTitle).filter(Boolean).join('、');
+        const failedReasons = failedItems.slice(0, 3).map((item) => {
+          if (item.status === 'partial') {
+            const shortageText = (item.shortages || []).map((shortage) => shortage.reason || '课时不足').join('；');
+            return `${item.lessonTitle}：${shortageText || '部分失败'}`;
+          }
+          return `${item.lessonTitle}：${item.error || '处理失败'}`;
+        });
         onAction?.('teacher', `批量记录完成：${succeededIds.length}/${visibleLessons.length} 节，${failedCount}条失败`);
-        setTeacherMessage(`批量记录部分失败：${failedCount} 条未写入`);
+        setTeacherMessage(`批量记录部分失败：${failedCount} 条未写入${failedNames ? `（${failedNames}）` : ''}`);
+        if (failedReasons.length > 0) {
+          setBulkCloseReport(failedItems);
+        }
       } else {
         onAction?.('teacher', `批量记录 ${visibleLessons.length} 节课程`);
         setTeacherMessage(`批量记录完成：${visibleLessons.length} 节`);
@@ -1675,6 +1707,18 @@ function TeacherWorkspace({
               {activeState.exerciseDone ? '练习题已同步' : 'AI生成练习题'}
             </button>
         </div>
+        {bulkCloseReport.length > 0 ? (
+          <div className="small-note" style={{ marginTop: 8 }}>
+            <strong>批量处理明细：</strong>
+            {bulkCloseReport.map((item) => {
+              if (item.status === 'partial') {
+                const shortageText = (item.shortages || []).map((shortage) => shortage.reason || '课时不足').filter(Boolean).join('；');
+                return `${item.lessonTitle}${shortageText ? `（${shortageText}）` : ''}`;
+              }
+              return `${item.lessonTitle}${item.error ? `（${item.error}）` : ''}`;
+            }).join('、')}
+          </div>
+        ) : null}
         <div className="ai-output">
           {activeState.feedbackText || '当前无未完成课程，可继续处理授权学生。'}
             {activeState.feedbackSuggestions.length > 0 ? (

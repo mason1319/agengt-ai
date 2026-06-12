@@ -176,6 +176,11 @@
   - 收口：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `student.path.item`、`courses.path.continue` 已改为已收口
   - 验证：`npm run validate:contracts`、`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
 
+- 2026-06-12 23:45（Phase 2 老师批量闭环）：`teacher.workspace.quick-close-all` 失败明细补齐
+  - 代码：老师工作台批量完成课程闭环改为收集逐项结果，批量失败时在界面展示失败课程与失败原因
+  - 收口：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `teacher.workspace.quick-close-all` 已改为已收口
+  - 验证：`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
+
 - 2026-06-12 21:09（Phase 2 P2-2）：收费记录筛选与导出字段一致
   - 代码：创始人收费记录补齐学员 / 课程 / 日期范围筛选，后端 `payment_records` 关联 `students` / `courses` 返回名称字段
   - 代码：创始人经营台新增收费记录筛选区和 CSV 导出，导出字段与页面展示口径一致
