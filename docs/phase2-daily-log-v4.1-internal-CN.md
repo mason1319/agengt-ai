@@ -156,3 +156,11 @@
 - 2026-06-12 08:16（补充改造）：`npm run verify:smoke`（后端停止环境）
   - 结果：19/26，首次报错明确提示“后端未就绪，建议先执行 npm run stack:verify”
   - 风险结论：`verify:smoke` 误报问题已降低，运维可直接根据提示分辨健康检查与鉴权验证场景。
+
+- 2026-06-12 20:51（Phase 2 P2-1）：课程表创建/编辑抽屉上线
+  - 代码：课程页新增 founder 角色课程抽屉，支持 `POST /api/v1/founder/courses` 创建与 `PATCH /api/v1/founder/courses` 更新
+  - 修复：课程插入 SQL 占位符缺口已修正，避免创建时 `14 values for 15 columns` 失败
+  - 校验：`npm run validate:contracts`、`npm run typecheck`、`npm run build`、本地 `bash ./scripts/smoke-check.sh http://127.0.0.1:8787` ✅
+  - 页面验证：`http://127.0.0.1:8787/?role=founder` 进入课程中心后，`新建课程` 抽屉与编辑态抽屉均已通过截图核验
+  - 发布：Cloudflare Pages 部署完成，预览 URL `https://3fdfbbdb.starmate-english-saas.pages.dev`
+  - 线上校验：对上述 Pages URL 重新执行 smoke，`33/33` 通过
