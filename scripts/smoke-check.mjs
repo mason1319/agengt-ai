@@ -352,6 +352,7 @@ async function runPhase2Smoke() {
         ensure(hasJsonSuccess(booking.payload), 'response success=false');
         ensure(Boolean(booking.payload?.data?.booking?.id), 'booking id missing');
         ensure(booking.payload?.data?.status === 'pending', 'booking status should be pending');
+        ensure(`${booking.payload?.data?.courseSummary?.id || ''}`.trim() === courseId, 'courseSummary.id should match selected courseId');
       }
     }
   ];
@@ -561,6 +562,64 @@ async function runPhase2Smoke() {
         ensure(leads.ok, `http ${leads.status}`);
         ensure(hasJsonSuccess(leads.payload), 'response success=false');
         ensure(Array.isArray(leads.payload?.data?.items), 'founder leads items missing');
+      }
+    },
+    {
+      name: 'founder lead convert returns segmented course enrollment failure',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const lead = await request({
+          method: 'POST',
+          path: '/api/v1/public/leads',
+          body: {
+            institutionId: 'inst-star',
+            guardianName: `分段转化家长-${Date.now()}`,
+            studentGrade: '小学四年级',
+            needSummary: '希望转正式课程',
+            privacyConsent: true,
+            initialMessage: '请帮我转正式学员'
+          },
+          expectStatus: 200
+        });
+        ensure(lead.ok, `http ${lead.status}`);
+        ensure(hasJsonSuccess(lead.payload), 'response success=false');
+        const leadId = `${lead.payload?.data?.lead?.id || ''}`.trim();
+        ensure(leadId, 'lead id missing');
+
+        const conversion = await request({
+          method: 'POST',
+          path: `/api/v1/founder/leads/${encodeURIComponent(leadId)}/convert`,
+          token,
+          body: {
+            studentName: '分段转化测试学生',
+            grade: '四年级',
+            courseId: `missing-course-${Date.now()}`,
+            enroll: '1',
+            paymentStatus: 'paid'
+          },
+          expectStatus: 200
+        });
+        ensure(conversion.ok, `http ${conversion.status}`);
+        ensure(hasJsonSuccess(conversion.payload), 'response success=false');
+        ensure(conversion.payload?.data?.converted === false, 'converted should be false');
+        const segments = Array.isArray(conversion.payload?.data?.segments)
+          ? conversion.payload.data.segments
+          : [];
+        ensure(segments.length > 0, 'segments missing');
+        const byStage = Object.fromEntries(segments.map((item) => [item.stage, item]));
+        ensure(byStage.courseEnrollment?.status === 'failed', 'courseEnrollment should fail');
+        ensure(byStage.student?.status === 'skipped', 'student should be skipped');
+        ensure(byStage.lessonAccount?.status === 'skipped', 'lessonAccount should be skipped');
+        ensure(byStage.paymentRecord?.status === 'skipped', 'paymentRecord should be skipped');
       }
     },
     {
