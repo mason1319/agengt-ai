@@ -20,7 +20,7 @@
 ## 线上可达性检查
 - `https://aggieai.me`：HTTP/2 200
 - `https://www.aggieai.me`：HTTP/2 200
-- 部署新版本 URL（本次发布）：`https://396c6265.starmate-english-saas.pages.dev`（HTTP/2 200）
+- 部署新版本 URL（本次发布）：`https://bfb688ed.starmate-english-saas.pages.dev`（HTTP/2 200）
 - 线上冒烟：预览域名、主域名、www 域名均通过（26/26）
 - 线上浏览器点检：学生/家长关键页面通过，控制台与网络无 4xx/5xx 异常
 

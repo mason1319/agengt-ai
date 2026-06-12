@@ -7,7 +7,7 @@
 - `npm run stack:verify`：通过（26/26）
 - 部署命令：`npm run cf:deploy:ensure`
 - 部署结果：成功
-- 最新部署站点：`https://396c6265.starmate-english-saas.pages.dev`
+- 最新部署站点：`https://bfb688ed.starmate-english-saas.pages.dev`
 
 ## 二、域名与可访问性
 - 页面域名绑定核验：
@@ -17,7 +17,7 @@
 - 连通性检查：
   - `https://aggieai.me`：HTTP/2 200
   - `https://www.aggieai.me`：HTTP/2 200
-  - `https://396c6265.starmate-english-saas.pages.dev`：HTTP/2 200
+  - `https://bfb688ed.starmate-english-saas.pages.dev`：HTTP/2 200
 
 ## 三、关键路径页面返回
 - `https://aggieai.me/admin`：HTTP/2 301 跳转 `/admin/`

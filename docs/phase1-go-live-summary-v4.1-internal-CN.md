@@ -28,6 +28,6 @@
 - 已执行：`npm run stack:verify`
 - 上线命令：`npm run cf:deploy:ensure`
 - 站点：`https://aggieai.me` / `https://www.aggieai.me`
-- 最新生产部署：`https://396c6265.starmate-english-saas.pages.dev`
+- 最新生产部署：`https://bfb688ed.starmate-english-saas.pages.dev`
 - 发布后冒烟：预览域名、主域名、www 域名均通过（26/26）
 - 发布后浏览器点检：学生/家长关键页面与移动端首页通过，控制台和网络无异常

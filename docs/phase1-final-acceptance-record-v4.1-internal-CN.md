@@ -42,7 +42,7 @@
   - 学生首页练习卡可带 `practiceModuleId` 定位练习页默认模块。
   - 家长进入练习页为只读核对视角，不直接提交、重置或生成学生练习。
 - Cloudflare 生产发布已完成：
-  - 新生产部署：`https://396c6265.starmate-english-saas.pages.dev`
+  - 新生产部署：`https://bfb688ed.starmate-english-saas.pages.dev`
   - 生产域名：`https://aggieai.me`、`https://www.aggieai.me`
   - 线上冒烟：预览域名、主域名、www 域名均通过（`26/26`）
 - 只读角色文化墙请求已收敛：

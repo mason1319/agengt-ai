@@ -2,7 +2,7 @@
 
 **日期**：2026-06-12
 **当前线上域名**：`https://aggieai.me` / `https://www.aggieai.me`
-**最新 Cloudflare 生产部署**：`https://396c6265.starmate-english-saas.pages.dev`
+**最新 Cloudflare 生产部署**：`https://bfb688ed.starmate-english-saas.pages.dev`
 **最新交付包**：`delivery/web/StarMate-English-Web-20260612_180153`
 **latest 指针**：`delivery/web/latest -> StarMate-English-Web-20260612_180153`
 
@@ -34,7 +34,7 @@ chore: close phase1 delivery and publish cloudflare build
 - `npm run typecheck`：通过
 - `npm run build`：通过
 - `npm run audit:security`：通过
-- `bash ./scripts/smoke-check.sh https://396c6265.starmate-english-saas.pages.dev`：通过（26/26）
+- `bash ./scripts/smoke-check.sh https://bfb688ed.starmate-english-saas.pages.dev`：通过（26/26）
 - `bash ./scripts/smoke-check.sh https://aggieai.me`：通过（26/26）
 - `bash ./scripts/smoke-check.sh https://www.aggieai.me`：通过（26/26）
 - 线上浏览器点检：通过（13/13）

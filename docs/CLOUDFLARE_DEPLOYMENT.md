@@ -335,3 +335,21 @@ npm run cf:deploy:ensure
   - 浏览器控制台：无 error/warning/pageerror
   - 浏览器网络：无 4xx/5xx/requestfailed
   - 结果文件：`output/playwright/phase1-live-browser-check.json`
+
+## 15. 2026-06-12 PR 合并后主分支发布记录（已完成）
+
+- 触发背景：GitHub PR #1 合并后，在 `main` 分支重新发布，确保 Cloudflare Pages 部署 Source 对齐合并提交。
+- GitHub 合并提交：`cc53331`
+- 发布命令：`npm run cf:deploy:ensure`
+- Cloudflare Pages 项目：`starmate-english-saas`
+- 最新生产部署：`https://bfb688ed.starmate-english-saas.pages.dev`
+- 部署 ID：`bfb688ed-ab8a-4ebf-99ca-fb61bf8c5c50`
+- 环境：Production
+- 分支：`main`
+- Source：`cc53331`
+- 生产资源确认：
+  - `https://aggieai.me` 当前构建资源：`index-DXIqghCc.js`、`index-DXDonB5e.css`
+- 发布后 API 冒烟：
+  - `bash ./scripts/smoke-check.sh https://bfb688ed.starmate-english-saas.pages.dev` -> 通过（`26/26`）
+  - `bash ./scripts/smoke-check.sh https://aggieai.me` -> 通过（`26/26`）
+  - `bash ./scripts/smoke-check.sh https://www.aggieai.me` -> 通过（`26/26`）

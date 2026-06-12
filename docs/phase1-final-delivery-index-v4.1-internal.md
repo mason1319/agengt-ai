@@ -30,7 +30,7 @@
 - 线上部署：
   - 域名：`https://aggieai.me`
   - 域名：`https://www.aggieai.me`
-  - 最新生产部署：`https://396c6265.starmate-english-saas.pages.dev`
+  - 最新生产部署：`https://bfb688ed.starmate-english-saas.pages.dev`
 - 交付包：
   - 目录：`delivery/web/latest`
   - 说明文件：`delivery/web/latest/README.txt`
