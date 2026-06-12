@@ -1,0 +1,13 @@
+{
+  "name": "Aggie速记英语",
+  "short_name": "Aggie速记英语",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1f3d",
+  "theme_color": "#0b1f3d",
+  "description": "Aggie速记英语 AI 英语学习与家校协同系统",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "zh-CN",
+  "icons": []
+}

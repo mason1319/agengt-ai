@@ -1,0 +1,1823 @@
+openapi: 3.0.3
+info:
+  title: StarMate English API v4.1
+  version: 4.1.2
+  description: |
+    第一阶段（内部自用）API 合同。
+    范围：公开招生入口 + 学生/老师/家长/创始人闭环 + 管理台（平台内侧）+ 审计与AI工具。
+servers:
+  - url: https://localhost
+    description: Cloudflare Pages Functions
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: 账号登录
+      description: 支持演示角色或正式账号密码登录。
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginPayload'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/health:
+    get:
+      summary: 服务健康检查
+      tags: [system]
+      security: []
+      responses:
+        '200':
+          description: 健康状态
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/bootstrap:
+    get:
+      summary: 角色启动数据
+      tags: [system]
+      responses:
+        '200':
+          description: 首屏聚合数据
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/portal:
+    get:
+      summary: 门户聚合数据
+      tags: [system]
+      responses:
+        '200':
+          description: 门户展示数据
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/me:
+    get:
+      summary: 当前登录人信息
+      tags: [system]
+      responses:
+        '200':
+          description: 用户信息
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/public/courses:
+    get:
+      summary: 获取公开课程列表
+      tags: [public]
+      security: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: grade
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: classType
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 课程列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/public/courses/{id}:
+    get:
+      summary: 获取公开课程详情
+      tags: [public]
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 课程详情
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/public/leads:
+    get:
+      summary: 平台可见咨询线索列表（用于运营排查）
+      tags: [public]
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        '200':
+          description: 线索列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    post:
+      summary: 提交公开咨询线索
+      tags: [public]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicLeadPayload'
+      responses:
+        '200':
+          description: 提交结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/public/leads/{leadId}/ai-reply:
+    post:
+      summary: AI 回复咨询线索（模拟优先）
+      tags: [public]
+      security: []
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadAiReplyPayload'
+      responses:
+        '200':
+          description: 回复结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/public/trial-bookings:
+    post:
+      summary: 提交试听预约
+      tags: [public]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrialBookingPayload'
+      responses:
+        '200':
+          description: 预约结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/student/today-path:
+    get:
+      summary: 学生今日学习路径
+      tags: [student]
+      responses:
+        '200':
+          description: 今日任务和状态
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/student/voice-practice/assess:
+    post:
+      summary: 语音对练评分
+      tags: [student]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceAssessPayload'
+      responses:
+        '200':
+          description: 评分结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/student/review/{type}:
+    get:
+      summary: 学习复盘
+      tags: [student]
+      parameters:
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [summary, mistakes, history]
+      responses:
+        '200':
+          description: 复盘结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/student/courses:
+    get:
+      summary: 学生课程列表
+      tags: [student]
+      responses:
+        '200':
+          description: 已报课程
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/student/lesson-account:
+    get:
+      summary: 学生课时账户
+      tags: [student]
+      responses:
+        '200':
+          description: 课时余额
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/student/report-export:
+    get:
+      summary: 学生阶段报告导出
+      tags: [student]
+      parameters:
+        - in: query
+          name: studentId
+          schema: { type: string }
+      responses:
+        '200':
+          description: 报告内容
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/teacher/students:
+    get:
+      summary: 老师可见学生
+      tags: [teacher]
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 学生列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/teacher/exceptions:
+    get:
+      summary: 获取课次异常列表
+      tags: [teacher]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: courseId
+          schema: { type: string }
+        - in: query
+          name: studentId
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 课次异常列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    post:
+      summary: 上报/新增课次异常
+      tags: [teacher]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherExceptionPayload'
+      responses:
+        '200':
+          description: 异常提交
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/teacher/student/{studentId}/detail:
+    get:
+      summary: 获取学生详情
+      tags: [teacher]
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 学生详情
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/teacher/student/{studentId}/intervention:
+    post:
+      summary: 提交教师干预
+      tags: [teacher]
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [interventionType, action, note]
+              properties:
+                interventionType:
+                  type: string
+                  description: 干预类型
+                action:
+                  type: string
+                  description: 具体行动建议
+                note:
+                  type: string
+                  description: 处理说明
+                dueAt:
+                  type: string
+                  format: date-time
+                  description: 计划完成截止时间
+                priority:
+                  type: string
+                  enum: [low, medium, high]
+                  description: 优先级
+                channel:
+                  type: string
+                  description: 干预来源
+      responses:
+        '200':
+          description: 干预提交结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/teacher/courses:
+    get:
+      summary: 老师课程列表
+      tags: [teacher]
+      parameters:
+        - in: query
+          name: grade
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: classType
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 课程列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/teacher/courses/{courseId}/attendance:
+    get:
+      summary: 获取课程点名表
+      tags: [teacher]
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 学生点名明细
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    post:
+      summary: 一键消课（到课/迟到/缺课）
+      tags: [teacher]
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherAttendancePayload'
+      responses:
+        '200':
+          description: 点名处理结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/parent/children:
+    get:
+      summary: 家长绑定孩子列表
+      tags: [parent]
+      responses:
+        '200':
+          description: 孩子列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/parent/child/{id}/summary:
+    get:
+      summary: 孩子学习汇总
+      tags: [parent]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 学习与出勤摘要
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/parent/child/{id}/report-export:
+    get:
+      summary: 家长阶段报告导出
+      tags: [parent]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: institutionId
+          schema: { type: string }
+      responses:
+        '200':
+          description: 报告内容
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/parent/child/{id}/courses:
+    get:
+      summary: 孩子课程列表
+      tags: [parent]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 课程安排
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/parent/child/{id}/lesson-account:
+    get:
+      summary: 孩子课时账户
+      tags: [parent]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 课时与余额
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/parent/child/{id}/payment-records:
+    get:
+      summary: 孩子缴费记录
+      tags: [parent]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+      responses:
+        '200':
+          description: 缴费记录
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/cockpit:
+    get:
+      summary: 创始人经营驾驶舱
+      tags: [founder]
+      parameters:
+        - in: query
+          name: courseStatus
+          schema: { type: string }
+        - in: query
+          name: leadStatus
+          schema: { type: string }
+        - in: query
+          name: paymentStatus
+          schema: { type: string }
+        - in: query
+          name: startAt
+          schema: { type: string }
+        - in: query
+          name: endAt
+          schema: { type: string }
+        - in: query
+          name: aiStartAt
+          schema: { type: string }
+        - in: query
+          name: aiEndAt
+          schema: { type: string }
+      responses:
+        '200':
+          description: 经营总览
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/courses:
+    get:
+      summary: 创始人课程管理
+      tags: [founder]
+      parameters:
+        - in: query
+          name: grade
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: classType
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 课程管理列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    post:
+      summary: 新建课程
+      tags: [founder]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoursePayload'
+      responses:
+        '200':
+          description: 创建结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    patch:
+      summary: 修改课程
+      tags: [founder]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoursePatchPayload'
+      responses:
+        '200':
+          description: 修改结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/payment-records:
+    get:
+      summary: 创始人缴费记录
+      tags: [founder]
+      parameters:
+        - in: query
+          name: studentId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 缴费记录列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/lesson-accounts:
+    get:
+      summary: 创始人课时账户
+      tags: [founder]
+      parameters:
+        - in: query
+          name: studentId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 课时账户列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    post:
+      summary: 调整课时/新增课时
+      tags: [founder]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonAccountAdjustPayload'
+      responses:
+        '200':
+          description: 调整结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/ai-usage:
+    get:
+      summary: 创始人 AI 用量查询
+      tags: [founder]
+      parameters:
+        - in: query
+          name: startAt
+          schema: { type: string, format: date-time }
+        - in: query
+          name: endAt
+          schema: { type: string, format: date-time }
+        - in: query
+          name: includeUsers
+          schema:
+            type: boolean
+        - in: query
+          name: userLimit
+          schema: { type: integer }
+      responses:
+        '200':
+          description: AI 用量汇总
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/attendance-records:
+    get:
+      summary: 点名与上课记录
+      tags: [founder]
+      parameters:
+        - in: query
+          name: studentId
+          schema: { type: string }
+        - in: query
+          name: courseId
+          schema: { type: string }
+        - in: query
+          name: startAt
+          schema: { type: string }
+        - in: query
+          name: endAt
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 点名记录列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/leads:
+    get:
+      summary: 创始人咨询线索列表
+      tags: [founder]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 线索列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    post:
+      summary: 新建咨询线索
+      tags: [founder]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicLeadPayload'
+      responses:
+        '200':
+          description: 创建结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    patch:
+      summary: 批量更新线索状态
+      tags: [founder]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadPatchPayload'
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/leads/{leadId}:
+    patch:
+      summary: 单条线索更新
+      tags: [founder]
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadPatchPayload'
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/leads/{leadId}/takeover:
+    post:
+      summary: 咨询线索人工接管
+      tags: [founder]
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadTakeoverPayload'
+      responses:
+        '200':
+          description: 接管结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/founder/leads/{leadId}/convert:
+    post:
+      summary: 咨询线索转正式学生
+      tags: [founder]
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadConvertPayload'
+      responses:
+        '200':
+          description: 转换结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/admin/institutions:
+    get:
+      summary: 平台机构列表（含分页）
+      tags: [admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+      responses:
+        '200':
+          description: 机构列表
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      summary: 更新机构状态/额度
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstitutionUpdatePayload'
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      summary: 创建/同步机构记录
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstitutionUpdatePayload'
+      responses:
+        '200':
+          description: 创建结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/admin/institutions-export:
+    get:
+      summary: 平台机构运营周报导出
+      tags: [admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: includeExpired
+          schema: { type: boolean }
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        '200':
+          description: 导出结果（内容文件）
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/admin/culture-wall:
+    get:
+      summary: 获取/下载文化墙素材
+      tags: [admin]
+      parameters:
+        - in: query
+          name: kind
+          schema: { type: string }
+        - in: query
+          name: mediaKey
+          schema: { type: string }
+      responses:
+        '200':
+          description: 素材列表或流数据
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    post:
+      summary: 新增文化墙素材
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: 新增结果
+          content:
+            application/json:
+              schema: { type: object }
+    delete:
+      summary: 删除文化墙素材
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CultureWallDeletePayload'
+      responses:
+        '200':
+          description: 删除结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/institution/leads:
+    get:
+      summary: 查询机构线索
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 线索列表
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      summary: 新增机构线索
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [guardianName]
+              properties:
+                institutionId: { type: string }
+                guardianName: { type: string }
+                studentGrade: { type: string }
+                needSummary: { type: string }
+                status: { type: string }
+                aiRecommendation: { type: string }
+      responses:
+        '200':
+          description: 新增结果
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      summary: 更新机构线索
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                status: { type: string }
+                studentGrade: { type: string }
+                needSummary: { type: string }
+                aiRecommendation: { type: string }
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/institution/lessons:
+    get:
+      summary: 查询机构课次
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: lessonId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: studentId
+          schema: { type: string }
+        - in: query
+          name: teacherId
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 课次列表或单条课次
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      summary: 新增课次
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [studentId]
+              properties:
+                institutionId: { type: string }
+                studentId: { type: string }
+                teacherId: { type: string }
+                topic: { type: string }
+                status: { type: string }
+                hoursUsed: { type: integer }
+                teacherNote: { type: string }
+                parentFeedback: { type: string }
+                autoConsumeHours: { type: boolean }
+      responses:
+        '200':
+          description: 新增结果
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      summary: 更新课次
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                status: { type: string }
+                teacherNote: { type: string }
+                parentFeedback: { type: string }
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/institution/students:
+    get:
+      summary: 查询机构学员
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: studentId
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 学员列表
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      summary: 新增学员
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [institutionId, name, grade]
+              properties:
+                institutionId: { type: string }
+                name: { type: string }
+                grade: { type: string }
+                guardianId: { type: string }
+                guardianName: { type: string }
+                guardianPhone: { type: string }
+                guardianWechat: { type: string }
+                teacherId: { type: string }
+                weaknessPoints: { type: string }
+                renewalRisk: { type: number }
+      responses:
+        '200':
+          description: 新增结果
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      summary: 更新学员
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                name: { type: string }
+                grade: { type: string }
+                teacherId: { type: string }
+                weaknessPoints: { type: string }
+                renewalRisk: { type: number }
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/institution/teachers:
+    get:
+      summary: 查询机构老师
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 老师列表
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      summary: 新增老师
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [institutionId, username, password, name]
+              properties:
+                institutionId: { type: string }
+                id: { type: string }
+                username: { type: string }
+                password: { type: string }
+                name: { type: string }
+                phone: { type: string }
+                email: { type: string }
+                status: { type: string }
+      responses:
+        '200':
+          description: 新增结果
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      summary: 更新老师
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                status: { type: string }
+                phone: { type: string }
+                email: { type: string }
+                name: { type: string }
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/institution/payments:
+    get:
+      summary: 查询机构收费记录
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: paymentId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: planCode
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 收费记录列表或单条记录
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      summary: 新增收费记录
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderNo, institutionId, amountCents]
+              properties:
+                institutionId: { type: string }
+                orderNo: { type: string }
+                userId: { type: string }
+                planCode: { type: string }
+                planMode: { type: string }
+                periodDays: { type: integer }
+                currency: { type: string }
+                status: { type: string }
+                amountCents: { type: integer }
+      responses:
+        '200':
+          description: 新增结果
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      summary: 更新收费记录
+      tags: [institution]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                status: { type: string }
+                paidAt: { type: string }
+                startsAt: { type: string }
+                expiresAt: { type: string }
+      responses:
+        '200':
+          description: 更新结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/admin/ai-audit:
+    get:
+      summary: AI 审计日志查询
+      tags: [admin]
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: role
+          schema: { type: string }
+        - in: query
+          name: decision
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 审计结果
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/admin/ai-audit-export:
+    get:
+      summary: 平台 AI 审计列表导出
+      tags: [admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: role
+          schema: { type: string }
+        - in: query
+          name: decision
+          schema: { type: string }
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        '200':
+          description: 导出结果（内容文件）
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/admin/ai-usage:
+    get:
+      summary: AI 用量监控
+      tags: [admin]
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: includeUsers
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 用量统计
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/admin/ai-usage-export:
+    get:
+      summary: 平台 AI 用量导出
+      tags: [admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: includeUsers
+          schema: { type: boolean }
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        '200':
+          description: 导出结果（内容文件）
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/v1/ai/agent:
+    post:
+      summary: AI 智能体服务
+      tags: [ai]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiAgentPayload'
+      responses:
+        '200':
+          description: AI 生成结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/v1/institution/permissions:
+    get:
+      summary: 查询机构权限
+      tags: [institution]
+      parameters:
+        - in: query
+          name: institutionId
+          schema: { type: string }
+        - in: query
+          name: userId
+          schema: { type: string }
+      responses:
+        '200':
+          description: 权限列表
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      summary: 授权权限码
+      tags: [institution]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstitutionPermissionPayload'
+      responses:
+        '200':
+          description: 授权结果
+          content:
+            application/json:
+              schema: { type: object }
+    delete:
+      summary: 取消权限码
+      tags: [institution]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstitutionPermissionPayload'
+      responses:
+        '200':
+          description: 取消结果
+          content:
+            application/json:
+              schema: { type: object }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: 业务码（0 表示成功）
+          example: 0
+        message:
+          type: string
+          example: ok
+        data:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
+        trace_id:
+          type: string
+
+    AuthLoginPayload:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [platform, founder, teacher, parent, student] }
+        username: { type: string }
+        password: { type: string }
+
+    PublicLeadPayload:
+      type: object
+      required: [institutionId, guardianName]
+      properties:
+        institutionId: { type: string }
+        guardianName: { type: string }
+        studentGrade: { type: string }
+        needSummary: { type: string }
+        status: { type: string }
+        aiRecommendation: { type: string }
+        privacyConsent: { type: boolean }
+
+    LeadAiReplyPayload:
+      type: object
+      properties:
+        message: { type: string }
+        needSummary: { type: string }
+
+    TrialBookingPayload:
+      type: object
+      required: [leadId, institutionId, courseId, reservedAt]
+      properties:
+        leadId: { type: string }
+        institutionId: { type: string }
+        courseId: { type: string }
+        teacherId: { type: string }
+        reservedAt: { type: string, format: date-time }
+        durationMinutes: { type: integer }
+        sourceChannel: { type: string }
+        notes: { type: string }
+        status: { type: string }
+
+    VoiceAssessPayload:
+      type: object
+      required: [studentId, institutionId, transcript]
+      properties:
+        studentId: { type: string }
+        institutionId: { type: string }
+        transcript: { type: string }
+        taskId: { type: string }
+        score: { type: integer }
+
+    TeacherExceptionPayload:
+      type: object
+      required: [studentId, status]
+      properties:
+        studentId: { type: string }
+        courseId: { type: string }
+        status: { type: string, enum: [absent, late, leave] }
+        note: { type: string }
+
+    TeacherAttendancePayload:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [attended, late, absent, leave] }
+        note: { type: string }
+        sourceLessonId: { type: string }
+        attendedAt: { type: string, format: date-time }
+        studentIds: { type: array, items: { type: string } }
+        studentId: { type: string }
+
+    CoursePayload:
+      type: object
+      required: [name, grade]
+      properties:
+        name: { type: string }
+        grade: { type: string }
+        level: { type: string }
+        classType: { type: string }
+        class_type: { type: string }
+        schedule: { type: string }
+        startTime: { type: string }
+        start_time: { type: string }
+        durationMinutes: { type: integer }
+        duration_minutes: { type: integer }
+        capacity: { type: integer }
+        priceCents: { type: integer }
+        price_cents: { type: integer }
+        status: { type: string }
+        imageUrl: { type: string }
+        image_url: { type: string }
+        teacherId: { type: string }
+
+    CoursePatchPayload:
+      allOf:
+        - $ref: '#/components/schemas/CoursePayload'
+      properties:
+        id: { type: string }
+        courseId: { type: string }
+
+    LessonAccountAdjustPayload:
+      type: object
+      required: [studentId, purchasedHours, amountCents, reason]
+      properties:
+        studentId: { type: string }
+        purchasedHours: { type: integer }
+        amountCents: { type: integer }
+        reason: { type: string }
+        expiresAt: { type: string, format: date-time }
+
+    LeadPatchPayload:
+      type: object
+      required: [leadId]
+      properties:
+        leadId: { type: string }
+        status: { type: string }
+        studentGrade: { type: string }
+        needSummary: { type: string }
+        aiRecommendation: { type: string }
+
+    LeadTakeoverPayload:
+      type: object
+      properties:
+        note: { type: string }
+
+    LeadConvertPayload:
+      type: object
+      required: [studentName, grade]
+      properties:
+        studentName: { type: string }
+        grade: { type: string }
+        teacherId: { type: string }
+        courseId: { type: string }
+        enroll: { type: boolean }
+        enrollmentStatus: { type: string }
+        guardianPhone: { type: string }
+        guardianWechat: { type: string }
+        paymentAmountCents: { type: integer }
+        paymentMethod: { type: string }
+        paymentStatus: { type: string }
+        currency: { type: string }
+        paidAt: { type: string, format: date-time }
+        orderNo: { type: string }
+        renewalRisk: { type: integer }
+        notes: { type: string }
+
+    AiAgentPayload:
+      type: object
+      required: [action, payload]
+      properties:
+        action: { type: string }
+        institutionId: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
+
+    InstitutionUpdatePayload:
+      type: object
+      required: [institutionId]
+      properties:
+        institutionId: { type: string }
+        id: { type: string }
+        status: { type: string }
+        planCode: { type: string }
+        planMode: { type: string }
+        studentLimit: { type: integer }
+        teacherLimit: { type: integer }
+        aiLimitMonthly: { type: integer }
+        action: { type: string }
+        trialEndsAt: { type: string, format: date-time }
+        subscriptionStartsAt: { type: string, format: date-time }
+        subscriptionEndsAt: { type: string, format: date-time }
+
+    InstitutionPermissionPayload:
+      type: object
+      required: [userId, permissionCode]
+      properties:
+        userId: { type: string }
+        permissionCode: { type: string }
+
+    CultureWallDeletePayload:
+      type: object
+      required: [institutionId, id]
+      properties:
+        institutionId: { type: string }
+        id: { type: string }
