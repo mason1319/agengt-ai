@@ -167,11 +167,27 @@ export async function onRequest(context) {
       });
 
       const account = await fetchLatestLessonAccountByStudent(env.DB, studentId);
+      let deduction = {
+        studentId,
+        lesson,
+        account,
+        accountId: account?.id || '',
+        hoursDeducted: 0,
+        beforeRemaining: Number(account?.remaining_hours || account?.remainingHours || 0),
+        afterRemaining: Number(account?.remaining_hours || account?.remainingHours || 0)
+      };
       if (account?.id) {
-        await consumeLessonAccount(env.DB, studentId, account.id, 1);
+        const consumedHours = await consumeLessonAccount(env.DB, studentId, account.id, 1);
+        const updatedAccount = await fetchLatestLessonAccountByStudent(env.DB, studentId);
+        deduction = {
+          ...deduction,
+          account: updatedAccount || account,
+          hoursDeducted: Number(consumedHours || 0),
+          afterRemaining: Number(updatedAccount?.remaining_hours || updatedAccount?.remainingHours || 0)
+        };
       }
 
-      summary.lessons.push({ studentId, lesson, account });
+      summary.lessons.push(deduction);
     }
   }
 

@@ -2,6 +2,14 @@
 
 ## 2026-06-12
 
+- 最新复测记录（Phase2 课时调整审计与扣减明细）：新增 2 项课时审计/消课明细验收
+  - 新增用例：`founder lesson account adjustment requires reason`
+  - 新增用例：`teacher attendance returns deduction detail`
+  - 修复点：创始人课时调整无原因返回 400；老师点名消课返回 `hoursDeducted`、`beforeRemaining`、`afterRemaining`、`accountId`；老师端成功提示展示扣减和剩余课时。
+  - 验证：`npm run validate:contracts` ✅（77/77）
+  - 验证：`npm test` ✅（30/30）
+  - 验证：`npm run stack:verify` ✅（30/30）
+  - 验证：`npm run build`、`npm run lint`、`npm run typecheck`、`npm run audit:deps`、`npm run audit:dead-code`、`npm run audit:security` ✅
 - 最新复测记录（Phase2 老师练习下发到学生任务闭环）：新增 1 项老师练习下发到学生今日任务验收
   - 新增用例：`teacher exercise visible to student today path`
   - 修复点：新增 `POST /api/v1/teacher/student/{studentId}/exercise`，老师端 AI 练习生成后写入 `student_tasks.task_type=exercise`，学生 `/api/v1/student/today-path` 可读取同一任务。

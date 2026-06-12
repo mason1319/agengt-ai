@@ -629,6 +629,140 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'founder lesson account adjustment requires reason',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const students = await request({
+          method: 'GET',
+          path: '/api/v1/institution/students?institutionId=inst-star&limit=1',
+          token,
+          expectStatus: 200
+        });
+        ensure(students.ok, `http ${students.status}`);
+        ensure(hasJsonSuccess(students.payload), 'students response success=false');
+        const student = (students.payload?.data?.students || [])[0] || {};
+        const studentId = `${student.id || student.studentId || ''}`.trim();
+        ensure(studentId, 'student id missing');
+
+        const rejected = await request({
+          method: 'POST',
+          path: '/api/v1/founder/lesson-accounts?institutionId=inst-star',
+          token,
+          body: {
+            studentId,
+            purchasedHours: 1,
+            amountCents: 0
+          },
+          expectStatus: 400
+        });
+        ensure(rejected.ok, `http ${rejected.status}`);
+
+        const reason = `Phase2课时调整验收-${Date.now()}`;
+        const accepted = await request({
+          method: 'POST',
+          path: '/api/v1/founder/lesson-accounts?institutionId=inst-star',
+          token,
+          body: {
+            studentId,
+            purchasedHours: 1,
+            amountCents: 0,
+            reason
+          },
+          expectStatus: 200
+        });
+        ensure(accepted.ok, `http ${accepted.status}`);
+        ensure(hasJsonSuccess(accepted.payload), 'adjust response success=false');
+        const record = accepted.payload?.data?.record || {};
+        ensure(`${accepted.payload?.data?.reason || record.notes || record.reason || ''}`.trim() === reason, 'adjust reason missing');
+      }
+    },
+    {
+      name: 'teacher attendance returns deduction detail',
+      role: 'teacher',
+      ok: async () => {
+        const teacherToken = roleTokens.teacher;
+        const founderToken = roleTokens.founder;
+        const studentToken = roleTokens.student;
+        if (!teacherToken || !founderToken || !studentToken) {
+          if (strictMode || !allowSkip) {
+            throw new Error('teacher, founder or student token unavailable');
+          }
+          printStatus('warn', 'teacher, founder or student token unavailable, skip');
+          return;
+        }
+
+        const todayPath = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token: studentToken,
+          expectStatus: 200
+        });
+        ensure(todayPath.ok, `http ${todayPath.status}`);
+        ensure(hasJsonSuccess(todayPath.payload), 'student today response success=false');
+        const studentId = `${todayPath.payload?.data?.studentId || ''}`.trim();
+        ensure(studentId, 'student id missing');
+
+        const accountReason = `Phase2消课验收预置-${Date.now()}`;
+        const adjusted = await request({
+          method: 'POST',
+          path: '/api/v1/founder/lesson-accounts?institutionId=inst-star',
+          token: founderToken,
+          body: {
+            studentId,
+            purchasedHours: 2,
+            amountCents: 0,
+            reason: accountReason
+          },
+          expectStatus: 200
+        });
+        ensure(adjusted.ok, `http ${adjusted.status}`);
+
+        const courses = await request({
+          method: 'GET',
+          path: '/api/v1/teacher/courses?limit=10',
+          token: teacherToken,
+          expectStatus: 200
+        });
+        ensure(courses.ok, `http ${courses.status}`);
+        ensure(hasJsonSuccess(courses.payload), 'teacher courses response success=false');
+        const course = (courses.payload?.data?.courses || []).find((item) => {
+          return `${item.studentId || item.student_id || ''}`.trim() === studentId;
+        }) || (courses.payload?.data?.courses || [])[0] || {};
+        const courseId = `${course.id || course.courseId || ''}`.trim();
+        ensure(courseId, 'teacher course id missing');
+
+        const attendance = await request({
+          method: 'POST',
+          path: `/api/v1/teacher/courses/${encodeURIComponent(courseId)}/attendance`,
+          token: teacherToken,
+          body: {
+            studentId,
+            status: 'attended',
+            note: 'Phase2扣减明细验收',
+            sourceLessonId: `smoke-deduct-${Date.now()}`
+          },
+          expectStatus: 200
+        });
+        ensure(attendance.ok, `http ${attendance.status}`);
+        ensure(hasJsonSuccess(attendance.payload), 'attendance response success=false');
+        const deduction = (attendance.payload?.data?.summary?.lessons || []).find((item) => {
+          return `${item.studentId || ''}`.trim() === studentId;
+        }) || {};
+        ensure(Number(deduction.hoursDeducted) === 1, 'hoursDeducted should be 1');
+        ensure(Number.isFinite(Number(deduction.beforeRemaining)), 'beforeRemaining missing');
+        ensure(Number.isFinite(Number(deduction.afterRemaining)), 'afterRemaining missing');
+        ensure(Number(deduction.beforeRemaining) - Number(deduction.afterRemaining) === 1, 'deduction balance mismatch');
+      }
+    },
+    {
       name: 'teacher students',
       role: 'teacher',
       ok: async () => {
