@@ -4,9 +4,24 @@ import {
   buildApiContext,
   parseJsonBody
 } from '../_shared/phase1Api.js';
-import { createTrialBooking, fetchLeadMessages } from '../_shared/dbLayer.js';
+import { createTrialBooking, fetchCourseById, fetchLeadMessages } from '../_shared/dbLayer.js';
 
 const STR = (value = '') => `${value || ''}`.trim();
+
+const summarizeCourse = (course = {}) => ({
+  id: STR(course.id),
+  institutionId: STR(course.institutionId),
+  name: STR(course.name),
+  title: STR(course.name),
+  grade: STR(course.grade),
+  level: STR(course.level),
+  classType: STR(course.classType),
+  schedule: STR(course.schedule),
+  startTime: STR(course.startTime),
+  durationMinutes: Number(course.durationMinutes || 0),
+  priceCents: Number(course.priceCents || 0),
+  currency: STR(course.currency || 'CNY')
+});
 
 export async function onRequest(context) {
   const ctx = buildApiContext(context);
@@ -35,6 +50,11 @@ export async function onRequest(context) {
     return apiError('leadId, institutionId, courseId, reservedAt required', 400, 400, ctx);
   }
 
+  const course = await fetchCourseById(env.DB, courseId, institutionId);
+  if (!course?.id) {
+    return apiError('course not found', 404, 404, ctx);
+  }
+
   const booking = await createTrialBooking(env.DB, {
     leadId,
     institutionId,
@@ -56,6 +76,7 @@ export async function onRequest(context) {
   return apiSuccess({
     booking,
     leadId,
-    status: 'pending'
+    status: 'pending',
+    courseSummary: summarizeCourse(course)
   }, ctx);
 }

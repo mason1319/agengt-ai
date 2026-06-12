@@ -709,6 +709,7 @@ function FounderDashboard({
 }) {
   const [leadBusyId, setLeadBusyId] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState('');
+  const [leadConvertSegments, setLeadConvertSegments] = useState({});
   const summary = cockpit || {};
   const leadRows = Array.isArray(leads) ? leads : [];
   const selectedLead = leadRows.find((item) => `${item.id || item.leadId || ''}`.trim() === `${selectedLeadId}`.trim()) || leadRows[0] || null;
@@ -763,13 +764,22 @@ function FounderDashboard({
     const defaultCourseId = `${courses?.[0]?.id || ''}`.trim();
     setLeadBusyId(leadId);
     try {
-      await onConvertLead(leadId, {
+      const payload = await onConvertLead(leadId, {
         studentName: (currentLead?.guardianName || currentLead?.guardian_name) ? `${currentLead.guardianName || currentLead.guardian_name}的孩子` : '新增学员',
         grade: currentLead?.student_grade || currentLead?.studentGrade || '五年级',
         courseId: defaultCourseId,
         enroll: !!defaultCourseId,
         paymentStatus: 'paid'
       });
+      const segments = Array.isArray(payload?.data?.segments)
+        ? payload.data.segments
+        : Array.isArray(payload?.segments)
+          ? payload.segments
+          : [];
+      setLeadConvertSegments((current) => ({
+        ...current,
+        [leadId]: segments
+      }));
       onAction?.('founder', `线索转学员：${leadId}`);
     } catch (error) {
       onAction?.('founder', error?.message || '转学员失败');
@@ -890,33 +900,48 @@ function FounderDashboard({
           const leadId = `${lead.id || lead.leadId}`;
           const isSelected = `${selectedLeadId || ''}`.trim() === leadId || (!selectedLeadId && leadRows[0]?.id === lead.id);
           return (
-            <div className={`pipeline-row ${isSelected ? 'active' : ''}`} key={leadId} onClick={() => setSelectedLeadId(leadId)}>
-              <span>{lead.status || 'new'}</span>
-              <strong>{lead.guardianName || '未填写家长名'}</strong>
-              <small>{lead.student_grade || lead.studentGrade || '五年级'}</small>
-              <span className="pipeline-row-actions">
-                <button
-                  className="row-action"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleTakeover(leadId);
-                  }}
-                  disabled={leadBusyId === leadId}
-                >
-                  {leadBusyId === leadId ? '处理中...' : '接管'}
-                </button>
-                <button
-                  className="row-action"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleConvert(leadId);
-                  }}
-                  disabled={leadBusyId === leadId}
-                >
-                  {leadBusyId === leadId ? '处理中...' : '转正式'}
-                </button>
-              </span>
-            </div>
+            <React.Fragment key={leadId}>
+              <div className={`pipeline-row ${isSelected ? 'active' : ''}`} onClick={() => setSelectedLeadId(leadId)}>
+                <span>{lead.status || 'new'}</span>
+                <strong>{lead.guardianName || '未填写家长名'}</strong>
+                <small>{lead.student_grade || lead.studentGrade || '五年级'}</small>
+                <span className="pipeline-row-actions">
+                  <button
+                    className="row-action"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleTakeover(leadId);
+                    }}
+                    disabled={leadBusyId === leadId}
+                  >
+                    {leadBusyId === leadId ? '处理中...' : '接管'}
+                  </button>
+                  <button
+                    className="row-action"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleConvert(leadId);
+                    }}
+                    disabled={leadBusyId === leadId}
+                  >
+                    {leadBusyId === leadId ? '处理中...' : '转正式'}
+                  </button>
+                </span>
+              </div>
+              {Array.isArray(leadConvertSegments[leadId]) && leadConvertSegments[leadId].length > 0 ? (
+                <div className="alert-list" style={{ margin: '6px 0 12px' }}>
+                  {leadConvertSegments[leadId].map((segment) => (
+                    <div className="alert-row" key={`${leadId}-${segment.stage}`}>
+                      <span className={`status-dot ${segment.status === 'failed' ? 'red' : segment.status === 'skipped' ? 'yellow' : 'green'}`} />
+                      <div>
+                        <strong>{segment.label || segment.stage}</strong>
+                        <small>{segment.status || 'unknown'} · {segment.message || '无补充说明'}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </React.Fragment>
           );
         })}
         {selectedLead ? (
@@ -1021,6 +1046,7 @@ function FounderDashboard({
           <span className="small-note">迟到：{attendanceStatusCounts.late || 0}</span>
         </div>
       </div>
+
     </section>
   );
 }
@@ -1857,6 +1883,12 @@ function StudentView({
   onRefreshCourses,
   onRefreshPractice,
   onSubmitVoiceAssess,
+  publicCourses = [],
+  publicCoursesLoading = false,
+  publicLeadSubmitting = false,
+  onSubmitPublicLead,
+  onSubmitTrialBooking,
+  onRefreshPublicCourses,
   onNavigatePage,
   onAction
 }) {
@@ -1891,6 +1923,11 @@ function StudentView({
   const [taskFeedback, setTaskFeedback] = useState({});
   const [tasks, setTasks] = useState(() => normalizeTasks(todayPath));
   const [taskDrafts, setTaskDrafts] = useState({});
+  const [selectedPublicCourseId, setSelectedPublicCourseId] = useState('');
+  const [trialGuardianName, setTrialGuardianName] = useState('');
+  const [trialLeadId, setTrialLeadId] = useState('');
+  const [trialStatusText, setTrialStatusText] = useState('未提交咨询');
+  const [trialBusy, setTrialBusy] = useState(false);
   useEffect(() => {
     setTasks(normalizeTasks(todayPath));
     setTaskDrafts((prev) => {
@@ -1924,6 +1961,9 @@ function StudentView({
   };
   const historyItems = Array.isArray(reviewHistory) ? reviewHistory : [];
   const mistakeItems = Array.isArray(reviewMistakes) ? reviewMistakes : [];
+  const publicCourseList = Array.isArray(publicCourses) ? publicCourses : [];
+  const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
+  const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
   const taskToneIcons = [BookOpenCheck, Headphones, Mic, Trophy];
   const homePracticeCards = [
     { id: 'words', title: '单词星球', desc: '看图记词 + 发音模仿', note: '适合每天 8 分钟', icon: Headphones },
@@ -1954,6 +1994,12 @@ function StudentView({
       progress
     };
   });
+
+  useEffect(() => {
+    if (!selectedPublicCourseId && publicCourseList[0]?.id) {
+      setSelectedPublicCourseId(`${publicCourseList[0].id}`);
+    }
+  }, [publicCourseList, selectedPublicCourseId]);
 
   const updateDraft = (taskId, value) => {
     setTaskDrafts((prev) => ({
@@ -2056,6 +2102,69 @@ function StudentView({
     };
     onNavigatePage?.('practice', { practiceModuleId: pathPracticeMap[step.id] || 'vocab' });
     onAction?.('student', `打开路径：${step.title}`);
+  };
+
+  const handleSubmitTrialLead = async () => {
+    if (!onSubmitPublicLead || !selectedPublicCourse) {
+      setTrialStatusText('请先选择试听课程');
+      return;
+    }
+    const guardianName = `${trialGuardianName || ''}`.trim();
+    if (!guardianName) {
+      setTrialStatusText('请填写家长姓名');
+      return;
+    }
+    setTrialBusy(true);
+    setTrialStatusText('咨询提交中...');
+    try {
+      const payload = await onSubmitPublicLead({
+        institutionId: `${selectedPublicCourse.institutionId || ''}`.trim(),
+        guardianName,
+        studentGrade,
+        needSummary: `${selectedPublicCourseDisplay?.name || selectedPublicCourse.name || '试听课程'} 咨询`,
+        initialMessage: '我想预约试听',
+        courseId: selectedPublicCourseId
+      });
+      const leadId = `${payload?.data?.lead?.id || payload?.lead?.id || ''}`.trim();
+      setTrialLeadId(leadId);
+      setTrialStatusText(leadId ? `咨询已提交：${leadId}` : '咨询已提交');
+      onAction?.('home', '学生首页提交公开咨询');
+    } catch (error) {
+      setTrialStatusText(error?.message || '咨询提交失败');
+      onAction?.('home', '学生首页公开咨询失败');
+    } finally {
+      setTrialBusy(false);
+    }
+  };
+
+  const handleSubmitTrialBooking = async () => {
+    if (!onSubmitTrialBooking || !selectedPublicCourse) {
+      setTrialStatusText('请先选择试听课程');
+      return;
+    }
+    if (!trialLeadId) {
+      setTrialStatusText('请先提交咨询，再预约试听');
+      return;
+    }
+    setTrialBusy(true);
+    setTrialStatusText('试听预约提交中...');
+    try {
+      await onSubmitTrialBooking({
+        leadId: trialLeadId,
+        institutionId: `${selectedPublicCourse.institutionId || ''}`.trim(),
+        courseId: selectedPublicCourseId,
+        reservedAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        durationMinutes: 60,
+        sourceChannel: 'student_home'
+      });
+      setTrialStatusText('试听预约已提交');
+      onAction?.('home', '学生首页提交试听预约');
+    } catch (error) {
+      setTrialStatusText(error?.message || '试听预约提交失败');
+      onAction?.('home', '学生首页试听预约失败');
+    } finally {
+      setTrialBusy(false);
+    }
   };
 
   const handleOpenCourseCard = async (course) => {
@@ -2445,6 +2554,84 @@ function StudentView({
           ))}
         </div>
       </div>
+
+      <section className="panel home-section">
+        <div className="section-headline">
+          <div>
+            <span>招生入口</span>
+            <h3>公开课程与试听</h3>
+          </div>
+          <button className="row-action" onClick={onRefreshPublicCourses} disabled={!onRefreshPublicCourses || publicCoursesLoading}>
+            {publicCoursesLoading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshPublicCourses}
+          </button>
+        </div>
+        <div className="feature-split home-public-layout">
+          <div className="panel home-course-panel">
+            <div className="home-course-grid">
+              {publicCourseList.length === 0 && !publicCoursesLoading ? <div className="small-note">{UI_COPY.empty.noPublicCourses}</div> : null}
+              {publicCourseList.slice(0, 3).map((course) => {
+                const display = getCourseDisplay(course);
+                const isSelected = `${course.id}`.trim() === `${selectedPublicCourseId}`;
+                return (
+                  <article className="learning-card" key={course.id || display.name}>
+                    <strong>{display.name}</strong>
+                    <p>{normalizeCourseFee(course)}</p>
+                    <div className="course-meta-row">
+                      <span>班型：{display.classType}</span>
+                      <span>时间：{display.time}</span>
+                    </div>
+                    <small>{course.grade || '年级待录入'} · 可预约试听</small>
+                    <button
+                      className={isSelected ? 'row-action ghost' : 'row-action'}
+                      onClick={() => setSelectedPublicCourseId(`${course.id}`)}
+                    >
+                      {isSelected ? '已选中试听课程' : '立即预约试听'}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+          <div className="panel encouragement-panel home-consult-panel">
+            <div className="section-headline">
+              <div>
+                <span>试听咨询</span>
+                <h3>已选课程摘要</h3>
+              </div>
+            </div>
+            {selectedPublicCourse && selectedPublicCourseDisplay ? (
+              <div className="alert-list" style={{ marginBottom: 10 }}>
+                <div className="alert-row">
+                  <span className="status-dot blue" />
+                  <div>
+                    <strong>{selectedPublicCourseDisplay.name}</strong>
+                    <small>{selectedPublicCourse.grade || '年级待录入'} · 班型：{selectedPublicCourseDisplay.classType} · {selectedPublicCourseDisplay.time}</small>
+                    <small>{normalizeCourseFee(selectedPublicCourse)} · 课程ID：{selectedPublicCourse.id}</small>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="small-note">请先选择试听课程</div>
+            )}
+            <label>
+              <span>家长姓名</span>
+              <input value={trialGuardianName} onChange={(event) => setTrialGuardianName(event.target.value)} />
+            </label>
+            <div className="hero-chip-row" style={{ marginTop: 8 }}>
+              <button className="row-action" onClick={handleSubmitTrialLead} disabled={publicLeadSubmitting || trialBusy}>
+                {publicLeadSubmitting || trialBusy ? '提交中...' : '提交咨询'}
+              </button>
+              <button className="row-action" onClick={handleSubmitTrialBooking} disabled={!trialLeadId || trialBusy}>
+                提交试听预约
+              </button>
+            </div>
+            <div className="hero-chip-row" style={{ marginTop: 8 }}>
+              <span className="small-note">咨询状态：{trialStatusText}</span>
+              <span className="small-note">线索ID：{trialLeadId || '—'}</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </section>
   );
 }
@@ -4678,6 +4865,9 @@ function HomePage({
     const fee = `${course.price || course.fee || course.feeLabel || course.monthlyFee || ''}`.trim();
     return { title, grade, duration, fee };
   };
+  const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
+  const selectedPublicCourseInfo = selectedPublicCourse ? resolveCourseText(selectedPublicCourse) : null;
+  const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
 
   const normalizeActionError = (error = {}, fallback = '操作失败') => {
     const raw = `${error?.message || error?.body || '操作失败'}`.trim();
@@ -5061,6 +5251,24 @@ function HomePage({
                 <span className="small-note">咨询状态：{consultStatusText}</span>
                 <span className="small-note">线索ID：{consultLeadId || '—'}</span>
               </div>
+              {selectedPublicCourse && selectedPublicCourseInfo ? (
+                <div className="alert-list" style={{ marginTop: 10 }}>
+                  <div className="alert-row">
+                    <span className="status-dot blue" />
+                    <div>
+                      <strong>{selectedPublicCourseInfo.title}</strong>
+                      <small>
+                        {selectedPublicCourseInfo.grade} · 班型：{selectedPublicCourseDisplay?.classType || '待设置'} · 时长：{selectedPublicCourseInfo.duration}
+                      </small>
+                      <small>
+                        {selectedPublicCourseInfo.fee ? `收费标准：${selectedPublicCourseInfo.fee}` : '收费标准待设置'} · 课程ID：{selectedPublicCourse.id}
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="small-note" style={{ marginTop: 10 }}>请先选择试听课程</div>
+              )}
               <label>
                 <span>咨询内容</span>
                 <textarea value={consultInitialMessage} onChange={(event) => setConsultInitialMessage(event.target.value)} />
@@ -8766,6 +8974,12 @@ function App() {
             onRefreshCourses={() => loadStudentData().catch(() => {})}
             onRefreshPractice={() => loadStudentData().catch(() => {})}
             onSubmitVoiceAssess={submitStudentVoice}
+            publicCourses={publicCourses}
+            publicCoursesLoading={publicCoursesLoading}
+            publicLeadSubmitting={publicLeadSubmitting}
+            onSubmitPublicLead={submitPublicLead}
+            onSubmitTrialBooking={submitTrialBooking}
+            onRefreshPublicCourses={loadPublicCourses}
             onNavigatePage={switchPage}
             onAction={appendOperationLog}
           />

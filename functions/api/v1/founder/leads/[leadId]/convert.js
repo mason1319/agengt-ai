@@ -5,6 +5,7 @@ import {
   parseJsonBody
 } from '../../../_shared/phase1Api.js';
 import {
+  fetchCourseById,
   insertLeadMessage,
   insertPaymentRecord,
   insertStudent,
@@ -18,6 +19,27 @@ const toInt = (value, fallback = 0) => {
   const num = Number(value);
   return Number.isFinite(num) ? Math.max(0, Math.round(num)) : fallback;
 };
+
+const CONVERT_STAGE_LABELS = {
+  student: '学生创建',
+  lessonAccount: '课时账户',
+  paymentRecord: '收费记录',
+  courseEnrollment: '课程报名'
+};
+
+const buildSegment = (stage, status, message = '') => ({
+  stage,
+  label: CONVERT_STAGE_LABELS[stage] || stage,
+  status,
+  message
+});
+
+const buildCoursePreflightFailure = () => ([
+  buildSegment('student', 'skipped', '课程校验未通过，未创建学生'),
+  buildSegment('lessonAccount', 'skipped', '课程校验未通过，未创建课时账户'),
+  buildSegment('paymentRecord', 'skipped', '课程校验未通过，未创建收费记录'),
+  buildSegment('courseEnrollment', 'failed', '课程不存在或不可报名')
+]);
 
 export async function onRequest(context) {
   const ctx = buildApiContext(context);
@@ -78,6 +100,25 @@ export async function onRequest(context) {
   const orderNo = STR(payload?.orderNo);
   const notes = STR(payload?.notes);
 
+  if (enrolled && courseId) {
+    const course = await fetchCourseById(env.DB, courseId, lead.institution_id);
+    if (!course?.id) {
+      return apiSuccess(
+        {
+          leadId: lead.id,
+          studentId: null,
+          courseId,
+          enrolled: false,
+          converted: false,
+          failedStage: 'courseEnrollment',
+          segments: buildCoursePreflightFailure(),
+          payment: null
+        },
+        ctx
+      );
+    }
+  }
+
   const student = await insertStudent(env.DB, {
     institutionId: lead.institution_id,
     name: studentName,
@@ -91,8 +132,30 @@ export async function onRequest(context) {
   });
 
   if (!student?.id) {
-    return apiError('convert to student failed', 500, 500, ctx);
+    return apiSuccess(
+      {
+        leadId: lead.id,
+        studentId: null,
+        courseId: courseId || null,
+        enrolled: false,
+        converted: false,
+        failedStage: 'student',
+        segments: [
+          buildSegment('student', 'failed', '学生创建失败'),
+          buildSegment('lessonAccount', 'skipped', '学生创建失败，未创建课时账户'),
+          buildSegment('paymentRecord', 'skipped', '学生创建失败，未创建收费记录'),
+          buildSegment('courseEnrollment', 'skipped', '学生创建失败，未报名课程')
+        ],
+        payment: null
+      },
+      ctx
+    );
   }
+
+  const segments = [
+    buildSegment('student', 'success', `已创建学生 ${student.id}`),
+    buildSegment('lessonAccount', 'skipped', '当前转化流程未自动创建课时账户')
+  ];
 
   if (enrolled && courseId) {
     await upsertCourseEnrollment(env.DB, {
@@ -121,6 +184,13 @@ export async function onRequest(context) {
     });
   }
 
+  segments.push(payment
+    ? buildSegment('paymentRecord', 'success', `已创建收费记录 ${payment.id || ''}`.trim())
+    : buildSegment('paymentRecord', 'skipped', '未填写收费金额，未创建收费记录'));
+  segments.push(enrolled && courseId
+    ? buildSegment('courseEnrollment', 'success', '已报名课程')
+    : buildSegment('courseEnrollment', 'skipped', '未选择课程报名'));
+
   await updateLead(env.DB, lead.id, lead.institution_id, {
     status: 'converted'
   });
@@ -138,6 +208,9 @@ export async function onRequest(context) {
       studentId: student.id,
       courseId: courseId || null,
       enrolled,
+      converted: true,
+      failedStage: null,
+      segments,
       payment
     },
     ctx

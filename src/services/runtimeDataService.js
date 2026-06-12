@@ -1533,7 +1533,12 @@ export async function createTrialBooking({
           status: 'pending'
         },
         leadId: normalizedLeadId,
-        status: 'pending'
+        status: 'pending',
+        courseSummary: {
+          id: normalizedCourseId,
+          title: '模拟公开课程',
+          name: '模拟公开课程'
+        }
       }
     };
   }
@@ -2535,6 +2540,14 @@ export async function convertFounderLead({
         studentId: `stu-${Date.now()}`,
         courseId: `${payload.courseId || ''}` || null,
         enrolled: true,
+        converted: true,
+        failedStage: null,
+        segments: [
+          { stage: 'student', label: '学生创建', status: 'success', message: '已创建模拟学生' },
+          { stage: 'lessonAccount', label: '课时账户', status: 'skipped', message: '模拟模式未创建课时账户' },
+          { stage: 'paymentRecord', label: '收费记录', status: 'skipped', message: '模拟模式未创建收费记录' },
+          { stage: 'courseEnrollment', label: '课程报名', status: `${payload.courseId || ''}` ? 'success' : 'skipped', message: `${payload.courseId || ''}` ? '已报名模拟课程' : '未选择课程' }
+        ],
         payment: null
       }
     };
