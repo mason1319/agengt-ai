@@ -392,3 +392,22 @@ npm run cf:deploy:ensure
 - 新增验收项：
   - `teacher exercise visible to student today path`
   - 老师写入 `student_tasks.task_type=exercise` 后，学生今日路径返回同一条练习任务。
+
+## 18. 2026-06-12 Phase 2 P1-3 课时审计与扣减明细发布记录（已完成）
+
+- 触发背景：GitHub PR #5 合并后，在 `main` 分支重新发布，确保课时调整原因和老师点名扣减明细上线。
+- GitHub 合并提交：`a0665b5`
+- 发布命令：`npm run cf:deploy:ensure`
+- Cloudflare Pages 项目：`starmate-english-saas`
+- 最新生产部署：`https://2eaf4998.starmate-english-saas.pages.dev`
+- 部署 ID：`2eaf4998-a84c-4251-bd6a-6da9dcfbb79e`
+- 环境：Production
+- 分支：`main`
+- Source：`a0665b5`
+- 发布后 API 冒烟：
+  - `bash ./scripts/smoke-check.sh https://2eaf4998.starmate-english-saas.pages.dev` -> 通过（`30/30`）
+  - `SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` -> 通过（`30/30`）
+  - `SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` -> 通过（`30/30`）
+- 新增验收项：
+  - `founder lesson account adjustment requires reason`
+  - `teacher attendance returns deduction detail`

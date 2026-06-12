@@ -10,6 +10,11 @@
   - 验证：`npm test` ✅（30/30）
   - 验证：`npm run stack:verify` ✅（30/30）
   - 验证：`npm run build`、`npm run lint`、`npm run typecheck`、`npm run audit:deps`、`npm run audit:dead-code`、`npm run audit:security` ✅
+  - PR：GitHub PR #5 已合并，Source `a0665b5`
+  - Cloudflare 发布：`npm run cf:deploy:ensure` ✅，新生产部署 `https://2eaf4998.starmate-english-saas.pages.dev`
+  - 线上验收：`bash ./scripts/smoke-check.sh https://2eaf4998.starmate-english-saas.pages.dev` ✅（30/30）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` ✅（30/30）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` ✅（30/30）
 - 最新复测记录（Phase2 老师练习下发到学生任务闭环）：新增 1 项老师练习下发到学生今日任务验收
   - 新增用例：`teacher exercise visible to student today path`
   - 修复点：新增 `POST /api/v1/teacher/student/{studentId}/exercise`，老师端 AI 练习生成后写入 `student_tasks.task_type=exercise`，学生 `/api/v1/student/today-path` 可读取同一任务。

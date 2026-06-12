@@ -2,7 +2,7 @@
 
 **日期**：2026-06-12  
 **基线版本**：`v4.1-phase1-closeout`  
-**当前线上部署**：`https://b9432c95.starmate-english-saas.pages.dev`  
+**当前线上部署**：`https://2eaf4998.starmate-english-saas.pages.dev`  
 **主域名**：`https://aggieai.me` / `https://www.aggieai.me`
 
 ## 一、阶段原则
