@@ -7255,6 +7255,53 @@ button.ghost,
   gap: 12px;
 }
 
+.profile-sync-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 251, 246, 0.96));
+  border: 1px solid rgba(183, 230, 200, 0.3);
+  box-shadow: 0 12px 22px rgba(117, 179, 143, 0.08);
+}
+
+.profile-sync-strip > div {
+  min-width: 0;
+}
+
+.profile-sync-strip span {
+  display: block;
+  color: #7b9a8a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-sync-strip strong {
+  display: block;
+  margin-top: 4px;
+  color: #184232;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.profile-sync-strip small {
+  display: block;
+  margin-top: 5px;
+  color: rgba(52, 80, 112, 0.76);
+  line-height: 1.5;
+}
+
+.profile-sync-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+}
+
 .profile-course-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

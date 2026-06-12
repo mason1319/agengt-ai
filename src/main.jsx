@@ -6800,6 +6800,7 @@ function ProfilePage({
   onAction,
   onNavigatePage,
   onRefreshCultureWall,
+  lessonAccountSourceLabel = '课时账户接口',
   lessonAccount = {},
   childCourses = []
 }) {
@@ -6808,6 +6809,8 @@ function ProfilePage({
   const [parentMessage, setParentMessage] = useState(report.summary);
   const [feedbacking, setFeedbacking] = useState(false);
   const [parentStatus, setParentStatus] = useState('处理中');
+  const [lessonAccountSyncAt, setLessonAccountSyncAt] = useState('');
+  const [lessonAccountSyncState, setLessonAccountSyncState] = useState('待同步');
   const completedDays = WEEKLY_STREAK.filter((day) => day.done).length;
   const lessonHours = Number(
     child.hoursLeft
@@ -6822,6 +6825,33 @@ function ProfilePage({
     photos: Array.isArray(cultureWall.photos) ? cultureWall.photos.length : 0,
     teachers: Array.isArray(cultureWall.teachers) ? cultureWall.teachers.length : 0,
     feedback: Array.isArray(cultureWall.feedback) ? cultureWall.feedback.length : 0
+  };
+  const lessonAccountSummary = lessonAccount?.summary || {};
+  const lessonAccountSource = `${lessonAccountSourceLabel || '课时账户接口'}`.trim();
+
+  useEffect(() => {
+    const nextAt = new Date().toLocaleString('zh-CN', { hour12: false });
+    setLessonAccountSyncAt(nextAt);
+    setLessonAccountSyncState('已同步');
+  }, [lessonAccount, lessonAccountSourceLabel]);
+
+  const refreshLessonAccount = async () => {
+    if (typeof onRefresh !== 'function') {
+      setLessonAccountSyncState('刷新服务暂不可用');
+      return false;
+    }
+
+    setLessonAccountSyncState('同步中...');
+    try {
+      await Promise.resolve(onRefresh());
+      setLessonAccountSyncAt(new Date().toLocaleString('zh-CN', { hour12: false }));
+      setLessonAccountSyncState('已同步');
+      onAction?.('profile', `课时账户已从${lessonAccountSource}刷新`);
+      return true;
+    } catch (error) {
+      setLessonAccountSyncState(`同步失败：${error instanceof Error ? error.message : '请重试'}`);
+      return false;
+    }
   };
 
   const handleOpenCultureWall = async () => {
@@ -7109,6 +7139,20 @@ function ProfilePage({
             note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已对账'}`}
             tone="purple"
           />
+        </div>
+        <div className="profile-sync-strip">
+          <div>
+            <span>数据来源</span>
+            <strong>{lessonAccountSource}</strong>
+            <small>{lessonAccountSummary.studentName || child.name || '当前学员'} · 最近同步后再看课时、收费和保留状态</small>
+          </div>
+          <div className="profile-sync-meta">
+            <span className="small-note">最近同步：{lessonAccountSyncAt || '刚刚'}</span>
+            <span className="small-note">{lessonAccountSyncState}</span>
+            <button className="row-action ghost" onClick={() => void refreshLessonAccount()}>
+              重新同步
+            </button>
+          </div>
         </div>
         <div className="profile-course-strip">
           <div className="section-headline compact">
@@ -8624,6 +8668,7 @@ function App() {
       if (!isNotFoundApiError(error)) {
         setStudentDataMessage(error?.message || '学生数据加载失败');
       }
+      throw error;
     } finally {
       setStudentDataLoading(false);
     }
@@ -8823,6 +8868,7 @@ function App() {
       if (!isNotFoundApiError(error)) {
         setParentDataMessage(error?.message || '家长数据加载失败');
       }
+      throw error;
     } finally {
       setParentDataLoading(false);
     }
@@ -9793,8 +9839,9 @@ function App() {
               report={report}
               cultureWall={cultureWall}
               lessonAccount={activeRole === 'parent' ? parentChildLessonAccount : studentLessonAccount}
+              lessonAccountSourceLabel={activeRole === 'parent' ? '家长课时账户接口' : '学生课时账户接口'}
               childCourses={activeRole === 'parent' ? parentChildCourses : studentCourses}
-              onRefresh={activeRole === 'parent' ? () => loadParentData().catch(() => {}) : activeRole === 'student' ? () => loadStudentData().catch(() => {}) : null}
+              onRefresh={activeRole === 'parent' ? loadParentData : activeRole === 'student' ? loadStudentData : null}
               onExportReport={activeRole === 'parent'
                 ? () => exportProfileReport({ childId: selectedParentChildId || child?.id || parentSummary?.student?.id || '' })
                 : activeRole === 'student'

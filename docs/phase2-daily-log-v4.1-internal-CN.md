@@ -177,3 +177,9 @@
   - 代码：`requestMultipart` 改为在浏览器环境下使用 XHR 上报 `upload.onprogress`，保留 fetch 回退路径
   - 校验：`npm run lint`、`npm run typecheck`、`npm run validate:contracts`、`npm run build`、`bash ./scripts/smoke-check.sh http://127.0.0.1:8787` ✅
   - 浏览器验证：上传 20MB 测试文件时命中“图片大小不能超过 12 MB”；上传 10MB 测试文件时页面进入“上传中”并显示进度；拦截上传请求时页面进入失败态并显示“重试上传”
+
+- 2026-06-12 22:44（Phase 2 P2-4）：个人中心同步来源提示
+  - 代码：个人中心课时账户区新增“数据来源 / 最近同步 / 重新同步”提示条，父端与学生端分别标注对应课时账户接口
+  - 代码：个人中心刷新函数改为向页面抛出异常，便于同步失败时展示失败态和重试入口
+  - 校验：`npm run typecheck`、`npm run build`、本地 `bash ./scripts/smoke-check.sh http://127.0.0.1:8787` ✅
+  - 浏览器验证：个人中心显示“数据来源”“最近同步”与“重新同步”按钮；同步条在页面中可见并随刷新更新时间戳
