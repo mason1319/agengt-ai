@@ -163,8 +163,10 @@
 当前进展：
 - 2026-06-12 已新增 smoke：`public trial booking submit` 断言 `courseSummary.id` 等于提交的 `courseId`。
 - 2026-06-12 已新增 smoke：`founder lead convert returns segmented course enrollment failure` 断言无效课程转化返回 `converted=false` 与 `courseEnrollment=failed`。
+- 2026-06-12 已新增 smoke：`founder lead convert returns segments for enrollment attempt` 断言有效课程报名尝试必须返回分段结果，不能让 D1 写入异常冒泡成 500。
 - `POST /api/v1/public/trial-bookings` 已返回 `courseSummary`。
 - `POST /api/v1/founder/leads/{leadId}/convert` 已返回 `segments`，阶段包括学生创建、课时账户、收费记录、课程报名。
+- 课程报名和收费记录写入失败时，接口返回 `converted=false`、`failedStage` 和对应失败段。
 - 默认首页已展示公开试听课程摘要；创始人首页已展示转化分段状态。
 - 本地验证已通过：`npm run validate:contracts`、`npm run typecheck`、`npm run build`、`bash ./scripts/smoke-check.sh`。
 - Playwright 截图证据：`output/playwright/p1-4-public-trial-summary.png`、`output/playwright/p1-4-founder-convert-segments.png`。
