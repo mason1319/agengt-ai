@@ -440,12 +440,77 @@ async function requestCultureWall({
   }
 }
 
-async function requestMultipart({ path, token, role, body }) {
+function parseResponseText(text) {
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function requestMultipart({ path, token, role, body, onProgress }) {
   const timeoutMs = Number(getEnv('VITE_DATA_TIMEOUT_MS') || 4000);
   const timeout = Math.max(1000, timeoutMs);
   const apiBase = resolveApiBase();
   const roleQuery = trimEnv(token) ? '' : `${path.includes('?') ? '&' : '?'}role=${encodeURIComponent(role || 'platform')}`;
   const endpoint = `${apiBase}${path}${roleQuery}`;
+  const hasProgress = typeof onProgress === 'function' && typeof window !== 'undefined' && typeof XMLHttpRequest !== 'undefined';
+
+  if (hasProgress) {
+    return await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', endpoint, true);
+      xhr.responseType = 'text';
+      xhr.timeout = timeout;
+      xhr.setRequestHeader('Accept', 'application/json');
+
+      const headers = buildRequestHeaders(token);
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) {
+          onProgress({ loaded: event.loaded || 0, total: event.total || 0, progress: 0 });
+          return;
+        }
+
+        const total = Math.max(1, event.total || 1);
+        onProgress({
+          loaded: event.loaded || 0,
+          total,
+          progress: Math.min(100, Math.round(((event.loaded || 0) / total) * 100))
+        });
+      };
+
+      xhr.onload = () => {
+        const payload = parseResponseText(xhr.responseText) || {};
+        if (xhr.status < 200 || xhr.status >= 300) {
+          const err = new Error(payload?.error || `api request failed: ${xhr.status}`);
+          err.status = xhr.status;
+          reject(err);
+          return;
+        }
+
+        resolve(payload);
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('网络请求失败'));
+      };
+
+      xhr.ontimeout = () => {
+        reject(new Error('请求超时'));
+      };
+
+      xhr.send(body);
+    });
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -465,7 +530,8 @@ async function requestMultipart({ path, token, role, body }) {
       try {
         const text = await response.text();
         if (text) {
-          message = `${message} ${text}`;
+          const parsed = parseResponseText(text);
+          message = parsed?.error || `${message} ${text}`;
         }
       } catch {
         // ignore parse error
@@ -686,7 +752,8 @@ export async function uploadCultureWallAsset({
   file,
   title = '',
   description = '',
-  uploader = '当前管理员'
+  uploader = '当前管理员',
+  onProgress
 } = {}) {
   if (!file) {
     throw new Error('upload file is required');
@@ -749,7 +816,8 @@ export async function uploadCultureWallAsset({
     path,
     token: trimEnv(authToken),
     role,
-    body: form
+    body: form,
+    onProgress
   });
 
   return {

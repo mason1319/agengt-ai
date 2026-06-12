@@ -12,6 +12,8 @@ import {
 const ALLOWED_ROLES_FOR_WRITE = ['platform', 'founder'];
 const ALLOWED_ROLES_FOR_READ = ['platform', 'founder', 'teacher', 'parent', 'student'];
 const resolveR2 = (env = {}) => env?.ASSETS || env?.STAR_MATE_ASSETS;
+const PHOTO_MAX_BYTES = 12 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 120 * 1024 * 1024;
 
 function r2UnavailableErrorMessage() {
   return 'R2 bucket not bound. Please configure wrangler r2_buckets ASSETS or STAR_MATE_ASSETS.';
@@ -55,6 +57,41 @@ function pickInstitutionId(context, role = 'founder') {
 
 function allowedToWrite(role = '') {
   return ALLOWED_ROLES_FOR_WRITE.includes(role);
+}
+
+function validateUploadFile(kind, file) {
+  const mimeType = `${file?.type || ''}`.trim().toLowerCase();
+  const size = Number(file?.size || 0);
+
+  if (!file || typeof file.arrayBuffer !== 'function') {
+    return '未提供上传文件';
+  }
+
+  if (size <= 0) {
+    return '上传文件为空';
+  }
+
+  if (kind === 'photo') {
+    if (!mimeType.startsWith('image/')) {
+      return '图片只能上传 image 类型文件';
+    }
+    if (size > PHOTO_MAX_BYTES) {
+      return `图片大小不能超过 ${Math.round(PHOTO_MAX_BYTES / 1024 / 1024)}MB`;
+    }
+    return '';
+  }
+
+  if (kind === 'video') {
+    if (!mimeType.startsWith('video/')) {
+      return '视频只能上传 video 类型文件';
+    }
+    if (size > VIDEO_MAX_BYTES) {
+      return `视频大小不能超过 ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)}MB`;
+    }
+    return '';
+  }
+
+  return '';
 }
 
 async function listAssets(context) {
@@ -156,6 +193,11 @@ async function uploadAssets(context) {
 
     if (kind === 'video' || kind === 'photo') {
       const file = form.get('file');
+      const fileError = validateUploadFile(kind, file);
+      if (fileError) {
+        return jsonResponse({ success: false, error: fileError }, 400);
+      }
+
       if (!file || typeof file.arrayBuffer !== 'function') {
         return jsonResponse({ success: false, error: '未提供上传文件' }, 400);
       }

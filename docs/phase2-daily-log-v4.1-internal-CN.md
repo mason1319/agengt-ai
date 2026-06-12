@@ -170,3 +170,10 @@
   - 代码：创始人经营台新增收费记录筛选区和 CSV 导出，导出字段与页面展示口径一致
   - 校验：`npm run validate:contracts`、`npm run typecheck`、`npm run build`、本地 `bash ./scripts/smoke-check.sh http://127.0.0.1:8787` ✅
   - 浏览器验证：登录 founder 后，收费记录“导出 CSV”可触发下载，文件名 `founder-payment-records-2026-06-12.csv`
+
+- 2026-06-12 22:29（Phase 2 P2-3）：成果馆上传进度和失败恢复
+  - 代码：成果馆图片 / 视频上传增加前端预检、上传中进度条、失败态重试按钮，上传成功后自动收起任务条
+  - 代码：`/api/v1/admin/culture-wall` 增加图片 / 视频类型与大小校验，前后端限额统一为图片 12MB、视频 120MB
+  - 代码：`requestMultipart` 改为在浏览器环境下使用 XHR 上报 `upload.onprogress`，保留 fetch 回退路径
+  - 校验：`npm run lint`、`npm run typecheck`、`npm run validate:contracts`、`npm run build`、`bash ./scripts/smoke-check.sh http://127.0.0.1:8787` ✅
+  - 浏览器验证：上传 20MB 测试文件时命中“图片大小不能超过 12 MB”；上传 10MB 测试文件时页面进入“上传中”并显示进度；拦截上传请求时页面进入失败态并显示“重试上传”

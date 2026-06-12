@@ -7130,6 +7130,65 @@ button.ghost,
   line-height: 1.5;
 }
 
+.culture-upload-status {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 252, 247, 0.98));
+  border: 1px solid rgba(120, 177, 136, 0.18);
+  box-shadow: 0 12px 24px rgba(58, 103, 77, 0.05);
+}
+
+.culture-upload-status.uploading {
+  border-color: rgba(59, 130, 246, 0.24);
+}
+
+.culture-upload-status.success {
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.culture-upload-status.error {
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.culture-upload-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.culture-upload-status-head strong {
+  color: #184232;
+  font-size: 16px;
+}
+
+.culture-upload-status-head span {
+  color: rgba(52, 80, 112, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.culture-upload-progress {
+  height: 8px;
+}
+
+.culture-upload-retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.culture-upload-retry .small-note {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(183, 230, 200, 0.28);
+  padding-inline: 10px;
+}
+
 .profile-action-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
