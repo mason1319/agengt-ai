@@ -9,6 +9,11 @@
   - 验证：`npm test` ✅（27/27）
   - 验证：`npm run stack:verify` ✅（27/27）
   - 验证：`npm run build`、`npm run audit:deps`、`npm run audit:dead-code`、`npm run audit:security` ✅
+  - PR：GitHub PR #3 已合并，Source `7c2d69e`
+  - Cloudflare 发布：`npm run cf:deploy:ensure` ✅，新生产部署 `https://04ec3fee.starmate-english-saas.pages.dev`
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` ✅（27/27）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` ✅（27/27）
+  - 备注：曾并发跑多个线上 smoke 触发 `www.aggieai.me` Cloudflare 1015 限流；改为顺序降频后严格模式通过。
 - 2026-06-12 16:00（线上复核）：绑定域名后的全链路再次收口
   - 命令：`bash ./scripts/smoke-check.sh https://aggieai.me && bash ./scripts/smoke-check.sh https://www.aggieai.me`
   - 结果：`Smoke check passed: 26/26 checks`（两域名）

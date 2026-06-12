@@ -353,3 +353,23 @@ npm run cf:deploy:ensure
   - `bash ./scripts/smoke-check.sh https://bfb688ed.starmate-english-saas.pages.dev` -> 通过（`26/26`）
   - `bash ./scripts/smoke-check.sh https://aggieai.me` -> 通过（`26/26`）
   - `bash ./scripts/smoke-check.sh https://www.aggieai.me` -> 通过（`26/26`）
+
+## 16. 2026-06-12 Phase 2 P1-1 老师反馈闭环发布记录（已完成）
+
+- 触发背景：GitHub PR #3 合并后，在 `main` 分支重新发布，确保老师反馈落库与家长摘要可见能力上线。
+- GitHub 合并提交：`7c2d69e`
+- 发布命令：`npm run cf:deploy:ensure`
+- Cloudflare Pages 项目：`starmate-english-saas`
+- 最新生产部署：`https://04ec3fee.starmate-english-saas.pages.dev`
+- 部署 ID：`04ec3fee-d505-493c-b6b6-32b160f6b33e`
+- 环境：Production
+- 分支：`main`
+- Source：`7c2d69e`
+- 发布后 API 冒烟：
+  - `bash ./scripts/smoke-check.sh https://04ec3fee.starmate-english-saas.pages.dev` -> 通过（`27/27`）
+  - `SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` -> 通过（`27/27`）
+  - `SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` -> 通过（`27/27`）
+- 新增验收项：
+  - `teacher feedback visible to parent summary`
+  - 老师写入 `lessons.parent_feedback` 后，家长孩子 summary 返回同一条反馈。
+- 备注：并发跑多个线上 smoke 时，`www.aggieai.me` 曾触发 Cloudflare `1015` 限流；顺序降频后严格模式通过。
