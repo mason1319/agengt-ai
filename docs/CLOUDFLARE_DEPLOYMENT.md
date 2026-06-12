@@ -373,3 +373,22 @@ npm run cf:deploy:ensure
   - `teacher feedback visible to parent summary`
   - 老师写入 `lessons.parent_feedback` 后，家长孩子 summary 返回同一条反馈。
 - 备注：并发跑多个线上 smoke 时，`www.aggieai.me` 曾触发 Cloudflare `1015` 限流；顺序降频后严格模式通过。
+
+## 17. 2026-06-12 Phase 2 P1-2 老师练习下发发布记录（已完成）
+
+- 触发背景：GitHub PR #4 合并后，在 `main` 分支重新发布，确保老师端 AI 练习下发到学生今日任务能力上线。
+- GitHub 合并提交：`6928f8d`
+- 发布命令：`npm run cf:deploy:ensure`
+- Cloudflare Pages 项目：`starmate-english-saas`
+- 最新生产部署：`https://b9432c95.starmate-english-saas.pages.dev`
+- 部署 ID：`b9432c95-a914-413c-b6ff-b0c370f25223`
+- 环境：Production
+- 分支：`main`
+- Source：`6928f8d`
+- 发布后 API 冒烟：
+  - `bash ./scripts/smoke-check.sh https://b9432c95.starmate-english-saas.pages.dev` -> 通过（`28/28`）
+  - `SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` -> 通过（`28/28`）
+  - `SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` -> 通过（`28/28`）
+- 新增验收项：
+  - `teacher exercise visible to student today path`
+  - 老师写入 `student_tasks.task_type=exercise` 后，学生今日路径返回同一条练习任务。

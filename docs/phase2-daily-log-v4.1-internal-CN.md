@@ -9,6 +9,11 @@
   - 验证：`npm test` ✅（28/28）
   - 验证：`npm run stack:verify` ✅（28/28）
   - 验证：`npm run build`、`npm run audit:deps`、`npm run audit:dead-code`、`npm run audit:security` ✅
+  - PR：GitHub PR #4 已合并，Source `6928f8d`
+  - Cloudflare 发布：`npm run cf:deploy:ensure` ✅，新生产部署 `https://b9432c95.starmate-english-saas.pages.dev`
+  - 线上验收：`bash ./scripts/smoke-check.sh https://b9432c95.starmate-english-saas.pages.dev` ✅（28/28）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` ✅（28/28）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` ✅（28/28）
 - 最新复测记录（Phase2 老师反馈家长可见闭环）：新增 1 项老师反馈落库到家长摘要验收
   - 新增用例：`teacher feedback visible to parent summary`
   - 修复点：老师端 AI 反馈生成后 PATCH `/api/v1/institution/lessons` 写入 `lessons.parent_feedback`；家长孩子 summary 返回 `lessonFeedback` / `recentFeedback`；家长首页展示“最近课堂反馈”。
