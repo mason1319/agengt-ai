@@ -1144,20 +1144,26 @@ function TeacherWorkspace({
       return;
     }
     try {
-      await onSubmitAttendance?.(currentLesson.id, {
-        studentId: currentStudent?.id || currentStudent?.studentId || currentLesson.studentId || currentLesson.student_id || '',
+      const targetStudentId = currentStudent?.id || currentStudent?.studentId || currentLesson.studentId || currentLesson.student_id || '';
+      const result = await onSubmitAttendance?.(currentLesson.id, {
+        studentId: targetStudentId,
         status: attendanceStatus || 'attended',
         sourceLessonId: currentLesson.id,
         note: attendanceNote || '教师课时记录',
         teacherId: currentLesson.teacherId || ''
       });
+      const deductions = result?.data?.summary?.lessons || [];
+      const deduction = deductions.find((item) => `${item.studentId || ''}`.trim() === `${targetStudentId}`.trim()) || deductions[0] || null;
+      const deductionText = Number(deduction?.hoursDeducted || 0) > 0
+        ? `，扣减 ${deduction.hoursDeducted} 节，剩余 ${deduction.afterRemaining} 节`
+        : '';
       setActiveState({
         closed: true,
         feedbackDone: true,
         exerciseDone: true,
         status: '已完成'
       });
-      setTeacherMessage(`已提交点名：${attendanceStatus} / ${currentStudent?.name || currentStudent?.studentName || currentLesson?.student || '当前学生'}`);
+      setTeacherMessage(`已提交点名：${attendanceStatus} / ${currentStudent?.name || currentStudent?.studentName || currentLesson?.student || '当前学生'}${deductionText}`);
       onAction?.('teacher', `课程记录完成：${currentLesson?.student || '当前课程'}`);
     } catch (error) {
       setActiveState({

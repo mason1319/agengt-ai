@@ -518,7 +518,7 @@ paths:
               $ref: '#/components/schemas/TeacherAttendancePayload'
       responses:
         '200':
-          description: 点名处理结果
+          description: 点名处理结果；到课/迟到会在 summary.lessons 返回 hoursDeducted、beforeRemaining、afterRemaining
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiResponse' }
@@ -768,7 +768,7 @@ paths:
               $ref: '#/components/schemas/LessonAccountAdjustPayload'
       responses:
         '200':
-          description: 调整结果
+          description: 调整结果；reason 必填并写入课时账户 notes
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiResponse' }

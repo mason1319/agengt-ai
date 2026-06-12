@@ -1854,7 +1854,15 @@ export async function submitTeacherAttendanceByCourse({
           success: 1,
           failed: 0,
           attendance: [],
-          lessons: [],
+          lessons: [
+            {
+              studentId: payload.studentId || '',
+              hoursDeducted: 1,
+              beforeRemaining: 10,
+              afterRemaining: 9,
+              accountId: 'mock-account'
+            }
+          ],
           shortages: []
         }
       }

@@ -133,6 +133,12 @@
 - 提交到课后返回扣减明细。
 - 家长/创始人课时余额一致。
 
+当前进展：
+- 2026-06-12 已固定 `POST /api/v1/founder/lesson-accounts` 的 `reason required` 验收。
+- 老师点名消课返回 `hoursDeducted`、`beforeRemaining`、`afterRemaining`、`accountId`。
+- 老师端点名成功提示展示本次扣减和剩余课时。
+- 本地 `npm test` 已新增并通过 `founder lesson account adjustment requires reason`、`teacher attendance returns deduction detail`。
+
 ### P1-4：试听预约课程摘要与线索转化失败分段
 
 来源：
