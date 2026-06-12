@@ -1,0 +1,27 @@
+name = "starmate-english-saas"
+compatibility_date = "2026-06-04"
+pages_build_output_dir = "dist"
+upload_source_maps = true
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+APP_NAME = "Aggie速记英语"
+APP_ENV = "development"
+AI_MODE = "mock"
+AI_DAILY_LIMIT = "5000"
+# 默认仍保留 OpenAI 兼容样例，实际部署时可直接替换成国内模型预设
+AI_PROVIDER = "openai"
+AI_BASE_URL = "https://api.openai.com/v1"
+AI_MODEL = "gpt-4o-mini"
+PLAN_CHECKPOINT = "trial,base,standard,pro"
+JWT_SECRET = "starmate_local_secret_replace_before_prod"
+ALLOW_DEMO_LOGIN = "false"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "starmate_english"
+database_id = "f8850e92-35e7-48e2-be89-50de2ceeab62"
+
+[[r2_buckets]]
+binding = "STAR_MATE_ASSETS"
+bucket_name = "starmate-english-assets"

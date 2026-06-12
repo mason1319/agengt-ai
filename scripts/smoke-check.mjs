@@ -1,0 +1,884 @@
+#!/usr/bin/env node
+import { setTimeout as wait } from 'timers/promises';
+
+const baseUrl = (process.argv[2] || 'http://127.0.0.1:8787').replace(/\/$/, '');
+const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS || 12000);
+const strictMode = `${process.env.SMOKE_STRICT_AUTH || ''}`.toLowerCase() === 'true';
+const allowSkip = `${process.env.SMOKE_ALLOW_SKIP || 'true'}`.toLowerCase() !== 'false';
+
+const colors = {
+  ok: '\x1b[32m',
+  warn: '\x1b[33m',
+  fail: '\x1b[31m',
+  reset: '\x1b[0m'
+};
+
+const demoCredentials = {
+  platform: { username: 'platform', password: 'Platform@123' },
+  founder: { username: 'founder', password: 'Founder@123' },
+  teacher: { username: 'teacher', password: 'Teacher@123' },
+  parent: { username: 'parent', password: 'Parent@123' },
+  student: { username: 'student', password: 'Student@123' }
+};
+function getTokenCandidate(roleUpper) {
+  const candidates = [
+    `STARMATE_TOKEN_${roleUpper}`,
+    `STAGE2_TOKEN_${roleUpper}`,
+    `PHASE2_TOKEN_${roleUpper}`
+  ];
+  const foundKey = candidates.find((key) => Boolean(process.env[key]));
+  return {
+    token: foundKey ? `${process.env[foundKey]}` : '',
+    source: foundKey || ''
+  };
+}
+
+function printStatus(level, message, detail = '') {
+  const color = colors[level] || colors.reset;
+  const prefix = level === 'ok' ? '[OK]' : level === 'warn' ? '[WARN]' : '[FAIL]';
+  process.stdout.write(`${color}${prefix}${colors.reset} ${message}`);
+  if (detail) {
+    process.stdout.write(` ${detail}`);
+  }
+  process.stdout.write('\n');
+}
+
+async function request({
+  method = 'GET',
+  path,
+  token = '',
+  body = undefined,
+  expectStatus = 200,
+  retries = 0
+}) {
+  const headers = {
+    Accept: 'application/json'
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const endpoint = `${baseUrl}${path}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const started = Date.now();
+
+  try {
+    const res = await fetch(endpoint, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal
+    });
+    const responseText = await res.text();
+    let payload = null;
+    try {
+      payload = responseText ? JSON.parse(responseText) : null;
+    } catch (_ignore) {
+      // keep raw text fallback
+    }
+
+    const elapsed = Date.now() - started;
+    const ok = res.status === expectStatus || (Array.isArray(expectStatus) ? expectStatus.includes(res.status) : false);
+    return {
+      ok,
+      status: res.status,
+      payload,
+      text: payload ? null : responseText,
+      elapsedMs: elapsed,
+      path
+    };
+  } catch (error) {
+    if (retries > 0) {
+      await wait(200);
+      return request({
+        method,
+        path,
+        token,
+        body,
+        expectStatus,
+        retries: retries - 1
+      });
+    }
+    return {
+      ok: false,
+      status: 0,
+      error: error?.message || 'request failed',
+      hint: error?.message?.includes('fetch')
+        ? `请先执行 npm run stack:verify 或确保后端服务监听 ${baseUrl}`
+        : undefined,
+      path
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function login(role, explicitToken = '') {
+  if (explicitToken) {
+    return explicitToken.trim();
+  }
+
+  const creds = demoCredentials[role];
+  if (!creds) {
+    return '';
+  }
+
+  const result = await request({
+    method: 'POST',
+    path: '/api/v1/auth/login',
+    body: {
+      role,
+      username: creds.username,
+      password: creds.password
+    },
+    expectStatus: 200,
+    retries: 1
+  });
+  return result.ok ? `${result.payload?.data?.token || ''}` : '';
+}
+
+function hasJsonSuccess(payload) {
+  return (
+    payload &&
+    typeof payload === 'object' &&
+    ((typeof payload.success === 'boolean' && payload.success === true) || payload.code === 0)
+  );
+}
+
+function ensure(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+async function run(name, fn) {
+  try {
+    await fn();
+    printStatus('ok', name);
+    return true;
+  } catch (error) {
+    const rawMessage = error?.message || 'unknown';
+    const withHint = rawMessage.startsWith('http 0')
+      ? `${rawMessage}（后端未就绪，建议先执行 npm run stack:verify）`
+      : rawMessage;
+    printStatus('fail', name, `(${withHint})`);
+    return false;
+  }
+}
+
+async function runWithResult(name, fn) {
+  const ok = await run(name, fn);
+  await wait(10);
+  return ok;
+}
+
+async function runPhase2Smoke() {
+  let total = 0;
+  let passed = 0;
+  const fails = [];
+  const skipped = [];
+  const checkDetails = [];
+  const startedAt = new Date().toISOString();
+  const tokenSources = {};
+
+  const roleTokens = {};
+  const roleList = ['platform', 'founder', 'teacher', 'parent', 'student'];
+
+  for (const role of roleList) {
+    const roleUpper = role.toUpperCase();
+    const { token: envToken, source } = getTokenCandidate(roleUpper);
+    const token = await login(role, envToken);
+    if (token) {
+      roleTokens[role] = token;
+      tokenSources[role] = source || 'demo-login';
+    }
+  }
+
+  const publicChecks = [
+    {
+      name: 'health',
+      ok: () =>
+        request({
+          method: 'GET',
+          path: '/api/v1/health',
+          expectStatus: 200
+        }).then((res) => {
+          ensure(res.ok, `http ${res.status}`);
+          ensure(
+            (res.payload?.status === 'ok') || hasJsonSuccess(res.payload),
+            'response success=false'
+          );
+          ensure(Boolean(res.payload?.now), 'health should include now');
+        })
+    },
+    {
+      name: 'public courses list',
+      ok: () =>
+        request({
+          method: 'GET',
+          path: '/api/v1/public/courses?limit=10',
+          expectStatus: 200
+        }).then((res) => {
+          ensure(res.ok, `http ${res.status}`);
+          ensure(hasJsonSuccess(res.payload), 'response success=false');
+          ensure(Array.isArray(res.payload?.data?.courses), 'courses should be array');
+        })
+    },
+    {
+      name: 'bootstrap role=founder (no token)',
+      ok: () =>
+        request({
+          method: 'GET',
+          path: '/api/v1/bootstrap?role=founder',
+          expectStatus: 200
+        }).then((res) => {
+          ensure(res.ok, `http ${res.status}`);
+          ensure(res.payload?.role === 'founder', 'bootstrap role mismatch');
+          ensure(res.payload?.meta?.role === 'founder', 'bootstrap meta role mismatch');
+        })
+    },
+    {
+      name: 'bootstrap role=platform (no token)',
+      ok: () =>
+        request({
+          method: 'GET',
+          path: '/api/v1/bootstrap?role=platform',
+          expectStatus: 200
+        }).then((res) => {
+          ensure(res.ok, `http ${res.status}`);
+          ensure(res.payload?.role === 'platform', 'bootstrap role mismatch');
+          ensure(res.payload?.meta?.role === 'platform', 'bootstrap meta role mismatch');
+        })
+    },
+    {
+      name: 'public leads list',
+      ok: () =>
+        request({
+          method: 'GET',
+          path: '/api/v1/public/leads?institutionId=inst-star&limit=5',
+          expectStatus: 200
+        }).then((res) => {
+          ensure(res.ok, `http ${res.status}`);
+          ensure(hasJsonSuccess(res.payload), 'response success=false');
+          ensure(typeof res.payload?.data?.total === 'number', 'leads.total missing');
+        })
+    },
+    {
+      name: 'public lead create + ai reply',
+      ok: async () => {
+        const lead = await request({
+          method: 'POST',
+          path: '/api/v1/public/leads',
+          body: {
+            institutionId: 'inst-star',
+            guardianName: `家长-${Date.now()}`,
+            studentGrade: '小学三年级',
+            needSummary: '试听课',
+            privacyConsent: true,
+            initialMessage: '我想先咨询一下孩子课程'
+          },
+          expectStatus: 200
+        });
+        ensure(lead.ok, `http ${lead.status}`);
+        ensure(hasJsonSuccess(lead.payload), 'response success=false');
+        const leadId = `${lead.payload?.data?.lead?.id || ''}`.trim();
+        ensure(leadId, 'lead id missing');
+
+        const aiReply = await request({
+          method: 'POST',
+          path: `/api/v1/public/leads/${leadId}/ai-reply`,
+          body: {
+            message: '请安排下周一试听',
+            needSummary: '试听咨询'
+          },
+          expectStatus: 200
+        });
+        ensure(aiReply.ok, `http ${aiReply.status}`);
+        ensure(hasJsonSuccess(aiReply.payload), 'response success=false');
+        ensure(String(aiReply.payload?.data?.leadId || '') === leadId, 'ai-reply leadId mismatch');
+      }
+    },
+    {
+      name: 'public trial booking submit',
+      ok: async () => {
+        const courseRes = await request({
+          method: 'GET',
+          path: '/api/v1/public/courses?institutionId=inst-star&limit=1',
+          expectStatus: 200
+        });
+        ensure(courseRes.ok, `http ${courseRes.status}`);
+        ensure(hasJsonSuccess(courseRes.payload), 'response success=false');
+        const courseId = `${courseRes.payload?.data?.courses?.[0]?.id || ''}`.trim();
+        ensure(courseId, 'courseId missing');
+
+        const lead = await request({
+          method: 'POST',
+          path: '/api/v1/public/leads',
+          body: {
+            institutionId: 'inst-star',
+            guardianName: `试听家长-${Date.now()}`,
+            studentGrade: '小学三年级',
+            needSummary: '试听课程',
+            privacyConsent: true,
+            initialMessage: '我要安排试听'
+          },
+          expectStatus: 200
+        });
+        ensure(lead.ok, `http ${lead.status}`);
+        ensure(hasJsonSuccess(lead.payload), 'response success=false');
+        const leadId = `${lead.payload?.data?.lead?.id || ''}`.trim();
+        ensure(leadId, 'lead id missing');
+
+        const booking = await request({
+          method: 'POST',
+          path: '/api/v1/public/trial-bookings',
+          body: {
+            institutionId: 'inst-star',
+            leadId,
+            courseId,
+            reservedAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            durationMinutes: 45,
+            status: 'pending',
+            sourceChannel: 'web',
+            notes: '收银台验收预约'
+          },
+          expectStatus: 200
+        });
+        ensure(booking.ok, `http ${booking.status}`);
+        ensure(hasJsonSuccess(booking.payload), 'response success=false');
+        ensure(Boolean(booking.payload?.data?.booking?.id), 'booking id missing');
+        ensure(booking.payload?.data?.status === 'pending', 'booking status should be pending');
+      }
+    }
+  ];
+
+  const authChecks = [
+    {
+      name: 'platform login and me',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const me = await request({
+          method: 'GET',
+          path: '/api/v1/me',
+          token,
+          expectStatus: 200
+        });
+        ensure(me.ok, `http ${me.status}`);
+        ensure(hasJsonSuccess(me.payload), 'response success=false');
+        ensure(me.payload?.data?.user?.role === 'platform', 'me role mismatch');
+      }
+    },
+    {
+      name: 'platform scope: institutions',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const institutions = await request({
+          method: 'GET',
+          path: '/api/v1/admin/institutions?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(institutions.ok, `http ${institutions.status}`);
+        ensure(hasJsonSuccess(institutions.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'platform ai usage',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const usage = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-usage?days=30&limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(usage.ok, `http ${usage.status}`);
+        ensure(hasJsonSuccess(usage.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'platform ai audit',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const audit = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-audit?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(audit.ok, `http ${audit.status}`);
+        ensure(hasJsonSuccess(audit.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'platform institutions export',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const response = await request({
+          method: 'GET',
+          path: '/api/v1/admin/institutions-export',
+          token,
+          expectStatus: 200
+        });
+        ensure(response.ok, `http ${response.status}`);
+        ensure(hasJsonSuccess(response.payload), 'response success=false');
+        ensure(Boolean(response.payload?.data?.fileName), 'export fileName missing');
+        ensure(Boolean(response.payload?.data?.content), 'export content missing');
+      }
+    },
+    {
+      name: 'platform ai usage export',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const response = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-usage-export?days=30&limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(response.ok, `http ${response.status}`);
+        ensure(hasJsonSuccess(response.payload), 'response success=false');
+        ensure(Boolean(response.payload?.data?.fileName), 'export fileName missing');
+        ensure(Boolean(response.payload?.data?.content), 'export content missing');
+      }
+    },
+    {
+      name: 'platform ai audit export',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const response = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-audit-export?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(response.ok, `http ${response.status}`);
+        ensure(hasJsonSuccess(response.payload), 'response success=false');
+        ensure(Boolean(response.payload?.data?.fileName), 'export fileName missing');
+        ensure(Boolean(response.payload?.data?.content), 'export content missing');
+      }
+    },
+    {
+      name: 'founder cockpit',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const cockpit = await request({
+          method: 'GET',
+          path: '/api/v1/founder/cockpit?courseStatus=active',
+          token,
+          expectStatus: 200
+        });
+        ensure(cockpit.ok, `http ${cockpit.status}`);
+        ensure(hasJsonSuccess(cockpit.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'founder leads list',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const leads = await request({
+          method: 'GET',
+          path: '/api/v1/founder/leads?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(leads.ok, `http ${leads.status}`);
+        ensure(hasJsonSuccess(leads.payload), 'response success=false');
+        ensure(Array.isArray(leads.payload?.data?.items), 'founder leads items missing');
+      }
+    },
+    {
+      name: 'founder reconciliation',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const cockpit = await request({
+          method: 'GET',
+          path: '/api/v1/founder/cockpit?courseStatus=active',
+          token,
+          expectStatus: 200
+        });
+        ensure(cockpit.ok, `http ${cockpit.status}`);
+        ensure(hasJsonSuccess(cockpit.payload), 'response success=false');
+        const institutionId = `${cockpit.payload?.data?.institution?.id || ''}`.trim();
+        ensure(Boolean(institutionId), 'founder cockpit institution id missing');
+
+        const courses = await request({
+          method: 'GET',
+          path: `/api/v1/founder/courses?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(courses.ok, `http ${courses.status}`);
+        ensure(hasJsonSuccess(courses.payload), 'response success=false');
+        ensure(Array.isArray(courses.payload?.data?.courses), 'founder courses items missing');
+
+        const payments = await request({
+          method: 'GET',
+          path: `/api/v1/founder/payment-records?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(payments.ok, `http ${payments.status}`);
+        ensure(hasJsonSuccess(payments.payload), 'response success=false');
+        ensure(Array.isArray(payments.payload?.data?.records), 'founder payment records items missing');
+
+        const lessonAccounts = await request({
+          method: 'GET',
+          path: `/api/v1/founder/lesson-accounts?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(lessonAccounts.ok, `http ${lessonAccounts.status}`);
+        ensure(hasJsonSuccess(lessonAccounts.payload), 'response success=false');
+        ensure(Array.isArray(lessonAccounts.payload?.data?.items), 'founder lesson accounts missing');
+
+        const attendanceRecords = await request({
+          method: 'GET',
+          path: `/api/v1/founder/attendance-records?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(attendanceRecords.ok, `http ${attendanceRecords.status}`);
+        ensure(hasJsonSuccess(attendanceRecords.payload), 'response success=false');
+        ensure(Array.isArray(attendanceRecords.payload?.data?.items), 'founder attendance items missing');
+      }
+    },
+    {
+      name: 'teacher students',
+      role: 'teacher',
+      ok: async () => {
+        const token = roleTokens.teacher;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('teacher token unavailable');
+          }
+          printStatus('warn', 'teacher token unavailable, skip');
+          return;
+        }
+        const students = await request({
+          method: 'GET',
+          path: '/api/v1/teacher/students?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(students.ok, `http ${students.status}`);
+        ensure(hasJsonSuccess(students.payload), 'response success=false');
+        ensure(Array.isArray(students.payload?.data?.students), 'students missing array');
+      }
+    },
+    {
+      name: 'parent children',
+      role: 'parent',
+      ok: async () => {
+        const token = roleTokens.parent;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('parent token unavailable');
+          }
+          printStatus('warn', 'parent token unavailable, skip');
+          return;
+        }
+        const children = await request({
+          method: 'GET',
+          path: '/api/v1/parent/children?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(children.ok, `http ${children.status}`);
+        ensure(hasJsonSuccess(children.payload), 'response success=false');
+        ensure(Array.isArray(children.payload?.data?.children), 'children missing array');
+      }
+    },
+    {
+      name: 'student today path',
+      role: 'student',
+      ok: async () => {
+        const token = roleTokens.student;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('student token unavailable');
+          }
+          printStatus('warn', 'student token unavailable, skip');
+          return;
+        }
+        const todayPath = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token,
+          expectStatus: 200
+        });
+        ensure(todayPath.ok, `http ${todayPath.status}`);
+        ensure(hasJsonSuccess(todayPath.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'authorization: student should be forbidden for admin institutions',
+      role: 'student',
+      ok: async () => {
+        const token = roleTokens.student;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('student token unavailable');
+          }
+          printStatus('warn', 'student token unavailable, skip');
+          return;
+        }
+        const forbidden = await request({
+          method: 'GET',
+          path: '/api/v1/admin/institutions',
+          token,
+          expectStatus: [401, 403]
+        });
+        ensure(forbidden.ok, `http ${forbidden.status}`);
+      }
+    }
+  ];
+
+  const institutionChecks = [
+    {
+      name: 'institution leads list',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const leads = await request({
+          method: 'GET',
+          path: '/api/v1/institution/leads?institutionId=inst-star&limit=5',
+          token,
+          expectStatus: 200
+        });
+        ensure(leads.ok, `http ${leads.status}`);
+        ensure(hasJsonSuccess(leads.payload), 'response success=false');
+        ensure(Array.isArray(leads.payload?.data?.leads), 'leads missing array');
+      }
+    },
+    {
+      name: 'institution lessons list',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const lessons = await request({
+          method: 'GET',
+          path: '/api/v1/institution/lessons?institutionId=inst-star&limit=5',
+          token,
+          expectStatus: 200
+        });
+        ensure(lessons.ok, `http ${lessons.status}`);
+        ensure(hasJsonSuccess(lessons.payload), 'response success=false');
+        ensure(Array.isArray(lessons.payload?.data?.lessons), 'lessons missing array');
+      }
+    },
+    {
+      name: 'institution students list',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const students = await request({
+          method: 'GET',
+          path: '/api/v1/institution/students?institutionId=inst-star&limit=5',
+          token,
+          expectStatus: 200
+        });
+        ensure(students.ok, `http ${students.status}`);
+        ensure(hasJsonSuccess(students.payload), 'response success=false');
+        ensure(Array.isArray(students.payload?.data?.students), 'students missing array');
+      }
+    },
+    {
+      name: 'institution teachers list',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const teachers = await request({
+          method: 'GET',
+          path: '/api/v1/institution/teachers?institutionId=inst-star&limit=5',
+          token,
+          expectStatus: 200
+        });
+        ensure(teachers.ok, `http ${teachers.status}`);
+        ensure(hasJsonSuccess(teachers.payload), 'response success=false');
+        ensure(Array.isArray(teachers.payload?.data?.teachers), 'teachers missing array');
+      }
+    },
+    {
+      name: 'institution payments list',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const payments = await request({
+          method: 'GET',
+          path: '/api/v1/institution/payments?institutionId=inst-star&limit=5',
+          token,
+          expectStatus: 200
+        });
+        ensure(payments.ok, `http ${payments.status}`);
+        ensure(hasJsonSuccess(payments.payload), 'response success=false');
+        ensure(Array.isArray(payments.payload?.data?.payments), 'payments missing array');
+      }
+    }
+  ];
+
+  const checks = [...publicChecks, ...authChecks, ...institutionChecks];
+  for (const item of checks) {
+    const start = Date.now();
+    total += 1;
+    const ok = await runWithResult(item.name, item.ok);
+    const elapsed = Date.now() - start;
+    checkDetails.push({ name: item.name, role: item.role || 'public', ok, elapsedMs: elapsed });
+    if (item.role && !roleTokens[item.role] && !strictMode && allowSkip) {
+      skipped.push(item.name);
+    }
+    if (!ok) {
+      fails.push(item.name);
+    } else {
+      passed += 1;
+    }
+  }
+
+  if (fails.length) {
+    printStatus('fail', `Smoke check failed: ${passed}/${total} passed`, `(failed: ${fails.join('; ')})`);
+    process.exit(1);
+  }
+
+  printStatus('ok', `Smoke check passed: ${passed}/${total} checks`);
+  printStatus(
+    'ok',
+    `Smoke meta`,
+    `start=${startedAt} strictAuth=${strictMode} allowSkip=${allowSkip} tokenSources=${roleList
+      .map((role) => `${role}:${tokenSources[role] || 'demo-login'}`)
+      .join(',')}`
+  );
+  checkDetails
+    .sort((a, b) => b.elapsedMs - a.elapsedMs)
+    .slice(0, 3)
+    .forEach((item) => {
+      printStatus('ok', `Slowest check`, `${item.name} role=${item.role} ${item.elapsedMs}ms`);
+    });
+  if (skipped.length) {
+    printStatus('warn', `Skipped checks in non-strict mode`, `${skipped.join('; ')}`);
+  }
+}
+
+runPhase2Smoke().catch((error) => {
+  printStatus('fail', 'Smoke check crashed', `(${error.message})`);
+  process.exit(1);
+});
