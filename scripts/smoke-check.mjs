@@ -1280,6 +1280,82 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'student path completion persists review history',
+      role: 'student',
+      ok: async () => {
+        const token = roleTokens.student;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('student token unavailable');
+          }
+          printStatus('warn', 'student token unavailable, skip');
+          return;
+        }
+
+        const today = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token,
+          expectStatus: 200
+        });
+        ensure(today.ok, `http ${today.status}`);
+        ensure(hasJsonSuccess(today.payload), 'student today response success=false');
+        const studentId = `${today.payload?.data?.studentId || ''}`.trim();
+        ensure(studentId, 'student id missing');
+
+        const pathId = `path-${Date.now()}`;
+        const pathTitle = `Phase2路径完成-${Date.now()}`;
+        const submitted = await request({
+          method: 'POST',
+          path: '/api/v1/student/review/submit',
+          token,
+          body: {
+            taskType: 'path_completion',
+            title: pathTitle,
+            answer: '已完成今日学习路径',
+            score: 100,
+            status: 'done',
+            payload: {
+              pathId,
+              pathTitle,
+              source: 'student_home_path'
+            }
+          },
+          expectStatus: 200
+        });
+        ensure(submitted.ok, `http ${submitted.status}`);
+        ensure(hasJsonSuccess(submitted.payload), 'path submit response success=false');
+
+        const history = await request({
+          method: 'GET',
+          path: '/api/v1/student/review/history?limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(history.ok, `http ${history.status}`);
+        ensure(hasJsonSuccess(history.payload), 'student review history response success=false');
+        const historyItems = history.payload?.data?.items || [];
+        ensure(
+          historyItems.some((item) => `${item.title || ''}`.trim() === pathTitle && `${item.taskType || item.task_type || ''}`.trim() === 'path_completion'),
+          'student review history missing path completion'
+        );
+
+        const after = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token,
+          expectStatus: 200
+        });
+        ensure(after.ok, `http ${after.status}`);
+        ensure(hasJsonSuccess(after.payload), 'student today response success=false');
+        const tasks = after.payload?.data?.tasks || [];
+        ensure(
+          tasks.some((item) => `${item.title || ''}`.trim() === pathTitle && `${item.taskType || item.task_type || ''}`.trim() === 'path_completion'),
+          'student today path missing submitted path completion'
+        );
+      }
+    },
+    {
       name: 'authorization: student should be forbidden for admin institutions',
       role: 'student',
       ok: async () => {

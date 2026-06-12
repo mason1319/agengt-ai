@@ -20,10 +20,10 @@
 
 | 控件ID | 页面 | 当前状态 | 未闭环点 | 建议收口 |
 |---|---|---|---|---|
-| `student.path.item` | 学生首页学习路径 | 点击后跳转练习页并刷新今日任务 | 路径步骤完成状态仍主要来自前端本地状态 | Phase 2 接 `student_tasks.status` 更新接口 |
+| `student.path.item` | 学生首页学习路径 | 点击后会先写入路径完成记录，再跳转练习页并刷新今日任务 | 已补路径提交与回读，完成状态可从 `student_tasks` / `review` 读取 | 保持路径完成记录幂等写入 |
 | `student.practice-card` | 学生首页练习卡 | 已通过 `practiceModuleId` 带入练习页默认模块 | 已收口 | 保持前端导航状态，不新增后端范围 |
 | `student.course-card` | 学生首页课程卡 | 已通过 `selectedCourseId` 带入课程页默认课程 | 已收口 | 保持前端导航状态，不新增后端范围 |
-| `courses.path.continue` | 课程页路径继续 | AI 可生成下一步建议 | 完成路径仅前端状态更新，未写回任务/课程进度 | 新增 `POST /api/v1/student/review/submit` 或任务状态 PATCH |
+| `courses.path.continue` | 课程页路径继续 | AI 可生成下一步建议 | 已补学习路径提交与课程页回读 | 保持课程页与学生首页同一提交接口 |
 | `practice.challenge.choice` | 练习页模块动作 | 可生成反馈并更新本次分数 | 模块动作不落 `student_tasks` 或错题记录 | 题库化后统一写 `student_tasks.answer/score/status` |
 | `practice.challenge.reset` | 练习页重置内容 | 通过 AI 重新生成任务 | 生成内容未持久化为可复盘任务 | 生成后写入 `student_tasks` 草稿或临时练习表 |
 

@@ -170,6 +170,12 @@
   - 收口：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `profile.open-culture-wall` 已改为已收口
   - 校验：本地构建与现有 smoke 口径保持通过，未新增回归
 
+- 2026-06-12 23:41（Phase 2 学生路径闭环）：`student.path.item` / `courses.path.continue` 回读接通
+  - 代码：学生首页学习路径与课程页“进入下一步”均接入 `POST /api/v1/student/review/submit`，路径完成可回写 `student_tasks`
+  - 回读：`/api/v1/student/today-path` 与 `GET /api/v1/student/review/history` 均能读取同一条路径完成记录
+  - 收口：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `student.path.item`、`courses.path.continue` 已改为已收口
+  - 验证：`npm run validate:contracts`、`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
+
 - 2026-06-12 21:09（Phase 2 P2-2）：收费记录筛选与导出字段一致
   - 代码：创始人收费记录补齐学员 / 课程 / 日期范围筛选，后端 `payment_records` 关联 `students` / `courses` 返回名称字段
   - 代码：创始人经营台新增收费记录筛选区和 CSV 导出，导出字段与页面展示口径一致

@@ -1684,6 +1684,62 @@ export async function loadStudentReview({ authToken, type = 'summary' } = {}) {
   });
 }
 
+export async function submitStudentPathCompletion({
+  authToken,
+  payload = {}
+} = {}) {
+  const normalizedTitle = `${payload.title || ''}`.trim();
+  const normalizedPathId = `${payload.pathId || ''}`.trim();
+  const normalizedStudentId = `${payload.studentId || ''}`.trim();
+
+  if (!normalizedTitle) {
+    throw new Error('title is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        studentId: normalizedStudentId || 's_001',
+        item: {
+          id: normalizedPathId || `path-${Date.now()}`,
+          taskType: payload.taskType || 'path_completion',
+          title: normalizedTitle,
+          answer: `${payload.answer || ''}`.trim(),
+          score: toIntSafe(payload.score, 100),
+          status: `${payload.status || 'done'}`.trim(),
+          payload: {
+            pathId: normalizedPathId,
+            pathTitle: normalizedTitle,
+            source: `${payload.source || 'student_home_path'}`.trim()
+          }
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/student/review/submit',
+    token: trimEnv(authToken),
+    role: 'student',
+    body: {
+      taskType: `${payload.taskType || 'path_completion'}`.trim(),
+      title: normalizedTitle,
+      answer: `${payload.answer || ''}`.trim(),
+      score: toIntSafe(payload.score, 100),
+      status: `${payload.status || 'done'}`.trim(),
+      payload: {
+        pathId: normalizedPathId,
+        pathTitle: normalizedTitle,
+        source: `${payload.source || 'student_home_path'}`.trim(),
+        stepIndex: toIntSafe(payload.stepIndex, -1),
+        studentId: normalizedStudentId || null
+      }
+    }
+  });
+}
+
 export async function submitStudentVoiceAssess({
   authToken,
   taskId,

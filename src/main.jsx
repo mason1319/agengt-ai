@@ -92,6 +92,7 @@ import {
   createTrialBooking,
   loadStudentTodayPath,
   loadStudentReview,
+  submitStudentPathCompletion,
   submitStudentVoiceAssess,
   loadStudentCourses,
   loadStudentLessonAccount,
@@ -2009,6 +2010,7 @@ function StudentView({
   onSubmitTrialBooking,
   onRefreshPublicCourses,
   onNavigatePage,
+  onSubmitPathCompletion,
   onAction
 }) {
   const normalizeTasks = (source) => {
@@ -2081,6 +2083,7 @@ function StudentView({
   const historyItems = Array.isArray(reviewHistory) ? reviewHistory : [];
   const mistakeItems = Array.isArray(reviewMistakes) ? reviewMistakes : [];
   const publicCourseList = Array.isArray(publicCourses) ? publicCourses : [];
+  const [pathActionText, setPathActionText] = useState('');
   const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
   const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
   const taskToneIcons = [BookOpenCheck, Headphones, Mic, Trophy];
@@ -2113,6 +2116,44 @@ function StudentView({
       progress
     };
   });
+  const completedPathIds = useMemo(() => {
+    const collected = [];
+    const pathItems = [...historyItems, ...tasks].filter((item) => {
+      const taskType = `${item?.taskType || item?.task_type || ''}`.trim();
+      const source = `${item?.payload?.source || item?.source || ''}`.trim();
+      return taskType === 'path_completion' || source === 'student_home_path';
+    });
+
+    pathItems.forEach((item) => {
+      const payload = item?.payload || {};
+      const pathId = `${payload.pathId || item.pathId || item.id || ''}`.trim();
+      const pathTitle = `${payload.pathTitle || item.title || ''}`.trim();
+      const matchedStep = COURSE_PATH_STEPS.find((step) => step.id === pathId || step.title === pathTitle);
+      const resolvedId = matchedStep?.id || pathId || '';
+      if (resolvedId && !collected.includes(resolvedId)) {
+        collected.push(resolvedId);
+      }
+    });
+
+    if (collected.length === 0) {
+      collected.push(COURSE_PATH_STEPS[0]?.id || 'story');
+    }
+
+    return collected;
+  }, [historyItems, tasks]);
+  const lastCompletedIndex = Math.max(
+    ...completedPathIds.map((id) => COURSE_PATH_STEPS.findIndex((item) => item.id === id)),
+    COURSE_PATH_STEPS.findIndex((item) => item.id === COURSE_PATH_STEPS[0]?.id)
+  );
+  const getStudentPathStatus = (step, index) => {
+    if (completedPathIds.includes(step.id)) {
+      return 'done';
+    }
+    if (index <= lastCompletedIndex + 1) {
+      return 'active';
+    }
+    return 'locked';
+  };
 
   useEffect(() => {
     if (!selectedPublicCourseId && publicCourseList[0]?.id) {
@@ -2205,6 +2246,30 @@ function StudentView({
   const handleOpenPath = async (step) => {
     if (!step) {
       return;
+    }
+    const stepIndex = COURSE_PATH_STEPS.findIndex((item) => item.id === step.id);
+    const payload = {
+      pathId: step.id,
+      title: step.title,
+      pathTitle: step.title,
+      stepIndex,
+      source: 'student_home_path'
+    };
+    if (onSubmitPathCompletion) {
+      setPathActionText('正在记录路径完成状态...');
+      try {
+        await onSubmitPathCompletion({
+          ...payload,
+          answer: `已完成「${step.title}」`
+        });
+        setPathActionText(`已记录「${step.title}」`);
+        onAction?.('student', `完成路径：${step.title}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '路径提交失败';
+        setPathActionText(`路径提交失败：${message}`);
+        onAction?.('student', `路径提交失败：${step.title}${message ? `（${message}）` : ''}`);
+        return;
+      }
     }
     if (onRefreshPractice) {
       try {
@@ -2478,22 +2543,23 @@ function StudentView({
         />
         <div className="student-path-grid">
           {COURSE_PATH_STEPS.map((step, index) => {
-            const statusLabel = step.status === 'done'
+            const status = getStudentPathStatus(step, index);
+            const statusLabel = status === 'done'
               ? '已完成'
-              : step.status === 'active'
+              : status === 'active'
                 ? '进行中'
-                : step.status === 'locked'
+                : status === 'locked'
                   ? '待解锁'
                   : '未开始';
             return (
-              <article className={`student-path-card ${step.status}`} key={step.id}>
+              <article className={`student-path-card ${status}`} key={step.id}>
                 <div className="student-path-head">
                   <span className="student-path-index">{String(index + 1).padStart(2, '0')}</span>
                   <span className="home-path-status">{statusLabel}</span>
                 </div>
                 <strong>{step.title}</strong>
                 <p>{step.desc}</p>
-                <div className="student-path-footer">
+              <div className="student-path-footer">
                   <small>{step.reward}</small>
                   <button className="row-action ghost" onClick={() => void handleOpenPath(step)}>开始任务</button>
                 </div>
@@ -2501,6 +2567,7 @@ function StudentView({
             );
           })}
         </div>
+        {pathActionText ? <div className="small-note" style={{ marginTop: 8 }}>{pathActionText}</div> : null}
       </div>
 
       <div className="panel wide student-task-panel">
@@ -5537,11 +5604,13 @@ function CoursesPage({
   activeRole = '',
   studentCourses = [],
   studentReviewSummary = {},
+  studentReviewHistory = [],
   selectedCourseId = '',
   onNavigatePage,
   onRunAIAgent,
   onRefreshCourses,
   onAction,
+  onSubmitPathCompletion,
   onCreateCourse,
   onUpdateCourse
 }) {
@@ -5585,15 +5654,42 @@ function CoursesPage({
   const currentCourse = courseCards.find((item) => item.id === selectedId) || courseCards[0];
   const currentPath = COURSE_PATH_STEPS.find((item) => item.id === selectedPathId) || COURSE_PATH_STEPS[1];
   const reviewSummary = studentReviewSummary?.summary || studentReviewSummary || {};
+  const deriveCompletedPathIds = useMemo(() => {
+    const collected = [];
+    const items = Array.isArray(studentReviewHistory) ? studentReviewHistory : [];
+    items.forEach((item) => {
+      const taskType = `${item?.taskType || item?.task_type || ''}`.trim();
+      const payload = item?.payload || {};
+      const source = `${payload.source || item?.source || ''}`.trim();
+      if (taskType !== 'path_completion' && source !== 'student_home_path') {
+        return;
+      }
+      const pathId = `${payload.pathId || item.pathId || item.id || ''}`.trim();
+      const pathTitle = `${payload.pathTitle || item.title || ''}`.trim();
+      const matchedStep = COURSE_PATH_STEPS.find((step) => step.id === pathId || step.title === pathTitle);
+      const resolvedId = matchedStep?.id || pathId || '';
+      if (resolvedId && !collected.includes(resolvedId)) {
+        collected.push(resolvedId);
+      }
+    });
+    if (collected.length === 0) {
+      collected.push(COURSE_PATH_STEPS[0]?.id || 'story');
+    }
+    return collected;
+  }, [studentReviewHistory]);
   const courseProgress = Number(reviewSummary.doneRate) > 0
     ? Number(reviewSummary.doneRate)
     : COURSE_SKILL_GOALS.reduce((sum, item) => sum + item.value, 0) / COURSE_SKILL_GOALS.length;
   const currentCourseRules = normalizeCourseRules(currentCourse);
-  const [completedPathIds, setCompletedPathIds] = useState([COURSE_PATH_STEPS[0]?.id || 'story']);
+  const [completedPathIds, setCompletedPathIds] = useState(() => deriveCompletedPathIds);
   const [courseHint, setCourseHint] = useState('选择学习模块后点击进入，即可查看下一步学习安排。');
   const [courseActionEnabled, setCourseActionEnabled] = useState(true);
   const [isRefreshingCourses, setIsRefreshingCourses] = useState(false);
   const hasCoursesRefresh = typeof onRefreshCourses === 'function';
+
+  useEffect(() => {
+    setCompletedPathIds(deriveCompletedPathIds);
+  }, [deriveCompletedPathIds]);
 
   useEffect(() => {
     const nextSelectedId = `${selectedCourseId || ''}`.trim();
@@ -5650,7 +5746,7 @@ function CoursesPage({
     return 'locked';
   };
 
-  const handlePathContinue = () => {
+  const handlePathContinue = async () => {
     const currentStatus = getPathStatus(currentPath);
     if (!courseActionEnabled || currentStatus === 'locked' || !hasUnlockedPath(currentPath.id)) {
       setCourseHint('当前课程待解锁，请先完成前序课程后继续。');
@@ -5669,10 +5765,33 @@ function CoursesPage({
       return;
     }
 
-    setCompletedPathIds((prev) => (prev.includes(currentPath.id) ? prev : [...prev, currentPath.id]));
-    setCourseHint(`已完成「${currentPath.title}」，正在生成下一步建议...`);
-    onAction?.('courses', `完成课程：${currentPath.title}`);
     setCourseActionEnabled(false);
+    setCourseHint(`已完成「${currentPath.title}」，正在记录学习路径...`);
+
+    try {
+      if (onSubmitPathCompletion) {
+        await onSubmitPathCompletion({
+          pathId: currentPath.id,
+          title: currentPath.title,
+          pathTitle: currentPath.title,
+          stepIndex: COURSE_PATH_STEPS.findIndex((item) => item.id === currentPath.id),
+          answer: `已完成「${currentPath.title}」`,
+          source: 'courses_page'
+        });
+      }
+      if (onRefreshCourses) {
+        await onRefreshCourses();
+      }
+      setCompletedPathIds((prev) => (prev.includes(currentPath.id) ? prev : [...prev, currentPath.id]));
+      setCourseHint(`已完成「${currentPath.title}」，正在生成下一步建议...`);
+      onAction?.('courses', `完成课程：${currentPath.title}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '路径提交失败';
+      setCourseHint(`路径提交失败：${message}`);
+      onAction?.('courses', `路径提交失败：${currentPath.title}${message ? `（${message}）` : ''}`);
+      setCourseActionEnabled(true);
+      return;
+    }
 
     const resolveNextStep = (nextStep) => {
       if (nextStep) {
@@ -8704,6 +8823,24 @@ function App() {
     });
   };
 
+  const submitStudentPath = async (payload = {}) => {
+    return submitStudentPathCompletion({
+      authToken: initTokenRef.current,
+      payload: {
+        taskType: 'path_completion',
+        title: `${payload.title || ''}`.trim(),
+        answer: `${payload.answer || '已完成今日学习路径'}`.trim(),
+        score: Number.isFinite(Number(payload.score)) ? Number(payload.score) : 100,
+        status: 'done',
+        pathId: `${payload.pathId || ''}`.trim(),
+        pathTitle: `${payload.pathTitle || payload.title || ''}`.trim(),
+        stepIndex: Number.isFinite(Number(payload.stepIndex)) ? Number(payload.stepIndex) : -1,
+        studentId: `${payload.studentId || ''}`.trim(),
+        source: `${payload.source || 'student_home_path'}`.trim()
+      }
+    });
+  };
+
   const downloadTextReport = (content = '', fileName = 'starmate-report.txt', contentType = 'text/plain;charset=utf-8') => {
     const normalizedContent = `${content || ''}`.trim();
     if (!normalizedContent) {
@@ -9757,6 +9894,7 @@ function App() {
             onSubmitPublicLead={submitPublicLead}
             onSubmitTrialBooking={submitTrialBooking}
             onRefreshPublicCourses={loadPublicCourses}
+            onSubmitPathCompletion={activeRole === 'student' ? submitStudentPath : null}
             onNavigatePage={switchPage}
             onAction={appendOperationLog}
           />
@@ -9812,10 +9950,12 @@ function App() {
                 ? parentChildCourses
                 : lessons}
             studentReviewSummary={studentReviewSummary}
+            studentReviewHistory={studentReviewHistory}
             studentLessonAccount={studentLessonAccount}
             selectedCourseId={pageContext.selectedCourseId || ''}
             onNavigatePage={switchPage}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
+            onSubmitPathCompletion={activeRole === 'student' ? submitStudentPath : null}
             onCreateCourse={activeRole === 'founder' ? createFounderCourseRecord : null}
             onUpdateCourse={activeRole === 'founder' ? updateFounderCourseRecord : null}
             onRefreshCourses={
