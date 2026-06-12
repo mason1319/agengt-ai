@@ -2,6 +2,20 @@
 
 ## 2026-06-12
 
+- 最新复测记录（Phase2 试听预约课程摘要与线索转化失败分段）：新增 2 项 P1-4 验收
+  - 新增用例：`public trial booking submit` 增加 `courseSummary.id` 与提交 `courseId` 一致性断言。
+  - 新增用例：`founder lead convert returns segmented course enrollment failure`。
+  - 修复点：试听预约 API 返回 `courseSummary`；创始人线索转化返回 `segments`，阶段覆盖学生创建、课时账户、收费记录、课程报名；默认首页展示公开课程试听摘要；创始人首页展示转化分段状态。
+  - 验证：`npm run validate:contracts` ✅（77/77）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - 验证：`bash ./scripts/smoke-check.sh` ✅（31/31）
+  - Playwright：`output/playwright/p1-4-public-trial-summary.png`、`output/playwright/p1-4-founder-convert-segments.png`
+  - PR：GitHub PR #6 已合并，Source `db6d445`
+  - Cloudflare 发布：`npm run cf:deploy:ensure` ✅，新生产部署 `https://e51cc593.starmate-english-saas.pages.dev`
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://e51cc593.starmate-english-saas.pages.dev` ✅（31/31）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` ✅（31/31）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` ✅（31/31，首次并发运行出现 token/反馈链路短暂失败，单独重跑通过）
 - 最新复测记录（Phase2 课时调整审计与扣减明细）：新增 2 项课时审计/消课明细验收
   - 新增用例：`founder lesson account adjustment requires reason`
   - 新增用例：`teacher attendance returns deduction detail`
