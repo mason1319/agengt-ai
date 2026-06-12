@@ -10401,23 +10401,29 @@ select {
 }
 
 .learning-product-hero .hero-side-stack {
-  gap: 6px !important;
+  gap: 5px !important;
 }
 
 .learning-product-hero .hero-mentor-card,
 .learning-product-hero .hero-feedback-card,
 .learning-product-hero .hero-culture-card {
-  padding: 10px !important;
+  padding: 9px !important;
   border-radius: 24px !important;
 }
 
 .learning-product-hero .hero-mentor-head strong {
-  font-size: 18px !important;
+  font-size: 17px !important;
   line-height: 1.2 !important;
 }
 
 .learning-product-hero .hero-mentor-head small {
-  font-size: 10px !important;
+  font-size: 9.5px !important;
+  line-height: 1.28 !important;
+}
+
+.learning-product-hero .hero-mentor-head {
+  gap: 6px !important;
+  margin-bottom: 4px !important;
 }
 
 .learning-product-hero .hero-online-dot {
@@ -10427,7 +10433,7 @@ select {
 }
 
 .learning-product-hero .hero-mentor-primary {
-  min-height: 36px !important;
+  min-height: 32px !important;
   border-radius: 999px !important;
 }
 
@@ -10437,19 +10443,26 @@ select {
 }
 
 .learning-product-hero .hero-mentor-bubble p {
-  font-size: 11px !important;
+  font-size: 10px !important;
   line-height: 1.35 !important;
 }
 
 .learning-product-hero .hero-feedback-metrics {
-  gap: 4px !important;
+  gap: 3px !important;
 }
 
 .learning-product-hero .hero-feedback-metrics span {
-  font-size: 12px !important;
+  font-size: 11px !important;
 }
 
 .learning-product-hero .culture-preview-tile {
   min-height: 54px !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
+  padding: 6px 8px !important;
+}
+
+.learning-product-hero .hero-side-stack .hero-mentor-bubble,
+.learning-product-hero .hero-side-stack .culture-wall .hero-mentor-bubble {
+  padding: 6px 8px !important;
+  margin-bottom: 4px !important;
 }

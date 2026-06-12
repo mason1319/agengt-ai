@@ -1,11 +1,12 @@
 # 星伴英语 StarMate 研发 SOP v4.1
 
-**文档类型**：研发执行标准 / 开发流程 SOP  
-**对应 PRD**：`StarMate-PRD-v4.1-internal-CN.md`  
-**对应设计文档**：`StarMate-design-v4.1-internal-CN.md`  
-**项目阶段**：Phase 1 内部 Web 可用版  
-**适用范围**：本机构内部学生、老师、家长、创始人；外部咨询客户仅限咨询、课程查看、试听预约  
-**日期**：2026-06-06  
+**文档类型**：研发执行标准 / 开发流程 SOP
+**对应 PRD（执行锚点）**：`phase1-prd-starmate-english.md`
+**PRD 补充**：`StarMate-PRD-v4.1-internal-CN.md`（招生/收费/课时策略细化）
+**对应设计文档**：`StarMate-design-v4.1-internal-CN.md`
+**项目阶段**：Phase 1 内部 Web 可用版
+**适用范围**：本机构内部学生、老师、家长、创始人；外部咨询客户仅限咨询、课程查看、试听预约
+**日期**：2026-06-06
 
 ---
 
@@ -220,7 +221,7 @@ institution_id
 resource ownership
 ```
 
-老师接口必须额外检查 `teacher_students` 授权关系。  
+老师接口必须额外检查 `teacher_students` 授权关系。
 家长接口必须额外检查 `guardian_id` 与 `student_id` 绑定关系。
 
 公开咨询接口必须额外检查：隐私确认、频率限制、来源记录、手机号/联系方式格式、AI 客服输出安全过滤。

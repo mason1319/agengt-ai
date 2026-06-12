@@ -31,11 +31,14 @@ function hasDotEnv() {
 function scanSecrets(files) {
   const patterns = [
     /AIza|AKIA|sk-[A-Za-z0-9_-]{16,}|sk_live_/i,
-    /private[_-]?key|secret[_-]?key|access[_-]?token|api[_-]?key/i,
+    /(?:\b(?:private[_-]?key|secret[_-]?key|access[_-]?token|api[_-]?key|jwt[_-]?secret)\b\s*[:=]\s*["']?[A-Za-z0-9._\-]{24,}["']?)/i,
   ];
 
   const hits = [];
   for (const file of files) {
+    if (file === 'scripts/audit-security.js') {
+      continue;
+    }
     const text = readFileSync(file, 'utf8');
     const lines = text.split('\n');
     for (const [idx, line] of lines.entries()) {

@@ -1,13 +1,14 @@
 # 星伴英语 StarMate 运营 SOP v4.1
 
-**文档类型**：内部运营执行 SOP  
-**对应 PRD**：`StarMate-PRD-v4.1-internal-CN.md`  
-**对应设计文档**：`StarMate-design-v4.1-internal-CN.md`  
-**对应研发 SOP**：`StarMate-dev-SOP-v4.1-CN.md`  
-**项目阶段**：Phase 1 内部 Web 可用版  
-**适用范围**：本机构内部运营、创始人、老师、家长、学生；外部咨询客户仅限课程咨询、课程查看、试听预约  
-**暂不范围**：在线销售闭环、平台招商、在线支付、套餐售卖、大规模公开投放  
-**日期**：2026-06-06  
+**文档类型**：内部运营执行 SOP
+**对应 PRD（执行锚点）**：`phase1-prd-starmate-english.md`
+**PRD 补充**：`StarMate-PRD-v4.1-internal-CN.md`（招生/课程与课时运营边界）
+**对应设计文档**：`StarMate-design-v4.1-internal-CN.md`
+**对应研发 SOP**：`StarMate-dev-SOP-v4.1-CN.md`
+**项目阶段**：Phase 1 内部 Web 可用版
+**适用范围**：本机构内部运营、创始人、老师、家长、学生；外部咨询客户仅限课程咨询、课程查看、试听预约
+**暂不范围**：在线销售闭环、平台招商、在线支付、套餐售卖、大规模公开投放
+**日期**：2026-06-06
 
 ---
 
@@ -578,6 +579,20 @@ Phase 1 内测建议指标：
 4. 周运营报告模板
 5. AI 用量周报模板
 
+## 20. 收口签字入口
+
+阶段收口请优先使用统一清单：
+
+- 一页签字：[`docs/phase1-signoff-onepage-checklist-v4.1-internal-CN.md`](/Users/mason/英语系统/docs/phase1-signoff-onepage-checklist-v4.1-internal-CN.md)
+- 收口报告：[`docs/phase1-closeout-report-v4.1-internal-CN.md`](/Users/mason/英语系统/docs/phase1-closeout-report-v4.1-internal-CN.md)
+- 最终验收记录：[`docs/phase1-final-acceptance-record-v4.1-internal-CN.md`](/Users/mason/英语系统/docs/phase1-final-acceptance-record-v4.1-internal-CN.md)
+
+执行顺序：
+
+1. 按一页签字清单逐项打钩
+2. 复核收口报告
+3. 写入最终验收记录并留签字
+
 
 ## 12. 第一阶段运营清单（交付后执行）
 
@@ -602,3 +617,29 @@ Phase 1 内测建议指标：
 - 任一表缺数据，优先恢复最近成功版本并回滚接口变更
 - 运营日报须记录：今日变更、异常、家长咨询转化、课时调整原因
 
+## 20. 第一阶段收口签字清单（P0/P1/P2）
+
+### 20.1 P0（必须为通过，阻塞发布）
+
+- `POST /api/v1/auth/login`、`GET /api/v1/me` 可用，鉴权边界正确。
+- 学生评分提交、老师点名提交、家长课时查询、创始人对账链路可用。
+- 非授权访问能正确拒绝（403/401）。
+
+### 20.2 P1（必须修复，不能带缺口上线）
+
+- 任一角色主链路存在“按钮无 API/无回写”缺口。
+- 当前阶段：未发现新增 P1 缺口。
+
+### 20.3 P2（优化项，不阻塞）
+
+- 文案规范、部分体验微调、AI 提示语优化。
+- 多端真机打磨与更多运营素材归档。
+
+### 20.4 发布前执行（建议截图留痕）
+
+- `npm run validate:contracts`
+- `npm run audit:deps`
+- `npm run audit:security`
+- `npm run stack:verify`
+
+以上通过且 P0/P1 清零后，填写收口报告执行上线签字。

@@ -419,7 +419,7 @@ const iconRegistry = {
   WandSparkles
 };
 function isApiMode() {
-  return (trimEnv(import.meta.env?.VITE_DATA_SOURCE) || 'mock').toLowerCase() === 'api';
+  return (trimEnv(import.meta.env?.VITE_DATA_SOURCE) || 'api').toLowerCase() === 'api';
 }
 
 function getAIAgentSourceLabel(payload = {}) {
@@ -590,7 +590,7 @@ const PAGE_CONFIG = [
   { id: 'practice', label: '学习练习', icon: WandSparkles, hint: '练习与反馈' },
   { id: 'agents', label: '智能体中心', icon: Bot, hint: 'AI 能力执行' },
   { id: 'profile', label: '个人中心', icon: MessageCircleHeart, hint: '成长记录' },
-  { id: 'culture-wall', label: '学习档案', icon: ImageIcon, hint: '课堂回顾与成长记录' }
+  { id: 'culture-wall', label: '学习成果馆', icon: ImageIcon, hint: '课堂回顾与成果沉淀' }
 ];
 
 const PLATFORM_PAGE_CONFIG = [
@@ -599,7 +599,7 @@ const PLATFORM_PAGE_CONFIG = [
   { id: 'practice', label: '机构方案', icon: CreditCard, hint: '试用/续用/冻结' },
   { id: 'agents', label: '智能体中心', icon: Bot, hint: 'AI 能力执行' },
   { id: 'profile', label: '资源用量', icon: DatabaseZap, hint: '平台级 AI 资源监控' },
-  { id: 'culture-wall', label: '学习档案', icon: ImageIcon, hint: '教学内容归档' }
+  { id: 'culture-wall', label: '学习成果馆', icon: ImageIcon, hint: '教学内容成果展示' }
 ];
 
 const AI_AUDIT_ACTION_OPTIONS = [
@@ -781,7 +781,7 @@ function FounderDashboard({
       <div className="hero-panel">
           <div>
             <h1>经营驾驶舱</h1>
-            <p>课程、课时、缴费、咨询线索统一在这里管理，关键动作都可回写与审计。</p>
+            <p>课程、课时、收费记录、咨询线索统一在这里管理，关键动作都可回写与审计。</p>
             <div className="hero-actions">
               <button onClick={requestRefresh}>{refreshText}</button>
             </div>
@@ -858,7 +858,7 @@ function FounderDashboard({
               <span className="status-dot green" />
               <div>
                 <strong>对账口径</strong>
-              <small>课时、缴费和到课数据已统一接通</small>
+              <small>课时、收费记录和到课数据已统一接通</small>
               </div>
               <small className="small-note">课时表项：{summary.lessonAccountSummary?.totalRecords || 0}</small>
             </div>
@@ -925,7 +925,7 @@ function FounderDashboard({
                 <span className="status-dot green" />
                 <div>
                   <strong>{selectedLead.guardianName || '未填写家长名'}</strong>
-                  <small>{selectedLead.student_grade || selectedLead.studentGrade || '年级未录入'} · {selectedLead.need_summary || selectedLead.needSummary || UI_COPY.empty.noLearningNeed}</small>
+                  <small>{selectedLead.student_grade || selectedLead.studentGrade || '年级待录入'} · {selectedLead.need_summary || selectedLead.needSummary || UI_COPY.empty.noLearningNeed}</small>
                 </div>
                 <small className="small-note">{selectedLead.updatedAt || selectedLead.updated_at || selectedLead.createdAt || '刚刚'}</small>
               </div>
@@ -950,7 +950,7 @@ function FounderDashboard({
             <div>
               <strong>{getCourseDisplay(course).name}</strong>
               <small>
-                {course.grade || '年级未录入'} · {normalizeCourseClassType(course)} · {course.status || '待更新'}
+                {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {course.status || '课程状态待更新'}
               </small>
               <small className="small-note">
                 {normalizeCourseRules(course).scheduleDate} · {normalizeCourseRules(course).attendanceRule}
@@ -968,7 +968,7 @@ function FounderDashboard({
             <span className="status-dot blue" />
             <div>
               <strong>{record.studentName || record.student_name || '匿名学员'}</strong>
-              <small>{record.status || '已支付'} · {record.order_no || record.orderNo || '订单号待核对'}</small>
+              <small>{record.status || '已入账'} · {record.order_no || record.orderNo || '订单号待核对'}</small>
             </div>
             <small className="small-note">{formatCents(record.amount_cents || record.amountCents || 0)}</small>
           </div>
@@ -1169,7 +1169,7 @@ function TeacherWorkspace({
 
   const quickCloseAll = async () => {
     if (!visibleLessons.length) {
-      onAction?.('teacher', '教师端：当前无可处理课程');
+      onAction?.('teacher', '教师端：当前无相关处理课程');
       return;
     }
     setBulkClosing(true);
@@ -1229,7 +1229,7 @@ function TeacherWorkspace({
 
   const runAgentFeedback = async () => {
     if (!currentLesson.student) {
-      onAction?.('teacher', 'AI反馈生成失败：请先选择课程后重试');
+      onAction?.('teacher', 'AI反馈生成失败：请先选择课程并重试');
       return;
     }
     if (activeState.feedbackDone) {
@@ -1259,15 +1259,15 @@ function TeacherWorkspace({
       });
 
       const output = payload?.output || {};
-      const feedbackText = output.content || output.title || '反馈已生成';
+      const feedbackText = output.content || output.title || '反馈已形成';
       setActiveState({
         feedbackDone: true,
-        status: '反馈已生成',
+        status: '反馈已形成',
         feedbackText,
         feedbackSuggestions: Array.isArray(output.suggestions) ? output.suggestions : []
       });
-      onAction?.('teacher', `AI反馈已生成：${currentLesson?.student || '当前课程'}`);
-      setAgentMessage(`AI反馈已生成：${getAIAgentSourceLabel(payload)}`);
+      onAction?.('teacher', `AI反馈已形成：${currentLesson?.student || '当前课程'}`);
+      setAgentMessage(`AI反馈已形成：${getAIAgentSourceLabel(payload)}`);
     } catch (error) {
       onAction?.('teacher', `AI反馈失败：${currentLesson?.student || '当前课程'}`);
       setAgentMessage(`AI反馈失败：${error?.message || '服务异常'}`);
@@ -1286,14 +1286,14 @@ function TeacherWorkspace({
     if (activeState.exerciseDone) {
       setActiveState({
         exerciseDone: false,
-        status: activeState.feedbackDone ? '反馈已生成' : '待确认',
+        status: activeState.feedbackDone ? '反馈已形成' : '待确认',
         exerciseOutput: null
       });
       onAction?.('teacher', `撤销练习：${currentLesson?.student || '当前课程'}`);
       return;
     }
     if (!currentLesson.student) {
-      onAction?.('teacher', 'AI练习生成失败：请先选择课程后重试');
+      onAction?.('teacher', 'AI练习生成失败：请先选择课程并重试');
       return;
     }
     setAgentBusy((prev) => ({ ...prev, exercise: true }));
@@ -1328,7 +1328,7 @@ function TeacherWorkspace({
       setAgentMessage(`练习生成失败：${error?.message || '服务异常'}`);
       setActiveState({
         exerciseDone: false,
-        status: activeState.feedbackDone ? '反馈已生成' : '待确认',
+        status: activeState.feedbackDone ? '反馈已形成' : '待确认',
         exerciseOutput: null
       });
     } finally {
@@ -1439,7 +1439,7 @@ function TeacherWorkspace({
         </div>
         <div className="lesson-board">
               {visibleLessons.length === 0 ? (
-                <div className="small-note">当前筛选条件下暂无匹配课程</div>
+                <div className="small-note">当前条件下暂无匹配课程</div>
               ) : (
                 visibleLessons.map((lesson) => (
                 <button
@@ -1493,14 +1493,14 @@ function TeacherWorkspace({
             {activeState.closed ? '已扣课时：完成' : bulkClosing ? '处理中...' : '完成记录'}
           </button>
             <button className={activeState.feedbackDone ? 'ghost' : ''} onClick={runAgentFeedback} disabled={agentBusy.feedback || visibleLessons.length === 0}>
-              {activeState.feedbackDone ? '反馈内容已生成' : '生成反馈内容'}
+              {activeState.feedbackDone ? '反馈内容已形成' : '生成反馈内容'}
             </button>
             <button className={activeState.exerciseDone ? 'ghost' : ''} onClick={runAgentExercise} disabled={agentBusy.exercise || visibleLessons.length === 0}>
               {activeState.exerciseDone ? '练习题已同步' : 'AI生成练习题'}
             </button>
         </div>
         <div className="ai-output">
-          {activeState.feedbackText || '当前无待确认课程，可从授权学生列表继续处理。'}
+          {activeState.feedbackText || '当前无未完成课程，可继续处理授权学生。'}
             {activeState.feedbackSuggestions.length > 0 ? (
             <ul className="small-note" style={{ marginTop: 8, paddingLeft: 14 }}>
               {activeState.feedbackSuggestions.map((item) => (
@@ -1543,7 +1543,7 @@ function TeacherWorkspace({
           title="异常跟进"
           action={
             <button className="row-action" onClick={() => setShowCurrentExceptionOnly((value) => !value)}>
-              {showCurrentExceptionOnly ? '查看全部记录' : '仅看当前课程'}
+              {showCurrentExceptionOnly ? '查看全部异常' : '仅看当前课程'}
             </button>
           }
         />
@@ -1709,7 +1709,7 @@ function ParentView({
             <div>
               <strong>{getCourseDisplay(course).name}</strong>
               <small>
-                {course.grade || '年级未录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
+                {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
               </small>
             </div>
             <small className="small-note">
@@ -1725,7 +1725,7 @@ function ParentView({
           <div className="alert-row">
             <span className="status-dot blue" />
             <div>
-              <strong>购买课时</strong>
+              <strong>入账课时</strong>
               <small>{childLessonAccount.summary?.purchased || childLessonAccount.purchasedHours || 0} 节</small>
             </div>
             <small className="small-note">剩余 {child.hoursLeft} 节</small>
@@ -1745,14 +1745,14 @@ function ParentView({
       </div>
 
       <div className="panel">
-        <PanelTitle icon={CreditCard} title="缴费摘要" action={`已交 ${paidCount} 笔`} />
+        <PanelTitle icon={CreditCard} title="收费记录摘要" action={`已记录 ${paidCount} 笔`} />
         {childPaymentRecords.length === 0 ? <div className="small-note">{UI_COPY.empty.noPayments}</div> : null}
         {(childPaymentRecords || []).slice(0, 6).map((record) => (
           <div className="alert-row" key={record.id || record.order_no || `${record.studentId || ''}-${record.paid_at || ''}`}>
             <span className="status-dot blue" />
             <div>
               <strong>{record.order_no || record.orderNo || '订单号待核对'}</strong>
-              <small>{record.status || '已支付'} · {record.paid_at || record.paidAt || '课次时间待更新'}</small>
+              <small>{record.status || '已入账'} · {record.paid_at || record.paidAt || '入账时间待更新'}</small>
             </div>
             <small className="small-note">
               {formatCents(record.amount_cents || record.amountCents || record.amount || 0)}
@@ -1789,7 +1789,7 @@ function ParentView({
         <p className="large-text">{report.summary}</p>
         <div className="small-note">{reportStatus}</div>
         <div className="small-note">
-          缴费记录：已交 {paidCount} 笔，金额 {formatCents(totalPaidCents)}
+          收费记录：已记录 {paidCount} 笔，金额 {formatCents(totalPaidCents)}
         </div>
       </div>
     </section>
@@ -1900,7 +1900,7 @@ function StudentView({
     return {
       id: course.id || course.courseId || course.course_id || `course-${index}`,
       title: display.name || course.name || course.courseName || course.title || `课程 ${index + 1}`,
-      grade: course.grade || '年级未录入',
+      grade: course.grade || '年级待录入',
       classType: normalizeCourseClassType(course),
       fee: normalizeCourseFee(course),
       time: normalizeCourseTime(course),
@@ -2001,7 +2001,13 @@ function StudentView({
         // 刷新失败不中断跳转
       }
     }
-    onNavigatePage?.('practice');
+    const pathPracticeMap = {
+      warmup: 'vocab',
+      story: 'vocab',
+      grammar: 'grammar',
+      show: 'speaking'
+    };
+    onNavigatePage?.('practice', { practiceModuleId: pathPracticeMap[step.id] || 'vocab' });
     onAction?.('student', `打开路径：${step.title}`);
   };
 
@@ -2016,7 +2022,7 @@ function StudentView({
         // 刷新失败不中断跳转
       }
     }
-    onNavigatePage?.('courses');
+    onNavigatePage?.('courses', { selectedCourseId: course.id });
     onAction?.('student', `打开课程：${course.title}`);
   };
 
@@ -2031,7 +2037,15 @@ function StudentView({
         // 刷新失败不中断跳转
       }
     }
-    onNavigatePage?.('practice');
+    const practiceArenaMap = {
+      words: 'vocab',
+      reading: 'vocab',
+      speaking: 'speaking',
+      grammar: 'grammar',
+      listening: 'vocab',
+      test: 'grammar'
+    };
+    onNavigatePage?.('practice', { practiceModuleId: practiceArenaMap[practice.id] || practice.id });
     onAction?.('student', `进入练习：${practice.title}`);
   };
 
@@ -2115,61 +2129,61 @@ function StudentView({
             </div>
           </div>
         </div>
-        <div className="hero-side-stack">
+            <div className="hero-side-stack">
           <div className="hero-mentor-card">
             <div className="hero-mentor-head">
               <div>
-                <strong>AI陪练</strong>
-                <small>可立即开始</small>
+                <strong>AI 学习教练</strong>
+                <small>口语评分 · 纠音建议</small>
               </div>
-              <span className="hero-online-dot">在线</span>
+              <span className="hero-online-dot">在线服务</span>
             </div>
             <div className="hero-mentor-bubble">
-              <p>{studentName || '同学'}，建议先完成情绪表达主题训练。</p>
-              <p>系统会同步记录口语、发音与学习反馈。</p>
+              <p>{studentName || '同学'}，先完成“今日重点”后进入本节语音练习。</p>
+              <p>评分结果会回写至学习复盘与家校摘要，支持课后追踪。</p>
             </div>
             <div className="hero-mentor-art-wrap">
               <AggieMascotArt className="compact" />
             </div>
-            <button className="hero-mentor-primary" onClick={onRefresh}>开始学习</button>
+            <button className="hero-mentor-primary" onClick={onRefresh}>开启口语评估</button>
             <div className="hero-mentor-actions">
-              <span>口语任务</span>
-              <span>发音校正</span>
-              <span>情景表达</span>
-              <span>智能陪练</span>
+              <span>语音评分</span>
+              <span>发音纠正</span>
+              <span>情景口语</span>
+              <span>学习复盘</span>
             </div>
           </div>
             <div className="hero-feedback-card">
               <div className="hero-mentor-head">
                 <div>
-                  <strong>学习复盘</strong>
-                  <small>周度汇总</small>
+                  <strong>阶段复盘</strong>
+                  <small>本周进度核对</small>
                 </div>
-                <span className="hero-online-dot">已更新</span>
+                <span className="hero-online-dot">已同步</span>
               </div>
             <div className="hero-mentor-bubble">
-              <p>近期课堂状态稳定，开口表达和记忆保持同步提升。</p>
+              <p>本周建议优先强化：语音输出连贯度与理解迁移。</p>
               <p>{report.summary}</p>
             </div>
               <div className="hero-feedback-metrics">
-                <span>学习态度 <strong>优秀</strong></span>
-                <span>课堂表现 <strong>优秀</strong></span>
+                <span>学习态度 <strong>良好</strong></span>
+                <span>课堂表现 <strong>{report.strength || '稳定'}</strong></span>
               <span>进步指数 <strong>{Math.max(1, Math.round(studentProgress || 92))}%</strong></span>
               </div>
           </div>
             <div className="hero-culture-card">
                 <div className="hero-mentor-head">
                   <div>
-                    <strong>学习档案</strong>
-                    <small>课堂回顾</small>
-                  </div>
-                  <span className="hero-online-dot">查看全部</span>
+                    <strong>学习成果馆</strong>
+                  <small>课程素材 · 家校可见</small>
+                </div>
+                  <span className="hero-online-dot">查看详情</span>
                 </div>
             <div className="culture-preview-grid">
               <div className="culture-preview-tile">课堂视频</div>
-              <div className="culture-preview-tile">活动图片</div>
-              <div className="culture-preview-tile">师资信息</div>
-              <div className="culture-preview-tile">家校反馈</div>
+              <div className="culture-preview-tile">学习作品</div>
+              <div className="culture-preview-tile">课后反馈</div>
+              <div className="culture-preview-tile">家长联络</div>
             </div>
           </div>
         </div>
@@ -2194,7 +2208,7 @@ function StudentView({
               : step.status === 'active'
                 ? '进行中'
                 : step.status === 'locked'
-                  ? '未开启'
+                  ? '待解锁'
                   : '未开始';
             return (
               <article className={`student-path-card ${step.status}`} key={step.id}>
@@ -2206,9 +2220,7 @@ function StudentView({
                 <p>{step.desc}</p>
                 <div className="student-path-footer">
                   <small>{step.reward}</small>
-                  <button className="row-action ghost" onClick={() => void handleOpenPath(step)}>
-                    查看
-                  </button>
+                  <button className="row-action ghost" onClick={() => void handleOpenPath(step)}>开始任务</button>
                 </div>
               </article>
             );
@@ -2231,7 +2243,7 @@ function StudentView({
             <article className={`student-task-card ${task.done ? 'done' : ''}`} key={task.id}>
               <div className="student-task-head">
                 <span className="student-task-index">{String(index + 1).padStart(2, '0')}</span>
-                <span className="student-task-status">{task.done ? '已完成' : '去完成'}</span>
+                <span className="student-task-status">{task.done ? '已完成' : '开始学习'}</span>
               </div>
               <div className="student-task-title-row">
                 {React.createElement(taskToneIcons[index % taskToneIcons.length], { size: 22 })}
@@ -2268,7 +2280,7 @@ function StudentView({
               >
                 {assessingTaskId === task.id
                   ? '提交中...'
-                  : task.done ? '重新评分' : '去完成'}
+                  : task.done ? '重新评分' : '开始学习'}
               </button>
             </article>
           ))}
@@ -2281,7 +2293,7 @@ function StudentView({
             icon={CalendarDays}
             title={`在读课程（${homeCourseCards.length}门）`}
             action={<button className="row-action" onClick={() => void handleOpenCourses()}>
-              查看全部在读课程
+              查看课程明细
             </button>}
           />
           <div className="student-course-grid">
@@ -2378,7 +2390,7 @@ function StudentView({
               <div>
                 <strong>{getCourseDisplay(course).name}</strong>
                 <small>
-                  {course.grade || '年级未录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
+                  {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
                 </small>
               </div>
               <small className="small-note">{normalizeCourseTime(course)}</small>
@@ -2728,7 +2740,7 @@ function PlatformAiPage({
 }) {
   const fallbackUsageRows = organizations.map((org) => ({
     institutionId: org.id || org.name || '',
-    institutionName: org.name || '机构名称未设置',
+    institutionName: org.name || '机构名称待补齐',
     plan: org.plan || '体验版',
     planCode: org.planCode || 'trial',
     aiLimitMonthly: Number(org.aiLimit) || 0,
@@ -3119,7 +3131,7 @@ function PlatformAiPage({
             <option value="">全部机构</option>
             {organizations.map((org) => (
               <option key={org.id || org.name} value={org.id || ''}>
-                {org.name || org.id || '机构名称未设置'}
+                {org.name || org.id || '机构名称待补齐'}
               </option>
             ))}
           </select>
@@ -3342,7 +3354,7 @@ function PlatformAiPage({
               return (
                 <div className="org-row" key={org.institutionId || org.id || org.name || org.institutionName || 'ai-usage'}>
                 <div>
-                  <strong>{org.institutionName || org.name || '机构名称未设置'}</strong>
+                  <strong>{org.institutionName || org.name || '机构名称待补齐'}</strong>
                   <small>{org.plan || '体验版'}（{org.planMode || '月付'}） · 已用 {used} / 上限 {limit}</small>
                   <small>
                     请求数 {Number(org.requestsWindow) || 0} · 上次使用 {org.lastUsedAt || '—'} · 来源
@@ -3449,7 +3461,7 @@ function PlatformAiPage({
             <option value="">全部机构</option>
             {organizations.map((org) => (
               <option key={org.id || org.name} value={org.id || ''}>
-                {org.name || org.id || '机构名称未设置'}
+                {org.name || org.id || '机构名称待补齐'}
               </option>
             ))}
           </select>
@@ -4599,17 +4611,17 @@ function HomePage({
 
   const handleOpenCultureWall = async () => {
     if (onRefreshCultureWall) {
-      setHomeActionText('正在刷新学习档案...');
+      setHomeActionText('正在刷新学习成果馆...');
       try {
         await onRefreshCultureWall();
-        setHomeActionText('学习档案已更新');
+        setHomeActionText('学习成果馆已更新');
       } catch (error) {
-        setHomeActionText(`学习档案刷新失败：${error?.message || '请求失败'}`);
+        setHomeActionText(`学习成果馆刷新失败：${error?.message || '请求失败'}`);
       }
     }
 
     onNavigatePage?.('culture-wall');
-    onAction?.('home', '打开学习档案');
+    onAction?.('home', '打开学习成果馆');
   };
 
   const resolveCourseText = (course = {}) => {
@@ -4640,7 +4652,7 @@ function HomePage({
       return;
     }
     if (!selectedPublicCourseId && publicCourseList.length > 0) {
-      setConsultStatusText('请先选择课程后重试');
+      setConsultStatusText('请先选择课程并重试');
       return;
     }
     setConsultBusy(true);
@@ -4767,7 +4779,7 @@ function HomePage({
               <h1>{activeStageMeta.heroTitle}</h1>
               <p>{activeStageMeta.heroDesc}</p>
               <div className="hero-actions">
-                <button className="hero-inline-action" onClick={handleQuickStart}>继续今天的任务</button>
+                <button className="hero-inline-action" onClick={handleQuickStart}>开始今日任务</button>
               </div>
               <p className="small-note hero-action-note">{homeActionText}</p>
               <div className="hero-chip-row">
@@ -4831,64 +4843,64 @@ function HomePage({
             </div>
           </div>
         </div>
-        <div className="hero-side-stack">
+            <div className="hero-side-stack">
           <div className="hero-mentor-card">
             <div className="hero-mentor-head">
               <div>
-                <strong>AI陪练</strong>
-                <small>可立即开始</small>
+                <strong>AI 学习教练</strong>
+                <small>口语评分 · 纠音建议</small>
               </div>
-              <span className="hero-online-dot">在线</span>
+              <span className="hero-online-dot">在线服务</span>
             </div>
             <div className="hero-mentor-bubble">
-              <p>今日先完成情绪表达主题任务后，再推进下一学习任务。</p>
-              <p>系统会同步记录口语、发音与学习反馈。</p>
+              <p>今日先完成“今日重点”后进入本节语音输出任务。</p>
+              <p>评分结果会回写复盘记录，并支持家长端追踪。</p>
             </div>
             <div className="hero-mentor-art-wrap">
               <AggieMascotArt className="compact" />
             </div>
-            <button className="hero-mentor-primary" onClick={handleQuickStart}>开始学习</button>
+            <button className="hero-mentor-primary" onClick={handleQuickStart}>开启口语评估</button>
             <div className="hero-mentor-actions">
               <span>口语任务</span>
               <span>发音校正</span>
-              <span>情景表达</span>
-              <span>智能陪练</span>
+              <span>情景对话</span>
+              <span>学习复盘</span>
             </div>
           </div>
             <div className="hero-feedback-card">
               <div className="hero-mentor-head">
                 <div>
-                  <strong>学习复盘</strong>
-                  <small>周度汇总</small>
+                  <strong>阶段复盘</strong>
+                  <small>本周进度核对</small>
                 </div>
-                <span className="hero-online-dot">已更新</span>
+                <span className="hero-online-dot">已同步</span>
               </div>
             <div className="hero-mentor-bubble">
-              <p>近期课堂状态稳定，开口表达和记忆保持同步提升。</p>
+              <p>本周重点建议：强化表达结构、提升反应速度与理解应用。</p>
               <p>{report.summary}</p>
             </div>
-            <div className="hero-feedback-metrics">
+              <div className="hero-feedback-metrics">
               <span>学习态度 <strong>{report.strength || '稳定'}</strong></span>
               <span>课堂表现 <strong>{report.weakness || '待加强'}</strong></span>
               <span>进步指数 <strong>{Math.max(1, Math.round(childProgress || 92))}%</strong></span>
-            </div>
+              </div>
           </div>
           <div className="hero-culture-card">
               <div className="hero-mentor-head">
                 <div>
-                  <strong>学习档案</strong>
-                <small>课堂影像 / 家校反馈</small>
+                  <strong>学习成果馆</strong>
+                <small>课程素材 · 家校可见</small>
                 </div>
-                <span className="hero-online-dot">查看全部</span>
+                <span className="hero-online-dot">查看详情</span>
               </div>
             <div className="culture-preview-grid">
-              <div className="culture-preview-tile">课堂影像</div>
-              <div className="culture-preview-tile">活动图片</div>
-              <div className="culture-preview-tile">师资信息</div>
-              <div className="culture-preview-tile">家校反馈</div>
+              <div className="culture-preview-tile">课堂视频</div>
+              <div className="culture-preview-tile">学习作品</div>
+              <div className="culture-preview-tile">课程提醒</div>
+              <div className="culture-preview-tile">家长反馈</div>
             </div>
             <button className="row-action" onClick={handleOpenCultureWall}>
-              进入学习档案
+              进入成果馆
             </button>
           </div>
         </div>
@@ -4901,7 +4913,7 @@ function HomePage({
               <h3>一键进入今日路径任务</h3>
             </div>
           <button className="row-action" onClick={handleJumpPractice}>
-            查看练习内容
+            打开练习工作台
           </button>
         </div>
         <div className="home-path-grid">
@@ -4911,7 +4923,7 @@ function HomePage({
               : step.status === 'active'
                 ? '进行中'
                 : step.status === 'locked'
-                  ? '未开启'
+                  ? '待解锁'
                   : '未开始';
             return (
               <article className={`home-path-card ${step.status}`} key={step.id}>
@@ -4923,9 +4935,7 @@ function HomePage({
                 <p>{step.desc}</p>
                 <div className="home-path-footer">
                   <small>{step.reward}</small>
-                  <button className="row-action ghost" onClick={handleJumpPractice}>
-                    进入
-                  </button>
+                  <button className="row-action ghost" onClick={handleJumpPractice}>开始任务</button>
                 </div>
               </article>
             );
@@ -4953,7 +4963,7 @@ function HomePage({
               </div>
             </div>
             <div className="home-course-grid">
-              {publicCoursesLoading ? <div className="small-note">课程数据加载中...</div> : null}
+              {publicCoursesLoading ? <div className="small-note">课程清单刷新中...</div> : null}
               {publicCourseList.length === 0 && !publicCoursesLoading ? <div className="small-note">{UI_COPY.empty.noPublicCourses}</div> : null}
               {publicCourseList.map((course) => {
                 const info = resolveCourseText(course);
@@ -4965,17 +4975,17 @@ function HomePage({
                       <span className="small-note">{info.grade}</span>
                     </div>
                     <strong>{info.title}</strong>
-                    <p>{info.fee ? `课程费用：${info.fee}` : '课程费用：请维护标准课价'}</p>
+                    <p>{info.fee ? `收费标准：${info.fee}` : '收费标准待设置'}</p>
                     <div className="course-meta-row">
                       <span>班型：{display.classType}</span>
                       <span>时长：{info.duration}</span>
                     </div>
-                    <small>剩余可报名：{course.capacityLeft || course.capacity || '—'}</small>
+                    <small>可报名名额：{course.capacityLeft || course.capacity || '—'}</small>
                     <button
                       className={isSelected ? 'row-action ghost' : 'row-action'}
                       onClick={() => setSelectedPublicCourseId(`${course.id}`)}
                     >
-                      {isSelected ? '已选中试听' : '立即预约试听'}
+                      {isSelected ? '已选中试听课程' : '立即预约试听'}
                     </button>
                   </article>
                 );
@@ -4987,7 +4997,7 @@ function HomePage({
             <div className="section-headline">
               <div>
                 <span>试听咨询</span>
-                <h3>AI 咨询 与 试听预约</h3>
+                <h3>AI咨询与试听预约</h3>
               </div>
             </div>
             <div className="encouragement-copy">
@@ -5030,7 +5040,7 @@ function HomePage({
               <h3>模块化学习</h3>
             </div>
           <button className="row-action" onClick={handleJumpPractice}>
-                查看练习内容
+                打开练习工作台
               </button>
             </div>
           <div className="practice-module-grid">
@@ -5047,7 +5057,7 @@ function HomePage({
                   className="row-action"
                   onClick={() => handleEnterPractice(module)}
                 >
-                  开始练习
+                  进入训练
                 </button>
               </article>
             ))}
@@ -5153,6 +5163,7 @@ function CoursesPage({
   activeRole = '',
   studentCourses = [],
   studentReviewSummary = {},
+  selectedCourseId = '',
   onNavigatePage,
   onRunAIAgent,
   onRefreshCourses,
@@ -5183,10 +5194,25 @@ function CoursesPage({
     : COURSE_SKILL_GOALS.reduce((sum, item) => sum + item.value, 0) / COURSE_SKILL_GOALS.length;
   const currentCourseRules = normalizeCourseRules(currentCourse);
   const [completedPathIds, setCompletedPathIds] = useState([COURSE_PATH_STEPS[0]?.id || 'story']);
-  const [courseHint, setCourseHint] = useState('选择学习路径后点“继续学习”，即可进入下一步内容。');
+  const [courseHint, setCourseHint] = useState('选择学习模块后点击进入，即可查看下一步学习安排。');
   const [courseActionEnabled, setCourseActionEnabled] = useState(true);
   const [isRefreshingCourses, setIsRefreshingCourses] = useState(false);
   const hasCoursesRefresh = typeof onRefreshCourses === 'function';
+
+  useEffect(() => {
+    const nextSelectedId = `${selectedCourseId || ''}`.trim();
+    if (!nextSelectedId) {
+      return;
+    }
+    if (`${selectedId || ''}` === nextSelectedId) {
+      return;
+    }
+    if (courseCards.some((item) => `${item.id}` === nextSelectedId)) {
+      setSelectedId(nextSelectedId);
+      setCourseHint('已定位到首页选中的课程。');
+    }
+  }, [selectedCourseId, selectedId, courseCards]);
+
   const refreshCoursesContext = async (controlId, actionLabel) => {
     if (!onRefreshCourses) {
       const message = `${actionLabel}失败：课程服务暂不可用`;
@@ -5198,7 +5224,7 @@ function CoursesPage({
     try {
       setCourseHint(`${actionLabel}前正在同步课程数据...`);
       await onRefreshCourses();
-      onAction?.(controlId, `${actionLabel}已同步课程上下文`);
+      onAction?.(controlId, `${actionLabel}课程上下文已更新`);
       return true;
     } catch (error) {
       const message = `${actionLabel}失败：${error instanceof Error ? error.message : '课程数据同步失败'}`;
@@ -5231,7 +5257,7 @@ function CoursesPage({
   const handlePathContinue = () => {
     const currentStatus = getPathStatus(currentPath);
     if (!courseActionEnabled || currentStatus === 'locked' || !hasUnlockedPath(currentPath.id)) {
-      setCourseHint('当前课程未开启，请先完成前序课程后继续。');
+      setCourseHint('当前课程待解锁，请先完成前序课程后继续。');
       onAction?.('courses', `课程尝试失败：${currentPath.title} 还未解锁`);
       return;
     }
@@ -5313,7 +5339,7 @@ function CoursesPage({
 
   const handleSelectPath = async (path) => {
     if (!hasUnlockedPath(path.id)) {
-      setCourseHint('请先完成上一环节后再进入下一单元。');
+      setCourseHint('请先完成上一节后再进入下一单元。');
       onAction?.('courses', `课程路径未解锁：${path.title}`);
       return;
     }
@@ -5433,17 +5459,17 @@ function CoursesPage({
       <section className="panel page-banner course-world-banner">
         <div>
           <span>课程总览</span>
-          <h3>{activeStageMeta.label} 学习路径</h3>
-          <p>课程、进度、课时与规则统一查看，便于直接了解当前学习安排与阶段结果。</p>
+          <h3>{activeStageMeta.label} 课程执行看板</h3>
+          <p>课程表、课时扣减、收费标准与作业进度已按课程一体聚合，支持按班型与日期快速核对。</p>
           <div className="hero-chip-row">
-            <span className="small-note">课程进度已同步</span>
-            <span className="small-note">学习复盘可查看</span>
-            <span className="small-note">剩余课时清晰可见</span>
+            <span className="small-note">课程进度已更新</span>
+            <span className="small-note">复盘记录可追溯</span>
+            <span className="small-note">剩余课时即时可见</span>
           </div>
         </div>
         <div className="course-summary-token">
           <strong>{Math.round(courseProgress)}%</strong>
-          <small>本周学习进度</small>
+          <small>本周教学进度</small>
         </div>
       </section>
 
@@ -5451,7 +5477,7 @@ function CoursesPage({
         <div className="section-headline">
           <div>
             <span>课程总览</span>
-            <h3>课程进度与课时规则一页看懂</h3>
+            <h3>课程与课时核对看板</h3>
           </div>
           {hasCoursesRefresh ? (
             <button
@@ -5468,8 +5494,14 @@ function CoursesPage({
         <div className="metrics course-overview-metrics">
           <MetricCard icon={BookOpenCheck} label="课程总数" value={`${courseCards.length}门`} note="当前可查看课程条目" tone="green" />
           <MetricCard icon={Rocket} label="路径进度" value={`${Math.round(courseProgress)}%`} note={`已解锁 ${completedPathIds.length}/${COURSE_PATH_STEPS.length} 站`} tone="blue" />
-          <MetricCard icon={CalendarDays} label="当前课程" value={currentCourse.course || '未排课'} note={`${currentCourse.grade} · ${currentCourse.classType || '班型未设置'}`} tone="yellow" />
-          <MetricCard icon={ShieldCheck} label="课时规则" value="正常扣课" note={`${currentCourseRules.attendanceRule || '到课规则'} · ${currentCourseRules.holdRule || '课时保留规则'}`} tone="purple" />
+          <MetricCard icon={CalendarDays} label="当前课程" value={currentCourse.course || '未排课'} note={`${currentCourse.grade} · ${currentCourse.classType || '班型待录入'}`} tone="yellow" />
+          <MetricCard
+            icon={ShieldCheck}
+            label="课时规则"
+            value="按机构策略"
+            note={`${currentCourseRules.attendanceRule || '到课规则'} · ${currentCourseRules.holdRule || '课时保留规则'}`}
+            tone="purple"
+          />
         </div>
       </section>
 
@@ -5478,7 +5510,7 @@ function CoursesPage({
           <div className="section-headline">
             <div>
               <span>学习路径</span>
-              <h3>本周学习路径</h3>
+              <h3>本阶段教学路径</h3>
             </div>
           </div>
           <div className="course-path-lane">
@@ -5502,7 +5534,7 @@ function CoursesPage({
         <section className="panel course-detail-panel">
           <div className="section-headline">
             <div>
-              <span>当前课程</span>
+              <span>当前课程安排</span>
               <h3>{currentPath.title}</h3>
             </div>
             <button
@@ -5515,10 +5547,10 @@ function CoursesPage({
                 : getPathStatus(currentPath) === 'done'
                   ? '已完成'
                 : courseActionEnabled
-                  ? '继续学习'
+                  ? '进入下一步'
                   : '处理中'}
-            </button>
-          </div>
+          </button>
+        </div>
           <div className="course-detail-tabs">
             {courseDetailModes.map((mode) => (
               <button
@@ -5546,7 +5578,7 @@ function CoursesPage({
           <div className="section-headline">
             <div>
               <span>在读课程</span>
-              <h3>课程清单</h3>
+              <h3>课程表明细（班型/时间/收费标准）</h3>
             </div>
             <button
               className="row-action"
@@ -5559,9 +5591,12 @@ function CoursesPage({
                 onNavigatePage?.('courses');
               }}
             >
-              查看全部
+              展开课程表
             </button>
           </div>
+          {courseCards.length === 0 ? (
+            <div className="small-note">课程尚未下发，请在课程表设置中完成发布。</div>
+          ) : null}
         <div className="course-library-grid expanded">
             {courseCards.map((lesson, index) => (
               <button
@@ -5581,13 +5616,13 @@ function CoursesPage({
           </div>
       </section>
 
-      <section className="panel home-section">
-        <div className="section-headline">
-          <div>
-            <span>能力雷达</span>
-            <h3>这门课正在提升什么</h3>
+        <section className="panel home-section">
+          <div className="section-headline">
+            <div>
+              <span>能力雷达</span>
+              <h3>课程目标能力追踪</h3>
+            </div>
           </div>
-        </div>
         <div className="skill-goal-grid">
           {COURSE_SKILL_GOALS.map((skill) => (
             <article className="skill-goal-card" key={skill.id}>
@@ -5608,6 +5643,7 @@ function CoursesPage({
 function PracticePage({
   report,
   activeRole = '',
+  initialPracticeModuleId = '',
   studentTodayTasks = [],
   studentReviewHistory = [],
   studentReviewMistakes = [],
@@ -5617,10 +5653,10 @@ function PracticePage({
   onAction
 }) {
   const fallbackTasks = [
-    { id: 't1', title: '单词星球 12词', done: true, note: '跟读 + 拼写' },
-    { id: 't2', title: '语法拼图 8题', done: false, note: '一般过去时' },
-    { id: 't3', title: '阅读练习 1篇', done: false, note: '找主旨和细节' },
-    { id: 't4', title: '口语小剧场 3句', done: true, note: '情景表达' }
+    { id: 't1', title: '词汇速通', done: false, note: '按课程进度完成当日单词复述与纠音' },
+    { id: 't2', title: '语法训练', done: false, note: '重难点语法专项巩固' },
+    { id: 't3', title: '阅读理解', done: false, note: '完成一组短文主旨定位与细节提取' },
+    { id: 't4', title: '口语任务', done: false, note: '完成情景句式模仿与表达' }
   ];
 
   const buildPracticeTasks = () => {
@@ -5649,10 +5685,14 @@ function PracticePage({
     return fallbackTasks;
   };
 
-  const [activeArenaId, setActiveArenaId] = useState(PRACTICE_ARENAS[0].id);
+  const initialArena = PRACTICE_ARENAS.some((item) => item.id === initialPracticeModuleId)
+    ? initialPracticeModuleId
+    : PRACTICE_ARENAS[0].id;
+  const [activeArenaId, setActiveArenaId] = useState(initialArena);
   const [tasks, setTasks] = useState(buildPracticeTasks);
   const activeArena = PRACTICE_ARENAS.find((item) => item.id === activeArenaId) || PRACTICE_ARENAS[0];
   const ActiveArenaIcon = activeArena.icon;
+  const isParentReadOnly = activeRole === 'parent';
   const [challengeState, setChallengeState] = useState({
     running: false,
     rounds: 0,
@@ -5660,7 +5700,7 @@ function PracticePage({
     completed: false
   });
   const [submittingTaskId, setSubmittingTaskId] = useState('');
-  const [practiceHint, setPracticeHint] = useState('点击“开始练习”进入本模块内容。');
+  const [practiceHint, setPracticeHint] = useState('点击“开始学习”进入本模块内容。');
 
   useEffect(() => {
     setTasks(buildPracticeTasks());
@@ -5675,9 +5715,27 @@ function PracticePage({
     }
   }, [activeRole, studentTodayTasks, studentReviewHistory, studentReviewMistakes]);
 
+  useEffect(() => {
+    const nextArenaId = `${initialPracticeModuleId || ''}`.trim();
+    if (!nextArenaId || !PRACTICE_ARENAS.some((item) => item.id === nextArenaId)) {
+      return;
+    }
+    if (activeArenaId === nextArenaId) {
+      return;
+    }
+    setActiveArenaId(nextArenaId);
+    setPracticeHint('已定位到首页选中的练习模块。');
+  }, [activeArenaId, initialPracticeModuleId]);
+
   const resetChallenge = async () => {
+    if (isParentReadOnly) {
+      setPracticeHint('家长视角仅查看练习与反馈，不直接重置学生任务。');
+      onAction?.('practice', `家长查看练习模块：${activeArena.title}`);
+      return;
+    }
+
     if (!onResetChallenge) {
-      setPracticeHint('重置练习暂不可用：功能维护中');
+      setPracticeHint('当前不支持重置练习，请稍后重试。');
       onAction?.('practice', `重置练习失败：${activeArena.title}`);
       return;
     }
@@ -5754,6 +5812,12 @@ function PracticePage({
       return;
     }
 
+    if (isParentReadOnly) {
+      setPracticeHint('家长视角仅查看练习进度，不直接提交学生任务。');
+      onAction?.('practice', `家长查看任务：${task.title}`);
+      return;
+    }
+
     if (activeRole === 'student' && onSubmitVoiceAssess) {
       setSubmittingTaskId(task.id);
       try {
@@ -5790,6 +5854,12 @@ function PracticePage({
   };
 
   const handleStartChallenge = () => {
+    if (isParentReadOnly) {
+      setPracticeHint('家长视角仅查看练习流程，不直接开始学生训练。');
+      onAction?.('practice', `家长查看练习流程：${activeArena.title}`);
+      return;
+    }
+
     setChallengeState((prev) => ({
       ...prev,
       running: true,
@@ -5798,7 +5868,7 @@ function PracticePage({
       completed: false
     }));
     setPracticeHint(`已开始 ${activeArena.title}，点下方选项继续。`);
-    onAction?.('practice', `开始练习：${activeArena.title}`);
+    onAction?.('practice', `开始学习：${activeArena.title}`);
 
     if (onRunAIAgent) {
       Promise.resolve(
@@ -5825,8 +5895,13 @@ function PracticePage({
   };
 
   const handleTaskChoice = (choice) => {
+    if (isParentReadOnly) {
+      setPracticeHint('家长视角仅查看练习步骤，不直接操作学生训练。');
+      return;
+    }
+
     if (!challengeState.running) {
-      setPracticeHint('请先进入“开始练习”后再进行操作。');
+      setPracticeHint('请先启动训练后再操作。');
       return;
     }
     setChallengeState((prev) => {
@@ -5898,8 +5973,8 @@ function PracticePage({
       <section className="panel page-banner practice-world-banner">
         <div className="practice-world-copy">
           <span>学习练习</span>
-          <h3>今天完成 3 个小目标</h3>
-          <p>单词、听力、口语按顺序推进，练习结果会同步回填到复盘、错题和课时摘要里。</p>
+          <h3>学习练习工作台</h3>
+          <p>练习任务按课程计划下发，提交后立即回填到复盘、错题诊断与课时执行日志。</p>
           <div className="practice-hero-metrics">
             {heroMetrics.map((metric) => (
               <div className={`practice-metric-tile ${metric.tone}`} key={metric.id}>
@@ -5928,12 +6003,24 @@ function PracticePage({
         </div>
       </section>
 
+      {isParentReadOnly ? (
+        <section className="panel practice-readonly-panel">
+          <div className="section-headline">
+            <div>
+              <span>家长只读视角</span>
+              <h3>当前页面用于查看练习进度与反馈</h3>
+            </div>
+          </div>
+          <p className="small-note">学生提交、重置和 AI 生成练习由学生端或老师端执行，家长端保留进度核对和反馈查看。</p>
+        </section>
+      ) : null}
+
       <div className="feature-split">
         <section className="panel mission-panel">
           <div className="section-headline">
             <div>
               <span>今日任务</span>
-              <h3>完成进度 {completed}/{tasks.length}</h3>
+              <h3>{tasks.length > 0 ? `完成进度 ${completed}/${tasks.length}` : '暂无待执行任务'}</h3>
             </div>
           </div>
           <div className="mission-grid">
@@ -5949,9 +6036,9 @@ function PracticePage({
                 <button
                   className="row-action"
                   onClick={() => submitPracticeTask(task)}
-                  disabled={submittingTaskId === task.id}
+                  disabled={submittingTaskId === task.id || isParentReadOnly}
                 >
-                  {submittingTaskId === task.id ? '提交中...' : task.done ? '已完成' : '继续练习'}
+                  {isParentReadOnly ? '仅查看' : submittingTaskId === task.id ? '提交中...' : task.done ? '已提交' : '开始学习'}
                 </button>
               </article>
             ))}
@@ -5962,10 +6049,10 @@ function PracticePage({
           <div className="section-headline">
             <div>
               <span>练习模块</span>
-              <h3>选择学习路径</h3>
+              <h3>选择学习模块</h3>
             </div>
           </div>
-          <p className="practice-zone-note">每个模块都对应一个可执行练习和真实反馈，点击即可切换。</p>
+          <p className="practice-zone-note">每个模块对应独立训练流程，可直接开始并获取结果回填。</p>
           <div className="practice-arena-list">
             {PRACTICE_ARENAS.map((module) => (
               <button
@@ -6010,7 +6097,7 @@ function PracticePage({
               onClick={handleStartChallenge}
               disabled={challengeState.running && !challengeState.completed}
             >
-              {challengeState.running && !challengeState.completed ? '进行中' : '开始练习'}
+              {isParentReadOnly ? '仅查看' : challengeState.running && !challengeState.completed ? '进行中' : '开始学习'}
             </button>
           </div>
           <div className="game-preview-board">
@@ -6021,7 +6108,7 @@ function PracticePage({
             </div>
             <div className="game-choice-row">
               {activeArena.actions.map((action, index) => (
-                <button className="game-choice" key={action} onClick={() => handleTaskChoice(action)}>
+                <button className="game-choice" key={action} onClick={() => handleTaskChoice(action)} disabled={isParentReadOnly}>
                   <span>{index + 1}</span>
                   {action}
                 </button>
@@ -6037,15 +6124,15 @@ function PracticePage({
               <em className="energy-meter-label">{activeArena.energy}%</em>
             </div>
             <div className="small-note" style={{ marginTop: 12 }}>{practiceHint}</div>
-            <button className="row-action" onClick={resetChallenge}>重置内容</button>
+            <button className="row-action" onClick={resetChallenge} disabled={isParentReadOnly}>重置内容</button>
           </div>
         </section>
 
-        <section className="panel practice-feedback-panel">
+          <section className="panel practice-feedback-panel">
           <div className="section-headline">
             <div>
               <span>练习反馈</span>
-              <h3>结果回填说明</h3>
+              <h3>结果回填与错题闭环</h3>
             </div>
           </div>
           <div className="feedback-mini-stack">
@@ -6142,12 +6229,12 @@ function ProfilePage({
 
   const handleOpenCultureWall = async () => {
     if (onRefreshCultureWall) {
-      setParentStatus('学习档案同步中...');
+      setParentStatus('学习成果同步中...');
       try {
         await onRefreshCultureWall();
-        setParentStatus('学习档案同步完成');
+        setParentStatus('学习成果同步完成');
       } catch (error) {
-        setParentStatus(`学习档案同步失败：${error instanceof Error ? error.message : '请重试'}`);
+        setParentStatus(`学习成果同步失败：${error instanceof Error ? error.message : '请重试'}`);
         setTimeout(() => {
         setParentStatus('处理中');
         }, 1600);
@@ -6174,24 +6261,24 @@ function ProfilePage({
   const profileQuickActions = [
     {
       id: 'courses',
-      label: '查看在读课程',
-      hint: '查看在读课程与课表',
+      label: '课程与课表',
+      hint: '查看在读课程与本周课程安排',
       action: () => {
-        void handleProfileNavigate('courses', '个人中心打开在读课程');
+        void handleProfileNavigate('courses', '个人中心进入课程与课表');
       }
     },
     {
       id: 'practice',
       label: '学习练习',
-      hint: '进入学习练习与错题复盘',
+      hint: '进入学习练习与错题闭环',
       action: () => {
         void handleProfileNavigate('practice', '个人中心进入学习练习');
       }
     },
     {
       id: 'culture-wall',
-      label: '查看学习档案',
-      hint: '查看课堂视频、图片和反馈',
+      label: '学习成果馆',
+      hint: '查看课程素材、课堂视频与家校反馈',
       action: () => {
         void handleOpenCultureWall();
       }
@@ -6199,13 +6286,13 @@ function ProfilePage({
     {
       id: 'report',
       label: '导出阶段报告',
-      hint: '生成阶段学习报告',
+      hint: '导出阶段成绩与建议的正式版本',
       action: () => exportReport()
     },
     {
       id: 'feedback',
-      label: '生成家校反馈',
-      hint: '一键生成家校沟通草稿',
+      label: '生成家校沟通稿',
+      hint: '一键生成可直接发送的家校沟通稿',
       action: () => generateParentMessage()
     }
   ];
@@ -6214,25 +6301,25 @@ function ProfilePage({
       id: 'hours',
       label: '剩余课时',
       value: `${lessonHours} 节`,
-      note: '上课和消耗已同步'
+      note: '课时到账与消耗已同步'
     },
     {
       id: 'courses',
       label: '在读课程',
       value: `${courseCount} 门`,
-      note: '当前课程列表已连接'
+      note: '课程列表自动同步'
     },
     {
       id: 'culture',
-      label: '学习档案',
+      label: '学习成果',
       value: `${cultureWallCounts.videos + cultureWallCounts.photos} 个`,
-      note: '视频与图片可直接查看'
+      note: '课堂内容与活动素材已归档'
     },
     {
       id: 'progress',
       label: '学习进度',
       value: `${child.progress}%`,
-      note: '阶段进度持续更新'
+      note: '阶段进度每半日更新'
     }
   ];
 
@@ -6308,26 +6395,26 @@ function ProfilePage({
       <section className="panel profile-summary-panel">
         <div className="section-headline">
           <div>
-            <span>家长中心</span>
-            <h3>成长进度、课时与课程一页可读</h3>
+            <span>家长工作台</span>
+            <h3>课程、课时与成长报告一体核对</h3>
           </div>
           <div className="profile-brand-badges">
             <span>成长记录</span>
-            <span>学习计划</span>
-            <span>学习档案</span>
+            <span>课时管理</span>
+            <span>学习成果</span>
           </div>
         </div>
         <section className="profile-hero-banner">
           <div className="profile-hero-copy">
             <span>家庭学习总览</span>
-            <h3>今天可快速确认孩子学习、课时与阶段结果</h3>
+            <h3>一页核对课程进展、课时余额与阶段结果</h3>
             <p>
-              课时、课程、阶段报告和家校反馈统一展示，家长可一处查看，不用反复查找。
+              课时、课程、阶段报告与家校反馈集中展示，支持课程质量、出勤与收费记录持续追踪。
             </p>
             <div className="profile-hero-chip-row">
-              <span>学习进度可见</span>
-              <span>课时状态清晰</span>
-              <span>学习档案完整</span>
+              <span>学习进度可核对</span>
+              <span>课时状态透明</span>
+              <span>家校反馈可复用</span>
             </div>
           </div>
           <div className="profile-hero-side">
@@ -6362,7 +6449,7 @@ function ProfilePage({
           <section className="panel child-profile-card profile-cover-card">
             <div className="child-avatar">{child.name.slice(0, 1)}</div>
             <div>
-              <span>学员档案</span>
+            <span>学员档案</span>
               <h3>{child.name}</h3>
               <p>{child.grade} · {child.course}</p>
               <div className="profile-stat-strip">
@@ -6389,19 +6476,19 @@ function ProfilePage({
         </div>
       </section>
 
-      <section className="panel profile-account-panel">
-        <div className="section-headline">
-          <div>
-            <span>课时账户</span>
-            <h3>剩余课时、学习记录与缴费状态统一查看</h3>
+        <section className="panel profile-account-panel">
+          <div className="section-headline">
+            <div>
+              <span>课时账户</span>
+            <h3>课时余额、课程与收费记录一体看板</h3>
+            </div>
           </div>
-        </div>
         <div className="metrics profile-account-metrics">
           <MetricCard
             icon={CalendarDays}
             label="剩余课时"
             value={`${lessonHours}节`}
-            note="家长和老师都能看到"
+            note="课时余额与消耗同步更新"
             tone="blue"
           />
           <MetricCard
@@ -6415,14 +6502,14 @@ function ProfilePage({
             icon={Gift}
             label="连续天数"
             value={`${completedDays}天`}
-            note="连续学习记录可追踪"
+            note="连续学习打卡可见"
             tone="yellow"
           />
           <MetricCard
             icon={CreditCard}
-            label="缴费状态"
-            value={`${lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus || '已同步'}`}
-            note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已关联'}`}
+            label="收费记录"
+            value={`${lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus || '待确认'}`}
+            note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已对账'}`}
             tone="purple"
           />
         </div>
@@ -6430,12 +6517,12 @@ function ProfilePage({
           <div className="section-headline compact">
             <div>
               <span>在读课程</span>
-              <h3>最近课程清单</h3>
+              <h3>最近课程清单（课程核对）</h3>
             </div>
           <button className="row-action" onClick={() => {
-            void handleProfileNavigate('courses', '查看课程清单');
+            void handleProfileNavigate('courses', '查看课程明细');
           }}>
-            查看全部在读课程
+            查看课程明细
           </button>
           </div>
           <div className="profile-course-grid">
@@ -6443,11 +6530,11 @@ function ProfilePage({
               <article className="profile-course-card" key={course.id || course.courseId || `${course.name || 'course'}-${index}`}>
                 <span className="profile-course-index">{String(index + 1).padStart(2, '0')}</span>
                 <strong>{course.course || course.courseName || course.title || '课程项'}</strong>
-                <small>{course.grade || '年级未录入'} · {course.classType || '班型未设置'}</small>
+                <small>{course.grade || '年级待录入'} · {course.classType || '班型待录入'}</small>
                 <div className="learning-progress-bar profile-course-progress">
                   <span style={{ width: `${Math.min(100, Number(course.progress || course.doneRate || 60))}%` }} />
                 </div>
-                <small>{course.time || '课程时间未设置'}</small>
+                <small>{course.time || '课程时间待确认'}</small>
               </article>
             ))}
           </div>
@@ -6491,11 +6578,11 @@ function ProfilePage({
         </div>
       </section>
 
-      <section className="panel profile-communication-panel">
+        <section className="panel profile-communication-panel">
         <div className="section-headline">
           <div>
             <span>沟通与报告</span>
-            <h3>阶段报告</h3>
+            <h3>阶段报告与沟通</h3>
           </div>
         </div>
         <div className="feature-split">
@@ -6503,7 +6590,7 @@ function ProfilePage({
             <div className="section-headline">
               <div>
                 <span>阶段报告</span>
-                <h3>导出阶段报告</h3>
+                <h3>导出学习阶段报告</h3>
               </div>
               <button className="row-action" onClick={exportReport} disabled={isExporting}>
                 {isExporting ? UI_COPY.loading.exporting : UI_COPY.actions.exportPdf}
@@ -6536,21 +6623,21 @@ function ProfilePage({
         <section className="panel profile-activity-panel">
           <div className="section-headline">
             <div>
-              <span>课程与档案</span>
-              <h3>课程与学习档案</h3>
+              <span>课程与成果</span>
+              <h3>课程与成果核对</h3>
             </div>
             <button className="row-action" onClick={() => onNavigatePage?.('home')}>
-            查看学习档案
+            返回首页
           </button>
           </div>
         <div className="feature-split">
           <section className="panel profile-courses-panel home-section">
-            <div className="section-headline">
-              <div>
-                <span>在读课程</span>
-                <h3>当前在读课程</h3>
+              <div className="section-headline">
+                <div>
+                  <span>在读课程</span>
+                  <h3>课程核对清单</h3>
+                </div>
               </div>
-            </div>
             {childCourses.length === 0 ? <div className="small-note">当前暂无在读课程</div> : null}
             <div className="alert-list">
               {(childCourses || []).slice(0, 6).map((course, index) => (
@@ -6559,7 +6646,7 @@ function ProfilePage({
                   <div>
                     <strong>{getCourseDisplay(course).name}</strong>
                     <small>
-                      {course.grade || '年级未录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
+                      {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
                     </small>
                   </div>
                   <small className="small-note">{normalizeCourseTime(course)}</small>
@@ -6569,17 +6656,17 @@ function ProfilePage({
           </section>
 
           <section className="panel profile-culture-panel">
-            <div className="section-headline compact">
-              <div>
-                <span>学习档案</span>
-                <h3>课堂视频 · 图片 · 反馈</h3>
+              <div className="section-headline compact">
+                <div>
+                  <span>学习成果</span>
+                  <h3>课堂视频 · 图片 · 家校反馈</h3>
+                </div>
+                <button className="row-action" onClick={() => {
+                  void handleProfileNavigate('culture-wall', '查看学习成果馆');
+                }}>
+                  打开档案中心
+                </button>
               </div>
-              <button className="row-action" onClick={() => {
-                void handleProfileNavigate('culture-wall', '查看学习档案');
-              }}>
-                查看学习档案
-              </button>
-            </div>
             <div className="metrics">
               <MetricCard icon={Video} label="视频" value={`${cultureWallCounts.videos}条`} note="课堂过程记录" tone="blue" />
               <MetricCard icon={ImageIcon} label="图片" value={`${cultureWallCounts.photos}张`} note="课堂与活动留痕" tone="yellow" />
@@ -6741,7 +6828,7 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
     <section className="panel wide culture-wall" {...sectionProps}>
       <PanelTitle
         icon={ImageIcon}
-        title="学习档案中心"
+        title="学习成果馆"
         action={
           canEdit ? (
             <span className="wall-upload-actions">
@@ -6811,7 +6898,7 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
           <article className="culture-mini-card">
               <span>档案总量</span>
               <strong>{counts.videos + counts.photos} 条</strong>
-              <small>课程与活动素材形成一站式学习档案。</small>
+              <small>课程与活动素材形成一站式学习成果中心。</small>
           </article>
         </div>
       </div>
@@ -7026,13 +7113,13 @@ function CultureWallPage({
     <div className="product-page">
       <section className="panel page-banner culture-wall-banner">
           <div className="culture-wall-copy">
-            <span>学习档案</span>
-            <h3>学习档案总览</h3>
-            <p>家长、老师和机构都能直接查看课堂视频、活动照片、师资信息和评价内容，更新后同步到首页与个人中心。</p>
-          <div className="culture-wall-chip-row">
+            <span>学习成果馆</span>
+            <h3>课程成果与反馈总览</h3>
+            <p>家长、老师与机构统一查看课堂视频、活动照片、课程素材和家校反馈，更新将同步到首页与个人中心。</p>
+            <div className="culture-wall-chip-row">
             <span className="small-note">首页同步</span>
             <span className="small-note">个人中心同步</span>
-            <span className="small-note">档案一体</span>
+            <span className="small-note">成果一体</span>
   <span className="small-note">{latestMedia?.date || latestMedia?.updatedAt || latestMedia?.createdAt || '暂无更新时间'}</span>
           </div>
         </div>
@@ -7043,7 +7130,7 @@ function CultureWallPage({
             <div className="culture-wall-sync-pills">
             <span>首页</span>
             <span>个人中心</span>
-            <span>学习档案</span>
+            <span>成果馆</span>
           </div>
         </div>
           <div className="culture-wall-actions">
@@ -7081,7 +7168,7 @@ function CultureWallPage({
               await refreshCultureWall('culture-wall.view-all', '查看全部内容');
             }}
           >
-            查看全部
+            查看更多
           </button>
         </div>
         <div className="culture-wall-summary-grid">
@@ -7138,6 +7225,7 @@ function App() {
 
   const [runtimeData, setRuntimeData] = useState(FALLBACK_DATA);
   const [activePage, setActivePage] = useState('home');
+  const [pageContext, setPageContext] = useState({});
   const [activeStage, setActiveStage] = useState('age_7_10');
   const [operationLogs, setOperationLogs] = useState([]);
   const [actionToast, setActionToast] = useState('');
@@ -7262,8 +7350,19 @@ function App() {
     initTokenRef.current = trimEnv(authToken);
   }, [authToken]);
 
+  const sanitizeOperationText = (raw) => {
+    const safeText = `${raw || ''}`;
+    return safeText
+      .replace(/(GET|POST|PUT|DELETE|PATCH)\s+\/api\/v1\/[^\s"]+/gi, '[$1] 平台请求')
+      .replace(/\/api\/v1\/[^\s"]+/g, '平台请求')
+      .replace(/api request failed:\s*/gi, '请求失败：')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  };
+
   const appendOperationLog = (screen, text) => {
-    const message = `${screen || '系统'}：${text || ''}`.trim();
+    const normalizedText = sanitizeOperationText(text);
+    const message = `${screen || '系统'}：${normalizedText}`.trim();
     if (!message) {
       return;
     }
@@ -7415,12 +7514,14 @@ function App() {
       return;
     }
     setActiveRole(nextRole);
+    setPageContext({});
     appendOperationLog('角色', `切换到${nextRole}`);
   };
 
-  const switchPage = (nextPage) => {
+  const switchPage = (nextPage, context = {}) => {
     const targetPage = pageConfig.some((item) => item.id === nextPage) ? nextPage : 'home';
     setActivePage(targetPage);
+    setPageContext(context && typeof context === 'object' ? context : {});
     appendOperationLog('页面', `切换到${(pageConfig.find((item) => item.id === targetPage)?.label || '首页')}`);
   };
 
@@ -7474,6 +7575,7 @@ function App() {
   const lessons = (activeRole === 'teacher' ? teacherCourses : teacherCourses.length > 0 ? teacherCourses : runtimeLessons)
     || runtimeLessons;
   const cultureWall = runtimeData.cultureWall || FALLBACK_DATA.cultureWall;
+  const canManageCultureWallData = ['founder', 'platform'].includes(activeRole);
   const platformOrgs = runtimeData.organizations || FALLBACK_DATA.organizations;
   const selectedParentChildId = parentSelectedChildId || (parentChildren[0]?.studentId || parentChildren[0]?.id || parentChildren[0]?.student?.id || '');
 
@@ -7508,7 +7610,7 @@ function App() {
       const resolvedInstitutionId = inputInstitutionId || fallbackCourseInstitutionId || fallbackInstitutionId;
 
       if (!resolvedInstitutionId) {
-        throw new Error('咨询缺少 institutionId，请先选择课程后重试');
+        throw new Error('咨询缺少 institutionId，请先选择课程并重试');
       }
       if (!`${input.guardianName || ''}`.trim()) {
         throw new Error('请填写家长姓名');
@@ -8349,6 +8451,10 @@ function App() {
   );
 
   const uploadCultureWall = async ({ kind, file }) => {
+    if (!canManageCultureWallData) {
+      return null;
+    }
+
     try {
       const payload = await uploadCultureWallAsset({
         authToken: initTokenRef.current,
@@ -8373,6 +8479,10 @@ function App() {
   };
 
   const loadCultureWallData = async () => {
+    if (!canManageCultureWallData) {
+      return cultureWall;
+    }
+
     const payload = await loadCultureWallAssets({
       authToken: initTokenRef.current,
       role: activeRole
@@ -8436,6 +8546,7 @@ function App() {
       setIsAuthenticated(true);
       setIsAuthReady(true);
       setActivePage('home');
+      setPageContext({});
       setActiveStage('age_7_10');
       window.history.replaceState({}, '', '/admin');
       setAuthMessage('');
@@ -8461,6 +8572,7 @@ function App() {
     setIsAuthReady(true);
     setActiveRole(initRoleFallback);
     setActivePage('home');
+    setPageContext({});
     setRuntimeData(FALLBACK_DATA);
   };
 
@@ -8598,8 +8710,8 @@ function App() {
                       : null
             }
             onAction={appendOperationLog}
-            onUploadCultureAsset={uploadCultureWall}
-            onRefreshCultureWall={loadCultureWallData}
+            onUploadCultureAsset={canManageCultureWallData ? uploadCultureWall : null}
+            onRefreshCultureWall={canManageCultureWallData ? loadCultureWallData : null}
             onRunAIAgent={activeRole === 'founder' ? invokeAIAgent : null}
           />
         ),
@@ -8619,6 +8731,7 @@ function App() {
                 : lessons}
             studentReviewSummary={studentReviewSummary}
             studentLessonAccount={studentLessonAccount}
+            selectedCourseId={pageContext.selectedCourseId || ''}
             onNavigatePage={switchPage}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
             onRefreshCourses={
@@ -8643,6 +8756,7 @@ function App() {
         : (
           <PracticePage
             activeRole={activeRole}
+            initialPracticeModuleId={pageContext.practiceModuleId || ''}
             studentTodayTasks={studentTodayTasks}
             studentReviewHistory={studentReviewHistory}
             studentReviewMistakes={studentReviewMistakes}
@@ -8670,7 +8784,7 @@ function App() {
                   ? () => exportProfileReport()
                   : null}
               onRunAIAgent={invokeAIAgent}
-              onRefreshCultureWall={loadCultureWallData}
+              onRefreshCultureWall={canManageCultureWallData ? loadCultureWallData : null}
               onAction={appendOperationLog}
               onNavigatePage={switchPage}
             />
@@ -8678,9 +8792,9 @@ function App() {
     'culture-wall': (
       <CultureWallPage
         cultureWall={cultureWall}
-        canEditCultureWall={['founder', 'platform'].includes(activeRole)}
-        onRefreshCultureWall={loadCultureWallData}
-        onUploadCultureAsset={uploadCultureWall}
+        canEditCultureWall={canManageCultureWallData}
+        onRefreshCultureWall={canManageCultureWallData ? loadCultureWallData : null}
+        onUploadCultureAsset={canManageCultureWallData ? uploadCultureWall : null}
         onAction={appendOperationLog}
       />
     ),

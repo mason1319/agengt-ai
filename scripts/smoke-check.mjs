@@ -20,6 +20,18 @@ const demoCredentials = {
   parent: { username: 'parent', password: 'Parent@123' },
   student: { username: 'student', password: 'Student@123' }
 };
+function getTokenCandidate(roleUpper) {
+  const candidates = [
+    `STARMATE_TOKEN_${roleUpper}`,
+    `STAGE2_TOKEN_${roleUpper}`,
+    `PHASE2_TOKEN_${roleUpper}`
+  ];
+  const foundKey = candidates.find((key) => Boolean(process.env[key]));
+  return {
+    token: foundKey ? `${process.env[foundKey]}` : '',
+    source: foundKey || ''
+  };
+}
 
 function printStatus(level, message, detail = '') {
   const color = colors[level] || colors.reset;
@@ -95,6 +107,9 @@ async function request({
       ok: false,
       status: 0,
       error: error?.message || 'request failed',
+      hint: error?.message?.includes('fetch')
+        ? `请先执行 npm run stack:verify 或确保后端服务监听 ${baseUrl}`
+        : undefined,
       path
     };
   } finally {
@@ -146,7 +161,11 @@ async function run(name, fn) {
     printStatus('ok', name);
     return true;
   } catch (error) {
-    printStatus('fail', name, `(${error.message})`);
+    const rawMessage = error?.message || 'unknown';
+    const withHint = rawMessage.startsWith('http 0')
+      ? `${rawMessage}（后端未就绪，建议先执行 npm run stack:verify）`
+      : rawMessage;
+    printStatus('fail', name, `(${withHint})`);
     return false;
   }
 }
@@ -161,15 +180,21 @@ async function runPhase2Smoke() {
   let total = 0;
   let passed = 0;
   const fails = [];
+  const skipped = [];
+  const checkDetails = [];
+  const startedAt = new Date().toISOString();
+  const tokenSources = {};
 
   const roleTokens = {};
   const roleList = ['platform', 'founder', 'teacher', 'parent', 'student'];
 
   for (const role of roleList) {
-    const envToken = process.env[`STAGE2_TOKEN_${role.toUpperCase()}`] || process.env[`STARMATE_TOKEN_${role.toUpperCase()}`] || '';
+    const roleUpper = role.toUpperCase();
+    const { token: envToken, source } = getTokenCandidate(roleUpper);
     const token = await login(role, envToken);
     if (token) {
       roleTokens[role] = token;
+      tokenSources[role] = source || 'demo-login';
     }
   }
 
@@ -241,6 +266,93 @@ async function runPhase2Smoke() {
           ensure(hasJsonSuccess(res.payload), 'response success=false');
           ensure(typeof res.payload?.data?.total === 'number', 'leads.total missing');
         })
+    },
+    {
+      name: 'public lead create + ai reply',
+      ok: async () => {
+        const lead = await request({
+          method: 'POST',
+          path: '/api/v1/public/leads',
+          body: {
+            institutionId: 'inst-star',
+            guardianName: `家长-${Date.now()}`,
+            studentGrade: '小学三年级',
+            needSummary: '试听课',
+            privacyConsent: true,
+            initialMessage: '我想先咨询一下孩子课程'
+          },
+          expectStatus: 200
+        });
+        ensure(lead.ok, `http ${lead.status}`);
+        ensure(hasJsonSuccess(lead.payload), 'response success=false');
+        const leadId = `${lead.payload?.data?.lead?.id || ''}`.trim();
+        ensure(leadId, 'lead id missing');
+
+        const aiReply = await request({
+          method: 'POST',
+          path: `/api/v1/public/leads/${leadId}/ai-reply`,
+          body: {
+            message: '请安排下周一试听',
+            needSummary: '试听咨询'
+          },
+          expectStatus: 200
+        });
+        ensure(aiReply.ok, `http ${aiReply.status}`);
+        ensure(hasJsonSuccess(aiReply.payload), 'response success=false');
+        ensure(String(aiReply.payload?.data?.leadId || '') === leadId, 'ai-reply leadId mismatch');
+      }
+    },
+    {
+      name: 'public trial booking submit',
+      ok: async () => {
+        const courseRes = await request({
+          method: 'GET',
+          path: '/api/v1/public/courses?institutionId=inst-star&limit=1',
+          expectStatus: 200
+        });
+        ensure(courseRes.ok, `http ${courseRes.status}`);
+        ensure(hasJsonSuccess(courseRes.payload), 'response success=false');
+        const courseId = `${courseRes.payload?.data?.courses?.[0]?.id || ''}`.trim();
+        ensure(courseId, 'courseId missing');
+
+        const lead = await request({
+          method: 'POST',
+          path: '/api/v1/public/leads',
+          body: {
+            institutionId: 'inst-star',
+            guardianName: `试听家长-${Date.now()}`,
+            studentGrade: '小学三年级',
+            needSummary: '试听课程',
+            privacyConsent: true,
+            initialMessage: '我要安排试听'
+          },
+          expectStatus: 200
+        });
+        ensure(lead.ok, `http ${lead.status}`);
+        ensure(hasJsonSuccess(lead.payload), 'response success=false');
+        const leadId = `${lead.payload?.data?.lead?.id || ''}`.trim();
+        ensure(leadId, 'lead id missing');
+
+        const booking = await request({
+          method: 'POST',
+          path: '/api/v1/public/trial-bookings',
+          body: {
+            institutionId: 'inst-star',
+            leadId,
+            courseId,
+            reservedAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            durationMinutes: 45,
+            status: 'pending',
+            sourceChannel: 'web',
+            notes: '收银台验收预约'
+          },
+          expectStatus: 200
+        });
+        ensure(booking.ok, `http ${booking.status}`);
+        ensure(hasJsonSuccess(booking.payload), 'response success=false');
+        ensure(Boolean(booking.payload?.data?.booking?.id), 'booking id missing');
+        ensure(booking.payload?.data?.status === 'pending', 'booking status should be pending');
+      }
     }
   ];
 
@@ -291,6 +403,122 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'platform ai usage',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const usage = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-usage?days=30&limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(usage.ok, `http ${usage.status}`);
+        ensure(hasJsonSuccess(usage.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'platform ai audit',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const audit = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-audit?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(audit.ok, `http ${audit.status}`);
+        ensure(hasJsonSuccess(audit.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'platform institutions export',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const response = await request({
+          method: 'GET',
+          path: '/api/v1/admin/institutions-export',
+          token,
+          expectStatus: 200
+        });
+        ensure(response.ok, `http ${response.status}`);
+        ensure(hasJsonSuccess(response.payload), 'response success=false');
+        ensure(Boolean(response.payload?.data?.fileName), 'export fileName missing');
+        ensure(Boolean(response.payload?.data?.content), 'export content missing');
+      }
+    },
+    {
+      name: 'platform ai usage export',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const response = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-usage-export?days=30&limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(response.ok, `http ${response.status}`);
+        ensure(hasJsonSuccess(response.payload), 'response success=false');
+        ensure(Boolean(response.payload?.data?.fileName), 'export fileName missing');
+        ensure(Boolean(response.payload?.data?.content), 'export content missing');
+      }
+    },
+    {
+      name: 'platform ai audit export',
+      role: 'platform',
+      ok: async () => {
+        const token = roleTokens.platform;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('platform token unavailable');
+          }
+          printStatus('warn', 'platform token unavailable, skip');
+          return;
+        }
+        const response = await request({
+          method: 'GET',
+          path: '/api/v1/admin/ai-audit-export?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(response.ok, `http ${response.status}`);
+        ensure(hasJsonSuccess(response.payload), 'response success=false');
+        ensure(Boolean(response.payload?.data?.fileName), 'export fileName missing');
+        ensure(Boolean(response.payload?.data?.content), 'export content missing');
+      }
+    },
+    {
       name: 'founder cockpit',
       role: 'founder',
       ok: async () => {
@@ -310,6 +538,94 @@ async function runPhase2Smoke() {
         });
         ensure(cockpit.ok, `http ${cockpit.status}`);
         ensure(hasJsonSuccess(cockpit.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'founder leads list',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+        const leads = await request({
+          method: 'GET',
+          path: '/api/v1/founder/leads?limit=10',
+          token,
+          expectStatus: 200
+        });
+        ensure(leads.ok, `http ${leads.status}`);
+        ensure(hasJsonSuccess(leads.payload), 'response success=false');
+        ensure(Array.isArray(leads.payload?.data?.items), 'founder leads items missing');
+      }
+    },
+    {
+      name: 'founder reconciliation',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const cockpit = await request({
+          method: 'GET',
+          path: '/api/v1/founder/cockpit?courseStatus=active',
+          token,
+          expectStatus: 200
+        });
+        ensure(cockpit.ok, `http ${cockpit.status}`);
+        ensure(hasJsonSuccess(cockpit.payload), 'response success=false');
+        const institutionId = `${cockpit.payload?.data?.institution?.id || ''}`.trim();
+        ensure(Boolean(institutionId), 'founder cockpit institution id missing');
+
+        const courses = await request({
+          method: 'GET',
+          path: `/api/v1/founder/courses?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(courses.ok, `http ${courses.status}`);
+        ensure(hasJsonSuccess(courses.payload), 'response success=false');
+        ensure(Array.isArray(courses.payload?.data?.courses), 'founder courses items missing');
+
+        const payments = await request({
+          method: 'GET',
+          path: `/api/v1/founder/payment-records?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(payments.ok, `http ${payments.status}`);
+        ensure(hasJsonSuccess(payments.payload), 'response success=false');
+        ensure(Array.isArray(payments.payload?.data?.records), 'founder payment records items missing');
+
+        const lessonAccounts = await request({
+          method: 'GET',
+          path: `/api/v1/founder/lesson-accounts?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(lessonAccounts.ok, `http ${lessonAccounts.status}`);
+        ensure(hasJsonSuccess(lessonAccounts.payload), 'response success=false');
+        ensure(Array.isArray(lessonAccounts.payload?.data?.items), 'founder lesson accounts missing');
+
+        const attendanceRecords = await request({
+          method: 'GET',
+          path: `/api/v1/founder/attendance-records?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(attendanceRecords.ok, `http ${attendanceRecords.status}`);
+        ensure(hasJsonSuccess(attendanceRecords.payload), 'response success=false');
+        ensure(Array.isArray(attendanceRecords.payload?.data?.items), 'founder attendance items missing');
       }
     },
     {
@@ -523,8 +839,14 @@ async function runPhase2Smoke() {
 
   const checks = [...publicChecks, ...authChecks, ...institutionChecks];
   for (const item of checks) {
+    const start = Date.now();
     total += 1;
     const ok = await runWithResult(item.name, item.ok);
+    const elapsed = Date.now() - start;
+    checkDetails.push({ name: item.name, role: item.role || 'public', ok, elapsedMs: elapsed });
+    if (item.role && !roleTokens[item.role] && !strictMode && allowSkip) {
+      skipped.push(item.name);
+    }
     if (!ok) {
       fails.push(item.name);
     } else {
@@ -538,6 +860,22 @@ async function runPhase2Smoke() {
   }
 
   printStatus('ok', `Smoke check passed: ${passed}/${total} checks`);
+  printStatus(
+    'ok',
+    `Smoke meta`,
+    `start=${startedAt} strictAuth=${strictMode} allowSkip=${allowSkip} tokenSources=${roleList
+      .map((role) => `${role}:${tokenSources[role] || 'demo-login'}`)
+      .join(',')}`
+  );
+  checkDetails
+    .sort((a, b) => b.elapsedMs - a.elapsedMs)
+    .slice(0, 3)
+    .forEach((item) => {
+      printStatus('ok', `Slowest check`, `${item.name} role=${item.role} ${item.elapsedMs}ms`);
+    });
+  if (skipped.length) {
+    printStatus('warn', `Skipped checks in non-strict mode`, `${skipped.join('; ')}`);
+  }
 }
 
 runPhase2Smoke().catch((error) => {

@@ -24,8 +24,59 @@ const AGENT_ROLE_ALLOWLIST = {
   renewal_risk_scan: ['founder', 'platform']
 };
 
+const AI_ACTION_ALIAS = {
+  oral_feedback: 'feedback_from_lesson',
+  speech_feedback: 'feedback_from_lesson',
+  exercise: 'exercise_generate',
+  generate_exercise: 'exercise_generate',
+  pronunciation_drill: 'exercise_generate',
+  oral_drill: 'exercise_generate',
+  renewal_scan: 'renewal_risk_scan',
+  renewal_risk: 'renewal_risk_scan',
+  ai_assist: 'exercise_generate',
+  feedback: 'feedback_from_lesson'
+};
+
+const AI_PROVIDER_PRESETS = {
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    label: 'OpenAI'
+  },
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com',
+    model: 'deepseek-chat',
+    label: 'DeepSeek'
+  },
+  qwen: {
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-plus',
+    label: 'Qwen'
+  },
+  zhipu: {
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-plus',
+    label: '智谱GLM'
+  },
+  moonshot: {
+    baseUrl: 'https://api.moonshot.cn/v1',
+    model: 'moonshot-v1-8k',
+    label: '月之暗面'
+  },
+  doubao: {
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: 'ep-202406',
+    label: '豆包'
+  }
+};
+
+const AI_RESPONSE_TIMEOUT_MS = 12_000;
+
 function normalizeAction(value) {
-  const action = `${value || ''}`.trim();
+  const action = `${value || ''}`.trim().toLowerCase();
+  if (AI_ACTION_ALIAS[action]) {
+    return AI_ACTION_ALIAS[action] || '';
+  }
   return ALLOWED_ACTIONS.includes(action) ? action : '';
 }
 
@@ -273,9 +324,10 @@ function buildProviderPayload(action, payload = {}, institution = {}) {
 }
 
 function getProviderHeader(env = {}) {
-  const provider = `${env?.AI_PROVIDER || ''}`.trim().toLowerCase();
+  const provider = `${env?.AI_PROVIDER || 'openai'}`.trim().toLowerCase();
+  const preset = AI_PROVIDER_PRESETS[provider];
   const apiKey = `${env?.AI_API_KEY || ''}`.trim();
-  const apiBase = `${env?.AI_BASE_URL || ''}`.trim() || 'https://api.openai.com/v1';
+  const apiBase = `${env?.AI_BASE_URL || preset?.baseUrl || 'https://api.openai.com/v1'}`.trim();
 
   if (!apiKey) {
     return null;
@@ -288,8 +340,47 @@ function getProviderHeader(env = {}) {
   return {
     baseUrl: apiBase.replace(/\/+$/, ''),
     apiKey,
-    provider
+    provider,
+    model: `${env?.AI_MODEL || preset?.model || 'gpt-4o-mini'}`.trim(),
+    providerLabel: preset?.label || provider
   };
+}
+
+function safeExtractErrorText(responseText = '') {
+  try {
+    const parsed = JSON.parse(responseText || '{}');
+    return parsed?.error?.message || parsed?.message || responseText;
+  } catch (error) {
+    return responseText;
+  }
+}
+
+function extractProviderOutputText(parsed = {}) {
+  if (!parsed || typeof parsed !== 'object') {
+    return '';
+  }
+
+  if (typeof parsed?.result === 'string' && parsed.result.trim()) {
+    return parsed.result.trim();
+  }
+
+  const fromChoices = parsed?.choices?.[0]?.message?.content;
+  if (typeof fromChoices === 'string' && fromChoices.trim()) {
+    return fromChoices.trim();
+  }
+
+  const fromOutput = parsed?.output?.choices?.[0]?.message?.content;
+  if (typeof fromOutput === 'string' && fromOutput.trim()) {
+    return fromOutput.trim();
+  }
+
+  const fromData = parsed?.data?.text;
+  return `${fromData || ''}`.trim();
+}
+
+function extractProviderUsage(parsed = {}) {
+  const usage = parsed?.usage || {};
+  return Number(usage?.completion_tokens || usage?.completionTokens || usage?.total_tokens || usage?.totalTokens || 0);
 }
 
 async function invokeProvider(action, payload = {}, institution = {}, env = {}) {
@@ -301,32 +392,72 @@ async function invokeProvider(action, payload = {}, institution = {}, env = {}) 
   const providerPayload = buildProviderPayload(action, payload, institution);
   const requestPayload = {
     ...providerPayload,
-    model: `${(env?.AI_MODEL || providerPayload.model || 'gpt-4o-mini').trim()}`
+    model: `${(env?.AI_MODEL || header.model || providerPayload.model || 'gpt-4o-mini').trim()}`
   };
 
-  const response = await fetch(`${header.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${header.apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(requestPayload)
-  }).catch(() => null);
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, Math.max(2000, AI_RESPONSE_TIMEOUT_MS));
 
-  if (!response || !response.ok) {
+  let response;
+  try {
+    response = await fetch(`${header.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${header.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestPayload),
+      signal: controller.signal
+    });
+  } catch (error) {
+    clearTimeout(timer);
     return {
       source: 'mock',
-      reason: `provider-http-${response?.status || 'network'}`
+      reason: `provider-exception-${error?.name || 'network'}-${error?.message || 'request failed'}`
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response || !response.ok) {
+    const errorText = response ? await response.text().catch(() => '') : '';
+    return {
+      source: 'mock',
+      reason: `provider-http-${response?.status || 'network'}${safeExtractErrorText(errorText) ? `:${safeExtractErrorText(errorText)}` : ''}`
     };
   }
 
   const parsed = await response.json().catch(() => ({}));
-  const output = normalizeProviderResult(action, parsed);
+  const providerText = extractProviderOutputText(parsed);
+  const output = normalizeProviderResult(action, {
+    ...parsed,
+    choices: providerText
+      ? [
+          {
+            message: {
+              content: providerText
+            }
+          }
+        ]
+      : []
+  });
   if (!output) {
     return { source: 'mock', reason: 'provider-invalid-output' };
   }
 
-  return { source: 'provider', output };
+  return {
+    source: 'provider',
+    output: {
+      ...output,
+      model: requestPayload.model,
+      provider: header.provider,
+      providerLabel: header.providerLabel,
+      rawUsage: extractProviderUsage(parsed)
+    },
+    usageTokens: extractProviderUsage(parsed)
+  };
 }
 
 function sanitizeAuditPayload(payload = {}) {
@@ -402,7 +533,7 @@ export async function onRequest(context) {
   const authContext = await parseAuthContext(request, env);
   const role = authContext?.role || 'founder';
   const body = await request.json().catch(() => ({}));
-  const action = normalizeAction(body?.action);
+  const action = normalizeAction(body?.action || body?.scene || body?.assist || body?.mode);
   const payload = body?.payload && typeof body?.payload === 'object' ? body.payload : body || {};
 
   const url = new URL(request.url);
@@ -511,11 +642,13 @@ export async function onRequest(context) {
   }
 
   let source = env?.AI_MODE === 'mock' ? 'mock' : 'provider';
+  let usageTokens = 0;
   if (hasJsonMode(env)) {
     const invoked = await invokeProvider(action, payload, institution, env);
     if (invoked?.output && invoked.source === 'provider') {
       output = { ...invoked.output, source: 'provider' };
       source = 'provider';
+      usageTokens = Number.isFinite(Number(invoked?.usageTokens)) ? Number(invoked.usageTokens) : 0;
     } else {
       source = 'mock';
       output = {
@@ -547,7 +680,7 @@ export async function onRequest(context) {
     source
   };
 
-  const tokensUsed = parseTokensCount(action, safeOutput);
+  const tokensUsed = usageTokens > 0 ? usageTokens : parseTokensCount(action, safeOutput);
 
   if (hasDb && institutionId) {
     const usagePayload = {

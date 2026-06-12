@@ -1,0 +1,105 @@
+# StarMate Phase 2 日志（内部版）
+
+## 2026-06-12
+
+- 2026-06-12 16:00（线上复核）：绑定域名后的全链路再次收口
+  - 命令：`bash ./scripts/smoke-check.sh https://aggieai.me && bash ./scripts/smoke-check.sh https://www.aggieai.me`
+  - 结果：`Smoke check passed: 26/26 checks`（两域名）
+  - 说明：主链路（公开咨询/课程/试听/登录/学生/老师/家长/创始人）均可复测通过。
+- 2026-06-12 16:02（线上加测）：`bash ./scripts/smoke-check.sh https://4e87146b.starmate-english-saas.pages.dev`
+  - 结果：`Smoke check passed: 26/26 checks`
+  - 说明：预览域名与自定义域一致，接口闭环未受域名路由影响。
+- 2026-06-12 16:03（部署状态）：Cloudflare Pages 与 D1 对接验证
+  - 命令：`wrangler pages project list`
+  - 结果：项目 `starmate-english-saas` 已挂载域名 `aggieai.me`、`www.aggieai.me`
+  - 备注：远端 D1 已通过 `/api/v1/public/courses` 返回课程数据，消除“试听预约课程为空”缺口。
+- 09:00（约）: 继续 Phase 2 收口起点，确认 `scripts/smoke-check.mjs` 与 `docs/phase2-api-smoke-checklist.md` 已可执行化；
+  - 验证：`npm run validate:contracts`（通过）
+  - 验证：`npm run stack:verify`（17/17）
+  - 说明：当时脚本版本为 17 项，已用于最初阶段验收。
+- 14:44:06（复测）: 收口复测（严格模式）
+  - 命令：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false npm run stack:verify`
+  - 结果：通过，17/17
+  - 备注：冒烟 meta 显示 tokenSource 全为 demo-login，strictAuth=true，allowSkip=false
+- 09:21（最终收口复测）: 当前脚本版本本地栈复测
+  - 命令：`npm run stack:verify`
+  - 结果：通过，26/26
+  - 备注：当前最终签收口径以 26/26 为准；17/17 为早期脚本版本历史记录。
+- 16:30（续步）: Phase 2 统一校验项版本后复测
+  - 命令：`npm run validate:contracts && npm run stack:verify`
+  - 结果：通过，76/76 与 20/20
+  - 说明：当前验证链条已更新为 20 项接口校验，覆盖 `/api/v1/admin/*` 与 `/api/v1/institution/*`关键域。
+- 2026-06-12 结论：P1 闭环化入口与日志口径完成；继续进入 P1 后续“实际问题修复”与前端/接口控件一致性抽检。
+- 14:53（复核后）: P1 支持项再验证
+  - `npm run audit:deps` ✅（依赖一致）
+  - `npm run audit:dead-code` ✅（无空源文件）
+  - `npm run audit:security` ✅（无明显敏感文本）
+- 阶段备注：P1 当前不再追加阻塞项，维持 P2 继续排期。
+- 15:00（构建回归）: `npm run build` ✅（Vite build 通过）
+- 14:49（继续）：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false npm run stack:verify`
+  - 结果：通过，20/20
+  - 新增覆盖：`/api/v1/admin/ai-usage`、`/api/v1/admin/ai-audit`、`/api/v1/founder/leads`
+- 14:52（阶段性收口）：`npm run validate:contracts && npm run stack:verify`
+  - 验证通过：`validate-contracts` 76/76；`stack:verify` 20/20（默认模式）
+  - 注意：本次保持 `strictAuth=false`，`allowSkip=true`
+- 15:20（映射一致性扫描）：执行 `/api/v1` 映射一致性核对（ui-control map / openapi / 代码内显式调用）
+  - ui-control 映射路径：52
+  - openapi 路径：52
+  - 代码内显式 `/api/v1` 字符串：0（当前前端通过 API 客户端配置化组装）
+  - 缺口结果：`MISSING_IN_OPENAPI=0`、`UNMAPPED_IN_UI_MAP=0`
+  - 阶段结论：映射口径无新增缺口；后续聚焦按钮交互状态、空态提示与越权兜底动作一致性。
+
+- 2026-06-12 15:30:17(续): 继续 Phase 2 收口并做本地页面可达性抽检
+  - 命令：`npm run validate:contracts`（通过）
+  - 命令：`npm run stack:verify`（20/20）
+  - 命令：`npm run audit:deps`（通过）
+  - 命令：`npm run audit:dead-code`（通过）
+  - 命令：`npm run audit:security`（通过）
+  - 本地预览页：`npm run web:local` 启动成功，`http://127.0.0.1:4176` 返回 200
+  - 风险结论：未发现新增 P0；当前 P1 仅保留接口边界解释与日志口径说明类收口项，不新增扩展改造。
+
+- 2026-06-12 15:32:00（本次续步）: 收口后补充验证
+  - `npm run build` ✅（通过）
+  - `npm run stack:verify` ✅（20/20）
+  - `npm run validate:contracts` ✅
+  - `npm run audit:deps` / `audit:dead-code` / `audit:security` ✅
+- 最新复测记录（本次续步）: 按你要求继续执行「Phase 2 收口复核」
+  - `npm run validate:contracts && npm run stack:verify`（组合）✅
+  - 结果：`validate-contracts` 76/76；`stack:verify` 20/20
+  - 备注：后端已由后台服务 `11257` 正常启动，`/api/v1` 20 项闭环接口全部通过
+- 最新复测记录（Phase2 公开咨询闭环补充）：新增 2 项公开咨询/试听验收检查后重跑
+  - 执行：`npm run validate:contracts && npm run stack:verify`
+  - 结果：`validate-contracts` 76/76；`stack:verify` 22/22
+  - 修复点：`public trial-booking submit` 500 原因为 `teacherId` 外键约束，已在 smoke 中移除无效 teacherId 入参；`lead create + ai reply` 仅做 `data` 字段解包修复。
+  - 备注：`npm run build` ✅，阶段关闭“公开咨询与试听预约”P1闭环验证入口。
+- 最新复测记录（Phase2 创始人经营对账闭环）：新增 1 项“创始人课程/缴费/课时/到课联动”核验
+  - 执行：`npm run validate:contracts && npm run stack:verify`
+  - 结果：`validate-contracts` 76/76；`stack:verify` 23/23
+  - 核验链路：`founder/cockpit` -> `founder/courses` -> `founder/payment-records` -> `founder/lesson-accounts` -> `founder/attendance-records`
+  - 风险结论：`创始人经营对账 P1` 已闭环可验，继续进入运营体验优化（课程表、导出一致性）阶段。
+- 最新复测记录（平台导出链路）：新增 3 项平台导出接口验证
+  - 执行：`npm run validate:contracts && npm run stack:verify`
+  - 结果：`validate-contracts` 76/76；`stack:verify` 26/26
+  - 核验项：`/api/v1/admin/institutions-export`、`/api/v1/admin/ai-usage-export`、`/api/v1/admin/ai-audit-export`
+  - 风险结论：平台导出链路 P1 闭环完成，下一步不建议在本阶段扩大范围。
+- 最新继续记录（验收质量快照）
+  - 执行：`npm run audit:deps && npm run audit:dead-code && npm run audit:security && npm run build`
+  - 结果：依赖对齐、无空源文件、安全基线、生产构建均通过
+  - 风险结论：当前提交范围未引入新 P0/P1 风险；建议进入按钮-接口映射逐项走查，继续保持本阶段闭环不扩边。
+
+- 2026-06-12 08:13（继续收口）：`npm run validate:contracts && npm run stack:verify`
+  - 结果：`validate-contracts` 76/76；`stack:verify` 20/20
+  - 说明：`stack:verify` 自动启动本地服务后执行，端到端 26/26 冒烟点位通过
+
+- 2026-06-12 08:13（严格复核）：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false npm run stack:verify`
+  - 结果：`stack:verify` 20/20（strictAuth=true, allowSkip=false）
+  - tokenSources：`platform:demo-login`, `founder:demo-login`, `teacher:demo-login`, `parent:demo-login`, `student:demo-login`
+  - 风险结论：严格模式无 skip，P1 漏测项未新增。
+
+- 2026-06-12 08:13（命令口径补充）：`npm run verify:smoke`
+  - 结果：19/26，返回 `http 0`（后端未启动）
+  - 风险结论：该命令需搭配已启动服务使用；阶段验收统一执行 `npm run stack:verify`。
+
+- 2026-06-12 08:16（补充改造）：`npm run verify:smoke`（后端停止环境）
+  - 结果：19/26，首次报错明确提示“后端未就绪，建议先执行 npm run stack:verify”
+  - 风险结论：`verify:smoke` 误报问题已降低，运维可直接根据提示分辨健康检查与鉴权验证场景。

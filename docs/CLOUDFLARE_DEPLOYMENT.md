@@ -86,6 +86,50 @@ wrangler secret put AI_API_KEY
 - 以上均为 OpenAI 兼容接口接法。
 - 真正需要注入的是 `AI_BASE_URL`、`AI_MODEL` 和 `AI_API_KEY`。
 
+### 2.6 AI 接入“三步快开”清单（本地 + 部署）
+
+1. 本地验证（不写仓库密钥）
+
+```bash
+cd /Users/mason/英语系统
+cp .env.example .env
+export AI_MODE=provider
+export AI_PROVIDER=qwen
+export AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+export AI_MODEL=qwen-plus
+export AI_API_KEY=你的真实密钥
+npm run stack:verify
+```
+
+通过后，`/api/v1/ai/agent` 回包应出现 `output.source='provider'`（网络抖动时可能返回 `source='mock'`）。
+
+2. 生产环境注入（推荐）
+
+```bash
+wrangler secret put AI_MODE
+wrangler secret put AI_PROVIDER
+wrangler secret put AI_BASE_URL
+wrangler secret put AI_MODEL
+wrangler secret put AI_API_KEY
+```
+
+输入值示例：
+
+```text
+AI_MODE=provider
+AI_PROVIDER=qwen
+AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+AI_MODEL=qwen-plus
+```
+
+3. 部署与回退
+
+```bash
+npm run cf:deploy:ensure
+```
+
+如遇模型异常：先将 `AI_MODE` 调回 `mock`（保持业务链路不影响），修复密钥/网络后再切回 `provider`。
+
 ### 2.5 默认建议值（最低可运行）
 
 - 本地：`VITE_DATA_SOURCE=api`，`VITE_API_BASE=/api`
@@ -129,7 +173,7 @@ npm run stack:verify
 ```
 
 要求：
-- `stack:verify` 完成时输出 `all checks passed`（或等价成功提示）
+- `stack:verify` 完成时应输出成功提示（通常为 `Smoke check passed: 26/26` 或等价口径）；并在未启动状态下避免直接复测 `npm run verify:smoke`。
 - 健康接口返回 DB/R2 状态正常：`/api/v1/health`
 - 登录/鉴权链路可通：`/api/v1/auth/login` + `/api/v1/me`
 - 平台接口可通：`/api/v1/admin/institutions`
@@ -167,7 +211,9 @@ npm run cf:deploy:ensure
    - `GET /api/v1/public/courses?limit=10`
    - `GET /api/v1/admin/ai-audit?role=platform`（需授权）
 3. 运行二阶段冒烟：
-   - `npm run verify:smoke`
+   - `npm run stack:verify`
+
+> 如你已在外部托管端手工启动后端，仅需快速复测可执行 `npm run verify:smoke`。
 4. 记录 `request_id/trace_id` 可用，异常时对照服务端日志与 wrangler 请求追踪。
 
 ## 7. 变更记录与回滚
@@ -238,4 +284,54 @@ npm run cf:deploy:ensure
   - `GET /api/v1/institution/payments?institutionId=inst-star&limit=5`
 - 最近一次重新发布：`https://0ed978d7.starmate-english-saas.pages.dev`
 - 复测结果：
-  - `npm run verify:smoke`（`https://aggieai.me` 基准）通过（`17/17`）
+  - `npm run verify:smoke`（`https://aggieai.me` 基准）通过（早期脚本版本 `17/17`）
+  - 当前最终签收口径：`npm run stack:verify` 本地栈复测通过（`26/26`）
+
+## 13. 2026-06-12 第一阶段收口发布记录（已完成）
+
+- 发布命令：`npm run cf:deploy:ensure`
+- Cloudflare Pages 项目：`starmate-english-saas`
+- 新生产部署：`https://2ee6b3ff.starmate-english-saas.pages.dev`
+- 部署 ID：`2ee6b3ff-0e07-461e-8e0c-3f2953561d94`
+- 环境：Production
+- 分支：`main`
+- Source：`bfe0f7b`
+- 绑定域名：
+  - `starmate-english-saas.pages.dev`
+  - `aggieai.me`
+  - `www.aggieai.me`
+- 发布后验收：
+  - `bash ./scripts/smoke-check.sh https://aggieai.me` -> 通过（`26/26`）
+  - `bash ./scripts/smoke-check.sh https://www.aggieai.me` -> 通过（`26/26`）
+  - `bash ./scripts/smoke-check.sh https://2ee6b3ff.starmate-english-saas.pages.dev` -> 通过（`26/26`）
+- 线上资源确认：
+  - 生产域名与新部署均返回当前构建资源：`index-CoEmRXxF.js`、`index-DXDonB5e.css`
+  - `GET https://2ee6b3ff.starmate-english-saas.pages.dev/api/v1/health` -> `200`，DB/R2 正常
+- 说明：新部署刚创建后，预览域名首次冒烟曾出现短暂 API 404；等待 Cloudflare Pages Functions 传播完成后复测通过（`26/26`）。
+
+## 14. 2026-06-12 只读角色文化墙请求修复发布记录（已完成）
+
+- 修复点：
+  - `src/main.jsx`：学生/家长等只读角色不再向成果馆传入 admin 刷新/上传函数。
+  - `src/services/runtimeDataService.js`：启动数据加载时仅 `founder` / `platform` 角色请求 `/api/v1/admin/culture-wall`。
+  - 解决线上学生/家长页面浏览器控制台出现 `401 /api/v1/admin/culture-wall?role=...` 的问题。
+- 发布命令：`npm run cf:deploy:ensure`
+- Cloudflare Pages 项目：`starmate-english-saas`
+- 最新生产部署：`https://396c6265.starmate-english-saas.pages.dev`
+- 部署 ID：`396c6265-77d2-40ff-a7cc-1101f1afdb5b`
+- 环境：Production
+- 分支：`main`
+- Source：`bfe0f7b`
+- 生产资源确认：
+  - `https://aggieai.me` 当前构建资源：`index-DXIqghCc.js`、`index-DXDonB5e.css`
+- 发布后 API 冒烟：
+  - `bash ./scripts/smoke-check.sh https://396c6265.starmate-english-saas.pages.dev` -> 通过（`26/26`）
+  - `bash ./scripts/smoke-check.sh https://aggieai.me` -> 通过（`26/26`）
+  - `bash ./scripts/smoke-check.sh https://www.aggieai.me` -> 通过（`26/26`）
+- 发布后浏览器点检：
+  - 学生首页、课程中心、学习练习、个人中心：通过
+  - 家长首页、家长学习练习只读视角：通过
+  - 移动端学生首页：通过
+  - 浏览器控制台：无 error/warning/pageerror
+  - 浏览器网络：无 4xx/5xx/requestfailed
+  - 结果文件：`output/playwright/phase1-live-browser-check.json`

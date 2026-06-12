@@ -34,6 +34,7 @@ const normalizeRole = (value) => {
     ? role
     : '';
 };
+const canManageCultureWallRole = (role) => ['founder', 'platform'].includes(normalizeRole(role));
 const normalizeRoleFromEnv = () => getEnv('VITE_DATA_SOURCE').toLowerCase() === 'api';
 
 const ORG_STATUS_UI = {
@@ -562,14 +563,16 @@ export async function loadRuntimeData({ role, authToken } = {}) {
       aiModel: payload?.meta?.aiModel || payload?.meta?.model || baseData.appMeta.aiModel || 'mock'
     };
     let apiCultureWall = normalizeCultureWallFromApi(data);
-    try {
-      const wallPayload = await loadCultureWallAssets({
-        authToken: explicitToken,
-        role: requestedRole || 'founder'
-      });
-      apiCultureWall = normalizeCultureWallFromApi(wallPayload);
-    } catch {
-      apiCultureWall = normalizeCultureWallFromApi(data);
+    if (canManageCultureWallRole(requestedRole || 'founder')) {
+      try {
+        const wallPayload = await loadCultureWallAssets({
+          authToken: explicitToken,
+          role: requestedRole || 'founder'
+        });
+        apiCultureWall = normalizeCultureWallFromApi(wallPayload);
+      } catch {
+        apiCultureWall = normalizeCultureWallFromApi(data);
+      }
     }
 
     return mergeRuntimeData(baseData, {
@@ -640,6 +643,15 @@ export async function loadCurrentUser({ authToken } = {}) {
 }
 
 export async function loadCultureWallAssets({ authToken, role = 'founder', institutionId } = {}) {
+  if (!canManageCultureWallRole(role)) {
+    return {
+      success: true,
+      data: {
+        cultureWall: normalizeCultureWallFromApi(getMockRuntimeData())
+      }
+    };
+  }
+
   if (!isApiDataSource()) {
     return {
       success: true,

@@ -1,11 +1,13 @@
 # 星伴英语（StarMate English）— 产品需求文档 v4.0
 
+> **历史归档说明（2026-06-11）**：本文是 v4.0 合并草稿，保留早期“工程宪法”和产品设计内容，供追溯使用。当前 Phase 1 开发与验收不再以本文为唯一依据；主 PRD 以 `docs/phase1-prd-starmate-english.md` 为准，v4.1 内部补充以 `docs/StarMate-PRD-v4.1-internal-CN.md` 为准，工程执行标准以 `docs/international-delivery-standards-v4.1-internal.md` 和 `docs/phase1-execution-index-v4.1-internal.md` 为准。本文中的工程宪法类内容不得覆盖 v4.1 执行门禁。
+
 | 字段 | 内容 |
 |-------|--------|
 | **产品名称** | 星伴英语（StarMate English） |
 | **产品类型** | AI 英语学习智能体 |
 | **PRD 版本** | v4.0（合并：v3.3-CHN 工程规范 + v3.2 智能体设计 + 新增内容） |
-| **状态** | 草稿 — 待审核 |
+| **状态** | 历史归档 — 不作为当前 Phase 1 唯一验收源 |
 | **作者** | 产品团队 |
 | **日期** | 2026-06-06 |
 | **相关方** | 产品负责人、架构负责人、设计负责人、运维负责人 |

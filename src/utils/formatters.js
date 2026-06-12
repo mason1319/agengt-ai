@@ -36,5 +36,5 @@ export function normalizeCourseFee(course = {}) {
     return Number.isInteger(flat) ? `${flat}元` : formatCurrencyCents(flat * 100);
   }
 
-  return '价格未设置';
+  return '收费标准未设置';
 }

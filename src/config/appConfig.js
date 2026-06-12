@@ -34,7 +34,7 @@ export const UI_COPY = {
     noLearningNeed: '请补充学习需求',
     noLessons: '课时明细未填写',
     noLessonAccounts: '课时账户未配置',
-    noPayments: '缴费记录未录入',
+    noPayments: '收费记录未录入',
     noPaymentRecords: '收费记录未生成',
     noAttendanceRecords: '到课记录未生成',
     noExceptions: '未检测到异常记录',

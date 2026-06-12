@@ -55,16 +55,16 @@
 - 部署前建议先按运行时清单核对：
   - `docs/CLOUDFLARE_DEPLOYMENT.md`
 
-推荐直接执行一键验收：
-
-```bash
-npm run verify:smoke
-```
-
-更推荐直接一步到位启动+自检：
+本阶段推荐直接执行一键验收（启动后端 + 全量自检）：
 
 ```bash
 npm run stack:verify
+```
+
+如需与当前脚本链路保持兼容，也可执行：
+
+```bash
+npm run verify:smoke:auto
 ```
 
 ### 5. 测试页面与构建

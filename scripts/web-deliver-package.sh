@@ -41,7 +41,7 @@ StarMate English 网页原型交付包
 构建时间: ${BUILD_TIME}
 构建命令: npm run web:build
 技术栈: React + Vite
-说明: 当前仅前端模拟数据演示版（不含真实登录与数据库落库）
+说明: 当前聚焦网页上线闭环（含真实登录与数据库落库）
 EOF
 
 cat > "${TARGET_DIR}/README.txt" <<'EOF'

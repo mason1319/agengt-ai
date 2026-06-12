@@ -99,6 +99,13 @@ npm run stack:start:proxy
 npm run verify:smoke
 ```
 
+- 若你希望“启动+验收”一步完成（推荐小白）：
+
+```bash
+npm install
+npm run verify:smoke:auto
+```
+
 - 或一步到位：
 
 ```bash
@@ -107,6 +114,7 @@ npm run stack:verify
 ```
 
 - 自检返回 `Smoke check passed` 即说明后端接口可用。
+- 补充：`npm run verify:smoke` 仅适用于后端已启动完成的场景；若服务未启动，会返回 `http 0`，请改用 `npm run stack:verify`。
 - 如你只验前端（不含 API），可直接用 `npm run web:dev` 打开 `http://localhost:5173`。
 
 网页验收文档：`docs/web-delivery-checklist.md`
@@ -195,6 +203,98 @@ npm run mobile:bootstrap:android # 只建/同步 Android 壳
 - `npm run stack:background:proxy`：一键后台保活 + VPN 环境友好（推荐）
 - `npm run web:local:8080:proxy`：纯前端预览（无 API，端口 8080，VPN 友好）
 - `npm run mobile:*`：后续在网页验收通过后再开启
+
+## AI 大模型接入（优先中国厂商）
+
+当前后端已支持真实模型接入和 mock 回退（接口失败会自动降级为 mock）。建议按“国内优先”执行：
+
+1) 先选提供商（推荐）
+
+- Qwen（推荐）
+  - `AI_PROVIDER=qwen`
+  - `AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`
+  - `AI_MODEL=qwen-plus`
+- DeepSeek
+  - `AI_PROVIDER=deepseek`
+  - `AI_BASE_URL=https://api.deepseek.com`
+  - `AI_MODEL=deepseek-chat`
+- 智谱（GLM）
+  - `AI_PROVIDER=zhipu`
+  - `AI_BASE_URL=https://open.bigmodel.cn/api/paas/v4`
+  - `AI_MODEL=glm-4-plus`
+
+2) 写环境变量（本地）
+
+```bash
+cp .env.example .env
+export AI_MODE=provider
+export AI_PROVIDER=qwen
+export AI_MODEL=qwen-plus
+export AI_API_KEY=你在服务商申请到的密钥
+export AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
+注意：`AI_API_KEY` 尽量不要直接写在仓库文件中，生产环境用 `wrangler secret` 注入。
+
+3) 生产端注入（Cloudflare）
+
+```bash
+wrangler secret put AI_MODE         # 填 provider
+wrangler secret put AI_PROVIDER      # qwen / deepseek / zhipu / moonshot / doubao
+wrangler secret put AI_MODEL        # qwen-plus / deepseek-chat / glm-4-plus
+wrangler secret put AI_API_KEY       # 密钥
+wrangler secret put AI_BASE_URL      # 可选，不填则按 provider 默认
+```
+
+4) 可用性验证
+
+- 本地/部署后访问后端：`POST /api/v1/ai/agent`
+- 常见动作：`feedback_from_lesson`、`exercise_generate`、`renewal_risk_scan`
+- 成功时返回 `output.source = 'provider'`
+- 失败时自动降级返回 `output.source = 'mock'`，并带 `providerFallback`
+
+5) 常见排错
+
+- 看不到 provider 返回：检查 `AI_MODE` 是否是 `provider`，以及是否已设置 `AI_API_KEY`
+- 频率报错时：先降低单次请求长度，再观察 `AI_BASE_URL` 与模型是否匹配
+- 长期不稳定：将 `AI_MODE` 改为 `mock` 保底运行，待密钥/网络恢复后再切回 provider
+
+建议默认策略：
+
+- 先用 `qwen` 作为默认主模型；异常降级到 mock，确保系统链路不中断。
+- 不建议在正式场景下使用默认公开 key 或共享 key。
+
+### 一键核验命令链（上线前必跑）
+
+```bash
+cd /Users/mason/英语系统
+
+# 1) 依赖与服务端口清理
+npm install
+npm run ports:free
+
+# 2) 本地只检验接口闭环（mock）
+export AI_MODE=mock
+npm run stack:verify
+
+# 3) 合同/接口映射扫描
+npm run validate:contracts
+npm run audit:deps
+npm run audit:security
+
+# 4) 接真实模型（推荐 qwen）
+export AI_MODE=provider
+export AI_PROVIDER=qwen
+export AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+export AI_MODEL=qwen-plus
+export AI_API_KEY=<你的真实密钥>
+npm run stack:verify
+
+# 5) 发布前命令
+npm run cf:deploy:ensure
+```
+
+- 任一环节失败，先修复到通过后再进入下一步；避免直接跳到部署。
 
 ## 网页最终交付（可直接复制）
 
@@ -393,6 +493,10 @@ curl -X GET "http://127.0.0.1:8787/api/v1/admin/ai-usage?institutionId=inst-star
 
 - PRD：`docs/phase1-prd-starmate-english.md`
 - 架构：`docs/phase1-architecture-starmate-english.md`
+- 国际标准执行说明：`docs/international-delivery-standards-v4.1-internal.md`
+- 阶段执行总表：`docs/phase1-execution-index-v4.1-internal.md`
+- 运营 SOP：`docs/StarMate-ops-SOP-v4.1-CN.md`
+- 研发 SOP：`docs/StarMate-dev-SOP-v4.1-CN.md`
 - 跨端计划：`docs/phase1-cross-platform-guide.md`
 - 跨端执行手册：`docs/phase1-cross-platform-ops.md`
 - 配置化入口（后续改动友好）：`src/config/appConfig.js`
