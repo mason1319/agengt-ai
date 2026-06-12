@@ -165,6 +165,11 @@
   - 发布：Cloudflare Pages 部署完成，预览 URL `https://3fdfbbdb.starmate-english-saas.pages.dev`
   - 线上校验：对上述 Pages URL 重新执行 smoke，`33/33` 通过
 
+- 2026-06-12 23:25（Phase 2 个人中心成果馆收口）：`profile.open-culture-wall` 重试入口补齐
+  - 代码：个人中心学习成果馆增加同步状态与失败重试按钮，失败后可直接重试打开档案中心
+  - 收口：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `profile.open-culture-wall` 已改为已收口
+  - 校验：本地构建与现有 smoke 口径保持通过，未新增回归
+
 - 2026-06-12 21:09（Phase 2 P2-2）：收费记录筛选与导出字段一致
   - 代码：创始人收费记录补齐学员 / 课程 / 日期范围筛选，后端 `payment_records` 关联 `students` / `courses` 返回名称字段
   - 代码：创始人经营台新增收费记录筛选区和 CSV 导出，导出字段与页面展示口径一致

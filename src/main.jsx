@@ -6809,6 +6809,7 @@ function ProfilePage({
   const [parentMessage, setParentMessage] = useState(report.summary);
   const [feedbacking, setFeedbacking] = useState(false);
   const [parentStatus, setParentStatus] = useState('处理中');
+  const [cultureWallStatus, setCultureWallStatus] = useState('待同步');
   const [lessonAccountSyncAt, setLessonAccountSyncAt] = useState('');
   const [lessonAccountSyncState, setLessonAccountSyncState] = useState('待同步');
   const completedDays = WEEKLY_STREAK.filter((day) => day.done).length;
@@ -6856,19 +6857,22 @@ function ProfilePage({
 
   const handleOpenCultureWall = async () => {
     if (onRefreshCultureWall) {
-      setParentStatus('学习成果同步中...');
+      setCultureWallStatus('学习成果同步中...');
       try {
         await onRefreshCultureWall();
-        setParentStatus('学习成果同步完成');
+        setCultureWallStatus('学习成果同步完成');
       } catch (error) {
-        setParentStatus(`学习成果同步失败：${error instanceof Error ? error.message : '请重试'}`);
-        setTimeout(() => {
-        setParentStatus('处理中');
-        }, 1600);
+        setCultureWallStatus(`学习成果同步失败：${error instanceof Error ? error.message : '请重试'}`);
       }
     }
 
     onNavigatePage?.('culture-wall');
+  };
+
+  const retryCultureWall = async () => {
+    if (cultureWallStatus.startsWith('学习成果同步失败') && onRefreshCultureWall) {
+      await handleOpenCultureWall();
+    }
   };
   const handleProfileNavigate = async (targetPage, actionText) => {
     if (onRefresh) {
@@ -7329,6 +7333,23 @@ function ProfilePage({
                 <span>反馈</span>
                 <strong>{cultureWallCounts.feedback} 条</strong>
                 <small>家长和老师可查看</small>
+              </div>
+            </div>
+            <div className="profile-sync-strip" style={{ marginTop: 12 }}>
+              <div>
+                <span>学习成果同步</span>
+                <strong>{cultureWallStatus}</strong>
+                <small>打开档案中心前会先刷新一次当前素材与反馈。</small>
+              </div>
+              <div className="profile-sync-meta">
+                <span className="small-note">
+                  {cultureWallStatus.startsWith('学习成果同步失败') ? '已保留重试入口' : '自动刷新后跳转'}
+                </span>
+                {cultureWallStatus.startsWith('学习成果同步失败') && onRefreshCultureWall ? (
+                  <button className="row-action ghost" onClick={() => void retryCultureWall()}>
+                    重试打开
+                  </button>
+                ) : null}
               </div>
             </div>
             <div className="profile-support-grid">

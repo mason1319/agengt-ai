@@ -35,7 +35,7 @@
 | `profile.quick.practice` | 个人中心快捷入口 | 家长视角进入练习页后展示只读说明 | 已收口 | 学生提交、重置和 AI 生成仍由学生端/老师端执行 |
 | `profile.quick.lesson-account` | 个人中心课时账户 | 已展示剩余课时/收费记录 | 还需要线上确认父/学生两种角色的同步口径一致 | 保留最近同步时间、来源与重新同步按钮 |
 | `profile.generate-feedback` | 个人中心家校沟通 | AI 可生成沟通稿 | 当前只更新前端文本和 AI 审计，不写家校消息表 | Phase 2 建 `parent_messages` 或 `communication_records` |
-| `profile.open-culture-wall` | 个人中心成果馆 | 点击前刷新成果馆 | 失败后只提示状态，不提供重试入口 | 增加失败态重试按钮或操作日志入口 |
+| `profile.open-culture-wall` | 个人中心成果馆 | 点击前刷新成果馆 | 已补同步状态与失败重试入口 | 保留刷新前同步与重试打开入口 |
 | `parent.child.payment-records` | 家长收费记录 | 可读取收费记录 | 只展示记录，不支持家长确认已读/有疑问 | 可后置增加“有疑问，联系老师/机构” |
 
 ## 4. 老师端
