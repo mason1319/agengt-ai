@@ -91,8 +91,13 @@
 2. 已将冒烟检查清单补充严格模式与快速复测命令（`docs/phase2-api-smoke-checklist.md`）。
 
 ### 下一步（进入收口循环）
-1. 按 `docs/phase2-p1-closeout-v4.1-internal-CN.md` 的 P1 表逐条修复，单项完成后执行：
+1. 以 `docs/phase2-priority-backlog-v4.1-internal-CN.md` 为当前执行入口，优先进入 Sprint 1 的四个 P1 小闭环：
+   - 老师反馈落库并对家长可见
+   - 老师练习题下发到学生任务
+   - 课时调整审计原因与扣减明细
+   - 试听预约课程摘要与线索转化失败分段
+2. 单项完成后执行：
    - `npm run validate:contracts`
    - `npm run stack:verify`
    - `npm run audit:deps`（变更代码后可按需执行）
-2. 仍有 demo 回退行为的控件保留到 P2，不与本次 P1 计分混合；但必须在交付说明里明示回退触发条件。
+3. 仍有 demo 回退行为的控件保留到 P2，不与本次 P1 计分混合；但必须在交付说明里明示回退触发条件。
