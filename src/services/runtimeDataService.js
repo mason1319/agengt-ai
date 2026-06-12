@@ -1892,6 +1892,56 @@ export async function submitTeacherAttendanceByCourse({
   });
 }
 
+export async function updateInstitutionLesson({
+  authToken,
+  role = 'teacher',
+  institutionId = 'inst-star',
+  lessonId,
+  patch = {}
+} = {}) {
+  const safeLessonId = `${lessonId || patch.id || ''}`.trim();
+  if (!safeLessonId) {
+    throw new Error('lessonId is required');
+  }
+
+  const body = { id: safeLessonId };
+  if (patch.status !== undefined) {
+    body.status = `${patch.status || ''}`.trim();
+  }
+  if (patch.teacherNote !== undefined) {
+    body.teacherNote = `${patch.teacherNote || ''}`.trim();
+  }
+  if (patch.parentFeedback !== undefined) {
+    body.parentFeedback = `${patch.parentFeedback || ''}`.trim();
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        lesson: {
+          id: safeLessonId,
+          ...body
+        }
+      }
+    };
+  }
+
+  const params = new URLSearchParams();
+  const safeInstitutionId = `${institutionId || ''}`.trim();
+  if (safeInstitutionId) {
+    params.set('institutionId', safeInstitutionId);
+  }
+
+  return requestJson({
+    method: 'PATCH',
+    path: `/v1/institution/lessons${params.toString() ? `?${params.toString()}` : ''}`,
+    token: trimEnv(authToken),
+    role,
+    body
+  });
+}
+
 export async function submitTeacherIntervention({
   authToken,
   studentId,

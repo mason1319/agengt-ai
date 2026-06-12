@@ -74,12 +74,17 @@
 建议边界：
 - 不做复杂 IM。
 - 不做家长回复流。
-- 先用现有课程/反馈数据结构，必要时新增最小 `communication_records` 表。
+- 先复用现有 `lessons.parent_feedback`，本项不新增 `communication_records`。
 
 验收：
 - 老师生成反馈后，家长视角能看到同一条记录。
 - smoke 增加一项“反馈生成 -> 家长摘要读取”。
 - `npm run validate:contracts && npm run stack:verify` 通过。
+
+当前进展：
+- 2026-06-12 已实现老师端 AI 反馈生成后 PATCH `/api/v1/institution/lessons` 写入 `lessons.parent_feedback`。
+- 家长孩子 summary 已返回 `lessonFeedback` / `recentFeedback`，家长首页新增“最近课堂反馈”展示。
+- 本地 `npm test` 已新增并通过 `teacher feedback visible to parent summary` 验收。
 
 ### P1-2：老师练习题下发到学生任务
 
