@@ -40,7 +40,10 @@ export async function onRequest(context) {
   const rows = await fetchPaymentRecordsByInstitution(env.DB, {
     institutionId,
     studentId: STR(parsed.searchParams.get('studentId')),
-    status: STR(parsed.searchParams.get('status'))
+    courseId: STR(parsed.searchParams.get('courseId')),
+    status: STR(parsed.searchParams.get('status')),
+    startAt: STR(parsed.searchParams.get('startAt')),
+    endAt: STR(parsed.searchParams.get('endAt'))
   });
 
   const safeRows = Array.isArray(rows) ? rows : [];

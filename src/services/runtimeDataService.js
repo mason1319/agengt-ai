@@ -2491,8 +2491,17 @@ export async function loadFounderPaymentRecords({
   if (filters.studentId) {
     params.set('studentId', `${filters.studentId}`.trim());
   }
+  if (filters.courseId) {
+    params.set('courseId', `${filters.courseId}`.trim());
+  }
   if (filters.status) {
     params.set('status', `${filters.status}`.trim());
+  }
+  if (filters.startAt) {
+    params.set('startAt', `${filters.startAt}`.trim());
+  }
+  if (filters.endAt) {
+    params.set('endAt', `${filters.endAt}`.trim());
   }
 
   return requestJson({

@@ -164,3 +164,9 @@
   - 页面验证：`http://127.0.0.1:8787/?role=founder` 进入课程中心后，`新建课程` 抽屉与编辑态抽屉均已通过截图核验
   - 发布：Cloudflare Pages 部署完成，预览 URL `https://3fdfbbdb.starmate-english-saas.pages.dev`
   - 线上校验：对上述 Pages URL 重新执行 smoke，`33/33` 通过
+
+- 2026-06-12 21:09（Phase 2 P2-2）：收费记录筛选与导出字段一致
+  - 代码：创始人收费记录补齐学员 / 课程 / 日期范围筛选，后端 `payment_records` 关联 `students` / `courses` 返回名称字段
+  - 代码：创始人经营台新增收费记录筛选区和 CSV 导出，导出字段与页面展示口径一致
+  - 校验：`npm run validate:contracts`、`npm run typecheck`、`npm run build`、本地 `bash ./scripts/smoke-check.sh http://127.0.0.1:8787` ✅
+  - 浏览器验证：登录 founder 后，收费记录“导出 CSV”可触发下载，文件名 `founder-payment-records-2026-06-12.csv`

@@ -755,6 +755,60 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'founder payment records filter and export fields',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const recordsRes = await request({
+          method: 'GET',
+          path: '/api/v1/founder/payment-records?limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(recordsRes.ok, `http ${recordsRes.status}`);
+        ensure(hasJsonSuccess(recordsRes.payload), 'response success=false');
+        const records = Array.isArray(recordsRes.payload?.data?.records) ? recordsRes.payload.data.records : [];
+        if (!records.length) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder payment records empty');
+          }
+          printStatus('warn', 'founder payment records empty, skip');
+          return;
+        }
+
+        const sample = records[0];
+        const createdAt = `${sample.createdAt || sample.created_at || ''}`.trim();
+        const createdDate = createdAt ? createdAt.slice(0, 10) : '';
+        const filtered = await request({
+          method: 'GET',
+          path:
+            `/api/v1/founder/payment-records?limit=20` +
+            `&studentId=${encodeURIComponent(sample.studentId || sample.student_id || '')}` +
+            `&courseId=${encodeURIComponent(sample.courseId || sample.course_id || '')}` +
+            `&status=${encodeURIComponent(sample.status || '')}` +
+            (createdDate ? `&startAt=${encodeURIComponent(createdDate)}&endAt=${encodeURIComponent(createdDate)}` : ''),
+          token,
+          expectStatus: 200
+        });
+        ensure(filtered.ok, `http ${filtered.status}`);
+        ensure(hasJsonSuccess(filtered.payload), 'response success=false');
+        const filteredRecords = Array.isArray(filtered.payload?.data?.records) ? filtered.payload.data.records : [];
+        const match = filteredRecords.find((item) => `${item.id || ''}`.trim() === `${sample.id || ''}`.trim());
+        ensure(Boolean(match), 'filtered payment record missing');
+        ensure(Boolean(match.studentName || match.student_name), 'student name missing');
+        ensure(Boolean(match.courseName || match.course_name), 'course name missing');
+        ensure(Boolean(match.createdAt || match.created_at), 'createdAt missing');
+      }
+    },
+    {
       name: 'founder course drawer create/edit flow',
       role: 'founder',
       ok: async () => {

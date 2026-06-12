@@ -4094,6 +4094,23 @@ button.ghost,
   justify-content: flex-end;
 }
 
+.payment-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.payment-filter-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.payment-filter-grid input {
+  width: 100%;
+  min-width: 0;
+}
+
 .course-detail-stack {
   display: grid;
   gap: 12px;
@@ -7712,7 +7729,8 @@ button.ghost,
   .course-library-grid.expanded,
   .practice-zone-panel .practice-arena-list,
   .profile-summary-shell,
-  .profile-support-grid {
+  .profile-support-grid,
+  .payment-filter-grid {
     grid-template-columns: 1fr;
   }
 
@@ -7758,7 +7776,8 @@ button.ghost,
   .course-library-grid.expanded,
   .skill-goal-grid,
   .practice-arena-list,
-  .profile-achievement-grid {
+  .profile-achievement-grid,
+  .payment-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

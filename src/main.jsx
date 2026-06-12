@@ -718,8 +718,77 @@ function FounderDashboard({
   const leadStatusCounts = summary.leadsByStatus || {};
   const paymentStatusCounts = summary.paymentRecords?.byStatus || {};
   const attendanceStatusCounts = summary.attendanceByStatus || {};
-    const refreshText = loading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshData;
+  const refreshText = loading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshData;
   const countItems = (value = []) => (Array.isArray(value) ? value.length : 0);
+  const paymentRows = Array.isArray(paymentRecords) ? paymentRecords : [];
+
+  const csvEscape = (value) => {
+    const text = `${value ?? ''}`;
+    if (/[",\n\r]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const exportPaymentRecords = () => {
+    if (paymentRows.length === 0) {
+      onAction?.('founder', '收费记录导出失败：当前没有可导出的记录');
+      return;
+    }
+
+    const columns = [
+      ['record_id', '记录ID'],
+      ['order_no', '订单号'],
+      ['student_name', '学员'],
+      ['student_id', '学员ID'],
+      ['student_grade', '年级'],
+      ['course_name', '课程'],
+      ['course_id', '课程ID'],
+      ['status', '收费状态'],
+      ['payment_method', '支付方式'],
+      ['amount_cents', '金额(分)'],
+      ['currency', '币种'],
+      ['paid_at', '入账时间'],
+      ['created_at', '创建时间'],
+      ['notes', '备注']
+    ];
+
+    const header = columns.map((item) => item[1]).join(',');
+    const csvRows = paymentRows.map((record) =>
+      columns.map(([key]) => {
+        const value = {
+          record_id: record.id || '',
+          order_no: record.orderNo || record.order_no || '',
+          student_name: record.studentName || record.student_name || '',
+          student_id: record.studentId || record.student_id || '',
+          student_grade: record.studentGrade || record.student_grade || '',
+          course_name: record.courseName || record.course_name || '',
+          course_id: record.courseId || record.course_id || '',
+          status: record.status || '',
+          payment_method: record.paymentMethod || record.payment_method || '',
+          amount_cents: record.amountCents || record.amount_cents || 0,
+          currency: record.currency || '',
+          paid_at: record.paidAt || record.paid_at || '',
+          created_at: record.createdAt || record.created_at || '',
+          notes: record.notes || ''
+        }[key];
+        return csvEscape(value);
+      }).join(',')
+    );
+
+    const fileName = `founder-payment-records-${new Date().toISOString().slice(0, 10)}.csv`;
+    const blob = new Blob([`\ufeff${[header, ...csvRows].join('\n')}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.target = '_self';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    onAction?.('founder', `导出收费记录：${paymentRows.length} 条`);
+  };
 
   const updateFilters = (patch = {}) => {
     onFiltersChange?.({
@@ -971,7 +1040,7 @@ function FounderDashboard({
       </div>
 
       <div className="panel">
-        <PanelTitle icon={BookOpenCheck} title="课程与收费" action={`课程 ${countItems(courses)} / 收费 ${countItems(paymentRecords)}`} />
+        <PanelTitle icon={BookOpenCheck} title="课程与收费" action={`课程 ${countItems(courses)} / 收费 ${countItems(paymentRows)}`} />
         {countItems(courses) === 0 ? <div className="small-note">{UI_COPY.empty.noCourseData}</div> : null}
         {(courses || []).slice(0, 6).map((course) => (
           <div className="alert-row" key={course.id || `${course.name}-${course.startAt || ''}`}>
@@ -991,22 +1060,70 @@ function FounderDashboard({
           </div>
         ))}
         <div style={{ height: 10 }} />
-        {countItems(paymentRecords) === 0 ? <div className="small-note">{UI_COPY.empty.noPaymentRecords}</div> : null}
-        {(paymentRecords || []).slice(0, 6).map((record) => (
+        <div className="section-headline" style={{ marginTop: 12 }}>
+          <div>
+            <span>收费记录</span>
+            <h3>收费记录筛选与导出</h3>
+          </div>
+          <button className="row-action" onClick={exportPaymentRecords} disabled={paymentRows.length === 0}>
+            导出 CSV
+          </button>
+        </div>
+        <div className="payment-filter-grid">
+          <label>
+            <span className="small-note">学员ID</span>
+            <input
+              value={filters.paymentStudentId || ''}
+              onChange={(event) => updateFilters({ paymentStudentId: event.target.value })}
+              placeholder="按学员筛选"
+            />
+          </label>
+          <label>
+            <span className="small-note">课程ID</span>
+            <input
+              value={filters.paymentCourseId || ''}
+              onChange={(event) => updateFilters({ paymentCourseId: event.target.value })}
+              placeholder="按课程筛选"
+            />
+          </label>
+          <label>
+            <span className="small-note">开始日期</span>
+            <input
+              type="date"
+              value={filters.paymentStartAt || ''}
+              onChange={(event) => updateFilters({ paymentStartAt: event.target.value })}
+            />
+          </label>
+          <label>
+            <span className="small-note">结束日期</span>
+            <input
+              type="date"
+              value={filters.paymentEndAt || ''}
+              onChange={(event) => updateFilters({ paymentEndAt: event.target.value })}
+            />
+          </label>
+        </div>
+        <div className="hero-chip-row" style={{ marginTop: 8 }}>
+          <span className="small-note">已收：{paymentStatusCounts.paid || 0}</span>
+          <span className="small-note">待收：{paymentStatusCounts.pending || 0}</span>
+          <span className="small-note">已退：{paymentStatusCounts.refunded || 0}</span>
+          <span className="small-note">筛选后：{paymentRows.length} 条</span>
+        </div>
+        {countItems(paymentRows) === 0 ? <div className="small-note">{UI_COPY.empty.noPaymentRecords}</div> : null}
+        {(paymentRows || []).slice(0, 6).map((record) => (
           <div className="alert-row" key={record.id || record.order_no || `${record.studentId || ''}-${record.paid_at || ''}`}>
             <span className="status-dot blue" />
             <div>
               <strong>{record.studentName || record.student_name || '匿名学员'}</strong>
-              <small>{record.status || '已入账'} · {record.order_no || record.orderNo || '订单号待核对'}</small>
+              <small>
+                {record.status || '已入账'} · {record.courseName || record.course_name || '课程待核对'} · {record.order_no || record.orderNo || '订单号待核对'}
+              </small>
             </div>
-            <small className="small-note">{formatCents(record.amount_cents || record.amountCents || 0)}</small>
+            <small className="small-note">
+              {formatCents(record.amount_cents || record.amountCents || 0)} · {record.paidAt || record.paid_at || record.createdAt || ''}
+            </small>
           </div>
         ))}
-        <div className="hero-chip-row" style={{ marginTop: 10 }}>
-          <span className="small-note">已收：{paymentStatusCounts.paid || 0}</span>
-          <span className="small-note">待收：{paymentStatusCounts.pending || 0}</span>
-          <span className="small-note">已退：{paymentStatusCounts.refunded || 0}</span>
-        </div>
       </div>
 
       <div className="panel">
@@ -7822,6 +7939,10 @@ function App() {
     courseStatus: '',
     leadStatus: '',
     paymentStatus: '',
+    paymentStudentId: '',
+    paymentCourseId: '',
+    paymentStartAt: '',
+    paymentEndAt: '',
     startAt: '',
     endAt: ''
   });
@@ -8388,6 +8509,10 @@ function App() {
         courseStatus: `${inputFilters?.courseStatus || ''}`.trim(),
         leadStatus: `${inputFilters?.leadStatus || ''}`.trim(),
         paymentStatus: `${inputFilters?.paymentStatus || ''}`.trim(),
+        paymentStudentId: `${inputFilters?.paymentStudentId || ''}`.trim(),
+        paymentCourseId: `${inputFilters?.paymentCourseId || ''}`.trim(),
+        paymentStartAt: `${inputFilters?.paymentStartAt || ''}`.trim(),
+        paymentEndAt: `${inputFilters?.paymentEndAt || ''}`.trim(),
         startAt: `${inputFilters?.startAt || ''}`.trim(),
         endAt: `${inputFilters?.endAt || ''}`.trim()
       };
@@ -8395,7 +8520,16 @@ function App() {
         loadFounderCockpit({ authToken: initTokenRef.current, filters: normalizedFilters }),
         loadFounderLeads({ authToken: initTokenRef.current, filters: { status: normalizedFilters.leadStatus } }),
         loadFounderCourses({ authToken: initTokenRef.current, filters: { status: normalizedFilters.courseStatus } }),
-        loadFounderPaymentRecords({ authToken: initTokenRef.current, filters: { status: normalizedFilters.paymentStatus } }),
+        loadFounderPaymentRecords({
+          authToken: initTokenRef.current,
+          filters: {
+            status: normalizedFilters.paymentStatus,
+            studentId: normalizedFilters.paymentStudentId,
+            courseId: normalizedFilters.paymentCourseId,
+            startAt: normalizedFilters.paymentStartAt,
+            endAt: normalizedFilters.paymentEndAt
+          }
+        }),
         loadFounderLessonAccounts({ authToken: initTokenRef.current }),
         loadFounderAttendanceRecords({ authToken: initTokenRef.current, filters: { startAt: normalizedFilters.startAt, endAt: normalizedFilters.endAt } })
       ]);

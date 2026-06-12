@@ -247,7 +247,10 @@ function normalizePaymentRecordRow(row = {}) {
     id: row.id,
     institutionId: row.institution_id,
     studentId: row.student_id || '',
+    studentName: row.student_name || '',
+    studentGrade: row.student_grade || '',
     courseId: row.course_id || '',
+    courseName: row.course_name || '',
     orderNo: row.order_no || '',
     amountCents: toNumber(row.amount_cents, 0),
     currency: row.currency || 'CNY',
@@ -2709,25 +2712,50 @@ const upsertAttendanceRaw = async (db, payload = {}) => {
 const fetchPaymentRecordsByInstitutionRaw = async (db, filters = {}) => {
   const institutionId = `${filters.institutionId || ''}`.trim();
   const studentId = `${filters.studentId || ''}`.trim();
+  const courseId = `${filters.courseId || ''}`.trim();
   const status = `${filters.status || ''}`.trim();
+  const startAt = `${filters.startAt || ''}`.trim();
+  const endAt = `${filters.endAt || ''}`.trim();
 
   if (!institutionId) {
     return [];
   }
 
-  const where = ['institution_id = ?1'];
+  const where = ['pr.institution_id = ?1'];
   const values = [institutionId];
   if (studentId) {
     values.push(studentId);
-    where.push(`student_id = ?${values.length}`);
+    where.push(`pr.student_id = ?${values.length}`);
+  }
+  if (courseId) {
+    values.push(courseId);
+    where.push(`pr.course_id = ?${values.length}`);
   }
   if (status) {
     values.push(status);
-    where.push(`status = ?${values.length}`);
+    where.push(`pr.status = ?${values.length}`);
+  }
+  if (startAt) {
+    values.push(`${startAt} 00:00:00`);
+    where.push(`pr.created_at >= ?${values.length}`);
+  }
+  if (endAt) {
+    values.push(`${endAt} 23:59:59`);
+    where.push(`pr.created_at <= ?${values.length}`);
   }
 
   const rows = await db
-    .prepare(`SELECT * FROM payment_records WHERE ${where.join(' AND ')} ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT pr.*,
+              s.name AS student_name,
+              s.grade AS student_grade,
+              c.name AS course_name
+         FROM payment_records pr
+         LEFT JOIN students s ON s.id = pr.student_id
+         LEFT JOIN courses c ON c.id = pr.course_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY pr.created_at DESC`
+    )
     .bind(...values)
     .all();
 
