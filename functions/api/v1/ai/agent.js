@@ -149,7 +149,16 @@ function buildFallbackRiskPayload(institution = {}, students = []) {
       '对高风险学员安排 1 次家校沟通',
       '检查最近 7 天课堂反馈是否有缺失',
       '在到期前 5 天发送学习成果周报并给出续费建议'
-    ]
+    ],
+    risks: riskItems.map((item) => ({
+      studentId: normalizeString(item.id),
+      student: normalizeString(item.name, '学员'),
+      grade: normalizeString(item.grade),
+      hoursLeft: normalizeNumber(item.hoursLeft, 0),
+      risk: normalizeNumber(item.renewalRisk, 0),
+      priority: normalizeNumber(item.renewalRisk, 0) >= 70 ? 'high' : normalizeNumber(item.renewalRisk, 0) >= 40 ? 'medium' : 'low',
+      action: normalizeNumber(item.renewalRisk, 0) >= 70 ? '优先家校沟通' : '持续观察'
+    }))
   };
 }
 
@@ -190,8 +199,13 @@ function buildRiskPayload(institution = {}, students = []) {
       '提前发布续费计划与学习成果周报'
     ],
     risks: riskItems.map((item) => ({
+      studentId: normalizeString(item.id),
       student: normalizeString(item.name, '学员'),
-      risk: normalizeNumber(item.renewalRisk, 0)
+      grade: normalizeString(item.grade),
+      hoursLeft: normalizeNumber(item.hoursLeft, 0),
+      risk: normalizeNumber(item.renewalRisk, 0),
+      priority: normalizeNumber(item.renewalRisk, 0) >= 70 ? 'high' : normalizeNumber(item.renewalRisk, 0) >= 40 ? 'medium' : 'low',
+      action: normalizeNumber(item.renewalRisk, 0) >= 70 ? '优先家校沟通' : '持续观察'
     }))
   };
 }

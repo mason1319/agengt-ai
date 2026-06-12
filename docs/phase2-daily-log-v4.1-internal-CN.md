@@ -2,6 +2,69 @@
 
 ## 2026-06-12
 
+- 最新复测记录（Phase2 首页 AI 咨询回执收口）：`home.send-ai-reply` 补齐可见输入区与失败提示
+  - 修复点：公开咨询区新增回执线索ID与回执内容输入区，提交后可发送 AI 回执。
+  - 修复点：缺少线索ID或回执内容时，页面会明确提示先提交咨询或补全内容。
+  - 结论：`home.send-ai-reply` 已可视为闭环，不再作为未闭环控件保留。
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - 验证：`npm run stack:verify` ✅（35/35）
+
+- 最新复测记录（Phase2 创始人收费记录筛选与导出收口）：`founder.payment-records` 已闭环
+  - 代码现状：收费记录支持学员 / 课程 / 日期筛选，CSV 导出与页面字段一致。
+  - 结论：`founder.payment-records` 当前按既有实现视为闭环，清单仅保留收口说明。
+
+- 最新复测记录（Phase2 课程创建抽屉收口）：`founder.courses.create` 已具备抽屉式创建/编辑
+  - 代码现状：课程页已提供“新建课程”入口、课程卡点击编辑、表单保存后刷新课程库与公开课程列表。
+  - 结论：`founder.courses.create` 当前按既有实现视为闭环，清单仅保留收口说明。
+
+- 最新复测记录（Phase2 平台机构策略页收口）：`platform.practice` 改为只读策略总览
+  - 修复点：平台机构方案页不再展示套餐购买语义，改为只读策略总览、状态规则和机构样例。
+  - 修复点：页面复用 `orgStatusDefaults` / `orgActionsByStatus` / `organizations`，不新增编辑入口。
+  - 结论：`platform.practice` 已可视为闭环，不再作为未闭环控件保留。
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - 验证：`npm run stack:verify` ✅（35/35）
+
+- 最新复测记录（Phase2 首页公开课程选课闭环）：选中课程会进入咨询与预约口径
+  - 修复点：选中试听课程后，咨询与预约表单同时展示课程摘要、规则和课程 ID。
+  - 修复点：咨询提交与试听预约请求都携带当前选中课程信息。
+  - 结论：`home.select-public-course` 已可视为闭环，不再作为未闭环控件保留。
+
+- 最新复测记录（Phase2 公开课程详情收口）：公开课程页与首页选课摘要统一补齐
+  - 修复点：公开课程页新增课程详情摘要，展示上课日期、到课规则和保留规则。
+  - 修复点：首页公开课程选中态同步展示同口径课程详情。
+  - 结论：`public.courses.detail` 已可视为闭环，不再作为未闭环控件保留。
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - 验证：`npm run stack:verify` ✅（35/35）
+
+- 最新复测记录（Phase2 个人中心课时账户同步闭环）：父/学生口径一致，清单收口
+  - 修复点：个人中心课时账户区已保留“数据来源 / 最近同步 / 重新同步”提示条，父端与学生端分别标注对应课时账户接口。
+  - 修复点：同步后更新时间戳与状态回写，便于确认当前展示口径。
+  - 结论：`profile.quick.lesson-account` 已可视为闭环，不再作为未闭环控件保留。
+
+- 最新复测记录（Phase2 老师点名扣减回显增强）：补齐扣减前后余额与账户 ID
+  - 修复点：老师点名成功提示增加扣减前余额、扣减后余额和课时账户 ID。
+  - 修复点：清单同步更新为“已补扣减前后余额与账户回显”。
+  - 验证：待跑本轮最小回归。
+
+- 最新复测记录（Phase2 课时账户调整审计收口）：补齐创始人课时调整入口与最近记录展示
+  - 修复点：创始人课时账户面板增加调整表单，要求填写学员ID、调整课时、金额和原因。
+  - 修复点：调整后刷新课时账户列表，并在面板中展示最近一条调整记录的原因。
+  - 修复点：服务层补 `POST /api/v1/founder/lesson-accounts` 封装，模拟模式也返回 reason。
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - 验证：`npm run stack:verify` ✅（35/35）
+
+- 最新复测记录（Phase2 首页续费风险闭环）：补齐风险扫描到跟进任务的落点
+  - 修复点：`renewal_risk_scan` 结果增加 `studentId / grade / hoursLeft / priority / action`，首页续费风险卡支持把高风险学员一键转成 `intervention` 跟进任务。
+  - 修复点：复用现有 `teacher/student/{studentId}/intervention` 写入链路，不新增独立跟进表。
+  - 修复点：风险扫描区增加高风险学员明细和“生成风险跟进”按钮，生成结果会回写当前操作日志。
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - 验证：`npm run stack:verify` ✅（35/35）
+
 - 最新复测记录（Phase2 试听预约课程摘要与线索转化失败分段）：新增 2 项 P1-4 验收
   - 新增用例：`public trial booking submit` 增加 `courseSummary.id` 与提交 `courseId` 一致性断言。
   - 新增用例：`founder lead convert returns segmented course enrollment failure`。
@@ -199,3 +262,32 @@
   - 代码：个人中心刷新函数改为向页面抛出异常，便于同步失败时展示失败态和重试入口
   - 校验：`npm run typecheck`、`npm run build`、本地 `bash ./scripts/smoke-check.sh http://127.0.0.1:8787` ✅
   - 浏览器验证：个人中心显示“数据来源”“最近同步”与“重新同步”按钮；同步条在页面中可见并随刷新更新时间戳
+
+- 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
+  - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
+  - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录
+  - 清单：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `profile.generate-feedback`、`teacher.workspace.feedback`、`teacher.workspace.exercise`、`founder.leads.convert` 已改为已收口
+  - 校验：`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
+
+- 2026-06-13（Phase 2 家长收费记录闭环）：`parent.child.payment-records` 增加追问入口
+  - 代码：家长收费记录卡片增加“有疑问，联系老师/机构”按钮，不再只是静态只读列表
+  - 清单：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `parent.child.payment-records` 已改为已收口
+  - 校验：`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
+
+- 2026-06-13（Phase 2 成果馆上传闭环）：`culture-wall.prepare-upload-photo` 线上发布确认
+  - 发布：Cloudflare Pages 部署完成，预览/发布地址 `https://75c609b0.starmate-english-saas.pages.dev`，别名 `https://codex-phase2-p2-1-course-dra.starmate-english-saas.pages.dev`
+  - 验证：线上地址 `HTTP 200`，页面标题为 `Aggie速记英语`
+  - 清单：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `culture-wall.prepare-upload-photo`、`platform.practice` 已改为已收口
+  - 校验：`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
+
+- 2026-06-13（Phase 2 个人中心课程上下文闭环）：`profile.quick.courses` 携带孩子 / 课程上下文
+  - 代码：个人中心“课程与课表”入口现在会把 `childId` 和 `selectedCourseId` 一起带到课程页
+  - 页面：课程页顶部显示当前孩子上下文，便于后续核对课表与课程明细
+  - 清单：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `profile.quick.courses` 已改为已收口
+  - 校验：`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
+
+- 2026-06-13（Phase 2 练习页复盘闭环）：`practice.challenge.choice` / `practice.challenge.reset` 写回 `student_tasks`
+  - 代码：练习页模块选择会将每轮选择写入 `student_tasks` 复盘记录，重置会将新任务写入练习记录
+  - 代码：练习页恢复后，学生端可从复盘记录继续查看历史与弱项，不再只保留本地临时状态
+  - 清单：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `practice.challenge.choice`、`practice.challenge.reset` 已改为已收口
+  - 校验：`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）

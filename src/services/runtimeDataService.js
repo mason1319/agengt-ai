@@ -12,6 +12,7 @@ import {
   leadPipeline,
   organizations,
   parentReports,
+  parentMessages,
   students,
   teacherLessons
 } from '../seedData';
@@ -137,7 +138,18 @@ function getMockAIAgentOutput(action, payload = {}) {
         { key: '家长反馈', value: '可跟进' }
       ],
       reasons: ['检测到课后反馈提交间隔偏长', '近端口学生课时剩余偏低'],
-      recommendations: ['给高风险学员发学习成果周报', '联系家长确认续费意愿']
+      recommendations: ['给高风险学员发学习成果周报', '联系家长确认续费意愿'],
+      risks: [
+        {
+          studentId: 's_001',
+          student: '小宇',
+          grade: '五年级',
+          hoursLeft: 6,
+          risk: 78,
+          priority: 'high',
+          action: '优先家校沟通'
+        }
+      ]
     }
   };
 };
@@ -251,6 +263,7 @@ const buildMockRuntimeData = () => ({
   teacherLessons: teacherLessons.map((item) => ({ ...item })),
   students: students.map((item) => ({ ...item })),
   parentReports: parentReports.map((item) => ({ ...item })),
+  parentMessages: parentMessages.map((item) => ({ ...item })),
   organizations: organizations.map((item) => ({ ...item })),
   cultureWall: {
     ...cultureWall,
@@ -1740,6 +1753,52 @@ export async function submitStudentPathCompletion({
   });
 }
 
+export async function submitStudentPracticeReview({
+  authToken,
+  payload = {}
+} = {}) {
+  const normalizedTitle = `${payload.title || ''}`.trim();
+  if (!normalizedTitle) {
+    throw new Error('title is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        studentId: `${payload.studentId || 's_001'}`.trim() || 's_001',
+        item: {
+          id: `practice-${Date.now()}`,
+          taskType: `${payload.taskType || 'practice_task'}`.trim() || 'practice_task',
+          title: normalizedTitle,
+          answer: `${payload.answer || ''}`.trim(),
+          score: toIntSafe(payload.score, 0),
+          status: `${payload.status || 'done'}`.trim(),
+          payload: payload.payload || {}
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/student/review/submit',
+    token: trimEnv(authToken),
+    role: 'student',
+    body: {
+      taskType: `${payload.taskType || 'practice_task'}`.trim(),
+      title: normalizedTitle,
+      answer: `${payload.answer || ''}`.trim(),
+      score: toIntSafe(payload.score, 0),
+      status: `${payload.status || 'done'}`.trim(),
+      payload: {
+        ...(payload.payload || {}),
+        studentId: `${payload.studentId || ''}`.trim() || null
+      }
+    }
+  });
+}
+
 export async function submitStudentVoiceAssess({
   authToken,
   taskId,
@@ -2082,6 +2141,7 @@ export async function updateInstitutionLesson({
 export async function submitTeacherIntervention({
   authToken,
   studentId,
+  role = 'teacher',
   payload = {}
 } = {}) {
   if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
@@ -2124,7 +2184,7 @@ export async function submitTeacherIntervention({
     method: 'POST',
     path: `/v1/teacher/student/${encodeURIComponent(safeStudentId)}/intervention`,
     token: trimEnv(authToken),
-    role: 'teacher',
+    role: `${role || 'teacher'}`.trim() || 'teacher',
     body: actionPayload
   });
 }
@@ -2328,6 +2388,75 @@ export async function loadChildPaymentRecords({
     path: `/v1/parent/child/${encodeURIComponent(normalizedChildId)}/payment-records${query ? `?${query}` : ''}`,
     token: trimEnv(authToken),
     role: 'parent'
+  });
+}
+
+export async function loadChildMessages({
+  authToken,
+  childId
+} = {}) {
+  const normalizedChildId = `${childId || ''}`.trim();
+
+  if (!normalizedChildId) {
+    throw new Error('childId is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    const messages = (getMockRuntimeData().parentMessages || [])
+      .filter((item) => `${item.studentId || ''}`.trim() === normalizedChildId)
+      .map((item) => ({ ...item }));
+    return {
+      success: true,
+      data: {
+        messages,
+        total: messages.length
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'GET',
+    path: `/v1/parent/child/${encodeURIComponent(normalizedChildId)}/messages`,
+    token: trimEnv(authToken),
+    role: 'parent'
+  });
+}
+
+export async function createChildMessage({
+  authToken,
+  childId,
+  payload = {}
+} = {}) {
+  const normalizedChildId = `${childId || ''}`.trim();
+  if (!normalizedChildId) {
+    throw new Error('childId is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    const record = {
+      id: `pm-${Date.now()}`,
+      studentId: normalizedChildId,
+      actorRole: `${payload.actorRole || 'parent'}`.trim(),
+      sender: `${payload.sender || ''}`.trim(),
+      message: `${payload.message || ''}`.trim(),
+      tone: `${payload.tone || ''}`.trim(),
+      relatedLessonId: `${payload.relatedLessonId || ''}`.trim(),
+      createdAt: new Date().toISOString()
+    };
+    return {
+      success: true,
+      data: {
+        message: record
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: `/v1/parent/child/${encodeURIComponent(normalizedChildId)}/messages`,
+    token: trimEnv(authToken),
+    role: 'parent',
+    body: payload
   });
 }
 
@@ -2675,6 +2804,54 @@ export async function loadFounderLessonAccounts({
     path: `/v1/founder/lesson-accounts?${params.toString()}`,
     token: trimEnv(authToken),
     role: 'founder'
+  });
+}
+
+export async function adjustFounderLessonAccount({
+  authToken,
+  payload = {}
+} = {}) {
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        adjusted: true,
+        record: {
+          id: `account-${Date.now()}`,
+          studentId: `${payload.studentId || ''}`.trim(),
+          purchasedHours: toIntSafe(payload.purchasedHours, 0),
+          remainingHours: toIntSafe(payload.purchasedHours, 0),
+          amountCents: toIntSafe(payload.amountCents, 0),
+          reason: `${payload.reason || ''}`.trim()
+        },
+        reason: `${payload.reason || ''}`.trim()
+      }
+    };
+  }
+
+  const actionPayload = {
+    studentId: `${payload.studentId || ''}`.trim(),
+    purchasedHours: toIntSafe(payload.purchasedHours, 0),
+    amountCents: toIntSafe(payload.amountCents, 0),
+    reason: `${payload.reason || ''}`.trim()
+  };
+
+  if (!actionPayload.studentId) {
+    throw new Error('studentId is required');
+  }
+  if (actionPayload.purchasedHours <= 0) {
+    throw new Error('purchasedHours must be greater than 0');
+  }
+  if (!actionPayload.reason) {
+    throw new Error('reason is required');
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/founder/lesson-accounts',
+    token: trimEnv(authToken),
+    role: 'founder',
+    body: actionPayload
   });
 }
 

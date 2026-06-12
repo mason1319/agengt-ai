@@ -226,6 +226,20 @@ function normalizeLeadMessageRow(row = {}) {
   };
 }
 
+function normalizeParentMessageRow(row = {}) {
+  return {
+    id: row.id,
+    institutionId: row.institution_id,
+    studentId: row.student_id,
+    actorRole: row.actor_role || '',
+    sender: row.sender || '',
+    message: row.message || '',
+    tone: row.tone || '',
+    relatedLessonId: row.related_lesson_id || '',
+    createdAt: row.created_at || ''
+  };
+}
+
 function normalizeTrialBookingRow(row = {}) {
   return {
     id: row.id,
@@ -2333,6 +2347,56 @@ const fetchLeadMessagesRaw = async (db, leadId) => {
   return (list.results || []).map(normalizeLeadMessageRow);
 };
 
+const insertParentMessageRaw = async (db, payload = {}) => {
+  const studentId = `${payload.studentId || ''}`.trim();
+  const institutionId = `${payload.institutionId || ''}`.trim();
+  if (!studentId || !institutionId) {
+    return null;
+  }
+
+  const id = `${payload.id || `pm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`}`;
+  const actorRole = `${payload.actorRole || 'parent'}`.trim();
+  const sender = `${payload.sender || ''}`.trim();
+  const message = `${payload.message || ''}`.trim();
+  const tone = `${payload.tone || ''}`.trim();
+  const relatedLessonId = `${payload.relatedLessonId || ''}`.trim();
+
+  await db
+    .prepare(
+      `INSERT INTO parent_messages (id, institution_id, student_id, actor_role, sender, message, tone, related_lesson_id)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+    )
+    .bind(id, institutionId, studentId, actorRole, sender, message, tone, relatedLessonId)
+    .run();
+
+  return { id, institutionId, studentId, actorRole, sender, message, tone, relatedLessonId };
+};
+
+const fetchParentMessagesRaw = async (db, { institutionId, studentId, limit = 20 } = {}) => {
+  const where = [];
+  const values = [];
+
+  if (institutionId) {
+    values.push(institutionId);
+    where.push(`institution_id = ?${values.length}`);
+  }
+
+  if (studentId) {
+    values.push(studentId);
+    where.push(`student_id = ?${values.length}`);
+  }
+
+  values.push(Math.max(1, Math.min(50, Math.round(Number(limit) || 20))));
+
+  const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const list = await db
+    .prepare(`SELECT * FROM parent_messages ${clause} ORDER BY created_at DESC LIMIT ?${values.length}`)
+    .bind(...values)
+    .all();
+
+  return (list.results || []).map(normalizeParentMessageRow);
+};
+
 const createTrialBookingRaw = async (db, payload = {}) => {
   const leadId = `${payload.leadId || ''}`.trim();
   const institutionId = `${payload.institutionId || ''}`.trim();
@@ -2866,6 +2930,8 @@ export const fetchLeadsByInstitution = safeParseDb(fetchLeadsByInstitutionRaw);
 export const fetchLeadsByQuery = safeParseDb(fetchLeadsByQueryRaw);
 export const insertLeadMessage = safeParseDb(insertLeadMessageRaw);
 export const fetchLeadMessages = safeParseDb(fetchLeadMessagesRaw);
+export const insertParentMessage = safeParseDb(insertParentMessageRaw);
+export const fetchParentMessages = safeParseDb(fetchParentMessagesRaw);
 export const createTrialBooking = safeParseDb(createTrialBookingRaw);
 export const fetchTrialBookings = safeParseDb(fetchTrialBookingsRaw);
 export const fetchCourses = safeParseDb(fetchCoursesRaw);

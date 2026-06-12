@@ -10,6 +10,7 @@ import {
   organizations,
   cultureWall,
   parentReports,
+  parentMessages,
   students,
   teacherLessons
 } from './seedData.js';
@@ -51,6 +52,7 @@ const basePayload = {
   teacherLessons,
   students,
   parentReports,
+  parentMessages,
   organizations,
   cultureWall: {
     videos: cultureWall.videos.map((item) => ({ ...item })),

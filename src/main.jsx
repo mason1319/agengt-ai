@@ -93,6 +93,7 @@ import {
   loadStudentTodayPath,
   loadStudentReview,
   submitStudentPathCompletion,
+  submitStudentPracticeReview,
   submitStudentVoiceAssess,
   loadStudentCourses,
   loadStudentLessonAccount,
@@ -108,11 +109,14 @@ import {
   loadChildCourses,
   loadChildLessonAccount,
   loadChildPaymentRecords,
+  loadChildMessages,
+  createChildMessage,
   loadFounderCockpit,
   loadFounderCourses,
   loadFounderPaymentRecords,
   loadFounderLessonAccounts,
   loadFounderAttendanceRecords,
+  adjustFounderLessonAccount,
   loadFounderLeads,
   takeoverFounderLead,
   convertFounderLead,
@@ -708,11 +712,18 @@ function FounderDashboard({
   message = '',
   onAction,
   onTakeoverLead,
-  onConvertLead
+  onConvertLead,
+  onAdjustLessonAccount
 }) {
   const [leadBusyId, setLeadBusyId] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState('');
   const [leadConvertSegments, setLeadConvertSegments] = useState({});
+  const [accountStudentId, setAccountStudentId] = useState('');
+  const [accountPurchasedHours, setAccountPurchasedHours] = useState('8');
+  const [accountAmountCents, setAccountAmountCents] = useState('0');
+  const [accountReason, setAccountReason] = useState('');
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountMessage, setAccountMessage] = useState('');
   const summary = cockpit || {};
   const leadRows = Array.isArray(leads) ? leads : [];
   const selectedLead = leadRows.find((item) => `${item.id || item.leadId || ''}`.trim() === `${selectedLeadId}`.trim()) || leadRows[0] || null;
@@ -722,6 +733,8 @@ function FounderDashboard({
   const refreshText = loading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshData;
   const countItems = (value = []) => (Array.isArray(value) ? value.length : 0);
   const paymentRows = Array.isArray(paymentRecords) ? paymentRecords : [];
+  const lessonRows = Array.isArray(lessonAccounts) ? lessonAccounts : [];
+  const recentLessonAdjustment = lessonRows[0] || null;
 
   const csvEscape = (value) => {
     const text = `${value ?? ''}`;
@@ -811,6 +824,46 @@ function FounderDashboard({
   const requestRefresh = () => {
     onRefresh?.();
     onAction?.('founder', '刷新创始人数据');
+  };
+
+  const handleAdjustLessonAccount = async () => {
+    if (!onAdjustLessonAccount) {
+      return;
+    }
+
+    const studentId = `${accountStudentId || ''}`.trim();
+    const purchasedHours = Number(accountPurchasedHours || 0);
+    const amountCents = Number(accountAmountCents || 0);
+    const reason = `${accountReason || ''}`.trim();
+    if (!studentId || !reason || !Number.isFinite(purchasedHours) || purchasedHours <= 0) {
+      setAccountMessage('请补全学员、课时和原因');
+      return;
+    }
+
+    setAccountBusy(true);
+    setAccountMessage('');
+    try {
+      const payload = await onAdjustLessonAccount({
+        studentId,
+        purchasedHours,
+        amountCents: Number.isFinite(amountCents) ? amountCents : 0,
+        reason
+      });
+      const note = `${payload?.data?.reason || reason}`.trim();
+      setAccountMessage(note ? `已调整：${note}` : '课时已调整');
+      setAccountReason('');
+      setAccountStudentId('');
+      setAccountPurchasedHours('8');
+      setAccountAmountCents('0');
+      onAction?.('founder', `课时调整：${studentId} / ${note || '已提交'}`);
+      await Promise.resolve(onRefresh?.());
+    } catch (error) {
+      const messageText = error?.message || '课时调整失败';
+      setAccountMessage(messageText);
+      onAction?.('founder', messageText);
+    } finally {
+      setAccountBusy(false);
+    }
   };
 
   const handleTakeover = async (leadId) => {
@@ -1128,9 +1181,55 @@ function FounderDashboard({
       </div>
 
       <div className="panel">
-        <PanelTitle icon={WalletCards} title="课时对账" action={`账户 ${countItems(lessonAccounts)}`} />
-        {countItems(lessonAccounts) === 0 ? <div className="small-note">{UI_COPY.empty.noLessonAccounts}</div> : null}
-        {(lessonAccounts || []).slice(0, 6).map((account) => (
+        <PanelTitle icon={WalletCards} title="课时对账" action={`账户 ${countItems(lessonRows)}`} />
+        <div className="audit-filters" style={{ marginBottom: 12 }}>
+          <input
+            value={accountStudentId}
+            onChange={(event) => setAccountStudentId(event.target.value)}
+            placeholder="学员ID"
+          />
+          <input
+            type="number"
+            min="1"
+            value={accountPurchasedHours}
+            onChange={(event) => setAccountPurchasedHours(event.target.value)}
+            placeholder="调整课时"
+          />
+          <input
+            type="number"
+            min="0"
+            value={accountAmountCents}
+            onChange={(event) => setAccountAmountCents(event.target.value)}
+            placeholder="金额(分)"
+          />
+          <input
+            value={accountReason}
+            onChange={(event) => setAccountReason(event.target.value)}
+            placeholder="调整原因"
+          />
+          <button className="row-action" onClick={handleAdjustLessonAccount} disabled={accountBusy || !accountReason.trim()}>
+            {accountBusy ? '提交中...' : '提交调整'}
+          </button>
+        </div>
+        {accountMessage ? <div className="small-note" style={{ marginBottom: 12 }}>{accountMessage}</div> : null}
+        {recentLessonAdjustment ? (
+          <div className="alert-row" style={{ marginBottom: 12 }}>
+            <span className="status-dot yellow" />
+            <div>
+              <strong>最近调整</strong>
+              <small>
+                {recentLessonAdjustment.studentName || recentLessonAdjustment.student_name || recentLessonAdjustment.studentId || '未知学员'}
+                {' '}· 购课 {recentLessonAdjustment.purchased_hours || recentLessonAdjustment.purchasedHours || 0}
+                {' '}· 剩余 {recentLessonAdjustment.remaining_hours || recentLessonAdjustment.remainingHours || 0}
+              </small>
+            </div>
+            <small className="small-note">
+              {recentLessonAdjustment.notes || recentLessonAdjustment.reason || '无原因'}
+            </small>
+          </div>
+        ) : null}
+        {countItems(lessonRows) === 0 ? <div className="small-note">{UI_COPY.empty.noLessonAccounts}</div> : null}
+        {lessonRows.slice(0, 6).map((account) => (
           <div className="alert-row" key={account.id || `${account.studentId || ''}-${account.courseId || ''}`}>
             <span className="status-dot green" />
             <div>
@@ -1139,9 +1238,10 @@ function FounderDashboard({
                 购课 {account.purchased_hours || account.purchasedHours || 0} · 已用 {account.used_hours || account.usedHours || 0} · 保留 {account.hold_hours || account.holdHours || 0}
               </small>
             </div>
-            <small className="small-note">
-              剩余 {account.remaining_hours || account.remainingHours || 0}
-            </small>
+            <div className="small-note" style={{ textAlign: 'right' }}>
+              <div>剩余 {account.remaining_hours || account.remainingHours || 0}</div>
+              <div>{account.notes || account.reason || '无调整原因'}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -1302,7 +1402,7 @@ function TeacherWorkspace({
       const deductions = result?.data?.summary?.lessons || [];
       const deduction = deductions.find((item) => `${item.studentId || ''}`.trim() === `${targetStudentId}`.trim()) || deductions[0] || null;
       const deductionText = Number(deduction?.hoursDeducted || 0) > 0
-        ? `，扣减 ${deduction.hoursDeducted} 节，剩余 ${deduction.afterRemaining} 节`
+        ? `，扣减 ${deduction.hoursDeducted} 节，扣前 ${Number(deduction.beforeRemaining || 0)} 节，剩余 ${Number(deduction.afterRemaining || 0)} 节${deduction?.accountId ? `，账户 ${deduction.accountId}` : ''}`
         : '';
       setActiveState({
         closed: true,
@@ -1987,6 +2087,15 @@ function ParentView({
         <div className="small-note" style={{ marginTop: 8 }}>
           合计金额：{totalPaid}
         </div>
+        <div className="hero-chip-row" style={{ marginTop: 10 }}>
+          <button
+            className="row-action"
+            onClick={() => onAction?.('parent', '家长查看收费记录有疑问，可联系老师/机构')}
+          >
+            <MessageCircleHeart size={16} />
+            <span>有疑问，联系老师/机构</span>
+          </button>
+        </div>
       </div>
 
       <div className="panel">
@@ -2130,6 +2239,7 @@ function StudentView({
   const [pathActionText, setPathActionText] = useState('');
   const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
   const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
+  const selectedPublicCourseRules = selectedPublicCourse ? normalizeCourseRules(selectedPublicCourse) : null;
   const taskToneIcons = [BookOpenCheck, Headphones, Mic, Trophy];
   const homePracticeCards = [
     { id: 'words', title: '单词星球', desc: '看图记词 + 发音模仿', note: '适合每天 8 分钟', icon: Headphones },
@@ -2843,6 +2953,22 @@ function StudentView({
             ) : (
               <div className="small-note">请先选择试听课程</div>
             )}
+            {selectedPublicCourse && selectedPublicCourseRules ? (
+              <div className="alert-list" style={{ marginBottom: 10 }}>
+                <div className="alert-row">
+                  <span className="status-dot green" />
+                  <div>
+                    <strong>课程详情</strong>
+                    <small>上课日期：{selectedPublicCourseRules.scheduleDate}</small>
+                    <small>到课规则：{selectedPublicCourseRules.attendanceRule}</small>
+                    <small>保留规则：{selectedPublicCourseRules.holdRule}</small>
+                  </div>
+                  <small className="small-note">
+                    {selectedPublicCourseDisplay.classType} · {selectedPublicCourseDisplay.time}
+                  </small>
+                </div>
+              </div>
+            ) : null}
             <label>
               <span>家长姓名</span>
               <input value={trialGuardianName} onChange={(event) => setTrialGuardianName(event.target.value)} />
@@ -3144,34 +3270,73 @@ function PlatformOverview({ platformSummary = {}, organizations = [], onExportRe
   );
 }
 
-function PlatformPlansPage({ billingPlans = [] }) {
+function PlatformPlansPage({
+  organizations = [],
+  orgStatusDefaults = {},
+  orgActionsByStatus = {},
+  platformSummary = {}
+}) {
+  const orgList = Array.isArray(organizations) ? organizations : [];
+  const statusEntries = Object.entries(orgStatusDefaults || {});
+  const actionEntries = Object.entries(orgActionsByStatus || {});
+  const groupedOrganizations = statusEntries.map(([status]) => ({
+    status,
+    items: orgList.filter((org) => `${org.status || ''}`.trim() === status || `${org.planMode || ''}`.trim() === status)
+  }));
+
   return (
     <section className="role-grid">
       <div className="panel wide">
-        <PanelTitle icon={CreditCard} title="机构方案（可视化）" />
-        <div className="pricing-grid">
-          {billingPlans.map((plan) => (
-            <article className={`price-card ${plan.featured ? 'featured' : ''}`} key={plan.name}>
-              <span>{plan.name}</span>
-              <strong>{plan.priceMonthly} / 月 · {plan.priceYearly} / 年</strong>
-              <small>{plan.period}</small>
-              <small>{plan.desc}</small>
-              <ul>
-                {plan.features.map((feature) => <li key={feature}>{feature}</li>)}
-              </ul>
+        <PanelTitle icon={CreditCard} title="机构策略总览" />
+        <div className="summary-grid">
+          {statusEntries.map(([status, defaults]) => (
+            <article className="summary-card" key={status}>
+              <strong>{status}</strong>
+              <span>{defaults.plan || defaults.planMode || '试用/正式'}</span>
+              <small>{defaults.expiryAction || '到期后只读'}</small>
+              <small>试用期：{defaults.dayOffset || 0} 天</small>
             </article>
           ))}
+          <article className="summary-card">
+            <strong>当前机构</strong>
+            <span>{platformSummary.currentPlanName || '待确认'}</span>
+            <small>{platformSummary.studentUsageText || '暂无机构用量摘要'}</small>
+            <small>仅作内部策略参考</small>
+          </article>
         </div>
       </div>
 
       <div className="panel">
-        <PanelTitle icon={Rocket} title="到期规则" />
+        <PanelTitle icon={Rocket} title="状态规则" />
         <ul className="check-list">
-          <li><Check size={16} /> 试用到期：自动冻结并提示续用</li>
-          <li><Check size={16} /> 到期未处理：进入只读状态，保留历史数据</li>
-          <li><Check size={16} /> 续用失败：保留原数据并降级提示</li>
-          <li><Check size={16} /> 逾期 7 日未处理：标记高优先级</li>
+          {actionEntries.map(([status, actions]) => (
+            <li key={status}>
+              <Check size={16} /> {status}：{actions.map((action) => action.label).join(' / ')}
+            </li>
+          ))}
         </ul>
+      </div>
+
+      <div className="panel wide">
+        <PanelTitle icon={Building2} title="机构样例" />
+        <div className="org-table">
+          {groupedOrganizations.flatMap((group) => group.items.map((org) => (
+            <div className="org-row" key={`${group.status}-${org.id || org.name}`}>
+              <div>
+                <strong>{org.name || '未命名机构'}</strong>
+                <small>状态：{org.status || group.status || 'trial'} · 套餐：{org.plan || '体验版'}</small>
+                <small>到期：{org.expires || '未设置'} · 机构ID：{org.id || '—'}</small>
+              </div>
+              <div className="small-note" style={{ justifySelf: 'end', textAlign: 'right' }}>
+                <div>学员 {org.students || 0} / {org.limitStudents || 0}</div>
+                <div>老师 {org.teachers || 0} / {org.limitTeachers || 0}</div>
+              </div>
+            </div>
+          )))}
+          {groupedOrganizations.every((group) => group.items.length === 0) ? (
+            <div className="small-note">当前没有可显示的机构样例</div>
+          ) : null}
+        </div>
       </div>
     </section>
   );
@@ -4946,6 +5111,7 @@ function HomePage({
   onSubmitPublicLead,
   onSubmitTrialBooking,
   onSendLeadAiReply,
+  onSubmitIntervention,
   onRefreshPublicCourses,
   onRefreshStudentCourses,
   onRefreshCultureWall,
@@ -4958,6 +5124,8 @@ function HomePage({
   const studentProgress = Number(safeChild.progress || safeChild.doneRate || safeChild.progressRate || 0);
   const [isRiskLoading, setIsRiskLoading] = useState(false);
   const [riskScan, setRiskScan] = useState(null);
+  const [riskFollowupBusy, setRiskFollowupBusy] = useState(false);
+  const [riskFollowupMessage, setRiskFollowupMessage] = useState('');
   const [homeActionText, setHomeActionText] = useState('今日建议先完成 1-2 个关键任务，优先推进进度。');
   const [selectedModuleId, setSelectedModuleId] = useState(PRACTICE_MODULES[0]?.id || '');
   const [selectedPublicCourseId, setSelectedPublicCourseId] = useState('');
@@ -5098,6 +5266,7 @@ function HomePage({
   const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
   const selectedPublicCourseInfo = selectedPublicCourse ? resolveCourseText(selectedPublicCourse) : null;
   const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
+  const selectedPublicCourseRules = selectedPublicCourse ? normalizeCourseRules(selectedPublicCourse) : null;
 
   const normalizeActionError = (error = {}, fallback = '操作失败') => {
     const raw = `${error?.message || error?.body || '操作失败'}`.trim();
@@ -5184,7 +5353,15 @@ function HomePage({
   };
 
   const handleReplyConsult = async () => {
-    if (!onSendLeadAiReply || !selectedReplyLeadId || !consultReplyMessage.trim()) {
+    if (!onSendLeadAiReply) {
+      return;
+    }
+    if (!selectedReplyLeadId) {
+      setConsultStatusText('请先提交咨询，生成线索ID后再发送回执');
+      return;
+    }
+    if (!consultReplyMessage.trim()) {
+      setConsultStatusText('请先输入回执内容');
       return;
     }
     setConsultBusy(true);
@@ -5208,6 +5385,7 @@ function HomePage({
       return;
     }
     setIsRiskLoading(true);
+    setRiskFollowupMessage('');
     try {
       const payload = await onRunAIAgent({
         action: 'renewal_risk_scan',
@@ -5227,6 +5405,54 @@ function HomePage({
       onAction?.('home', `续费扫描失败：${error instanceof Error ? error.message : '扫描失败'}`);
     } finally {
       setIsRiskLoading(false);
+    }
+  };
+
+  const riskFollowupItems = Array.isArray(riskScan?.risks)
+    ? riskScan.risks.filter((item) => Number(item?.risk || 0) >= 70)
+    : [];
+
+  const createRiskFollowups = async () => {
+    if (!onSubmitIntervention || riskFollowupItems.length === 0) {
+      return;
+    }
+
+    setRiskFollowupBusy(true);
+    setRiskFollowupMessage('');
+    const completedStudents = [];
+
+    try {
+      for (const item of riskFollowupItems) {
+        const studentId = `${item?.studentId || ''}`.trim();
+        if (!studentId) {
+          continue;
+        }
+        const studentName = `${item?.student || '学员'}`.trim();
+        const riskScore = Number(item?.risk || 0);
+        await onSubmitIntervention(studentId, {
+          interventionType: 'follow',
+          action: `续费跟进：${studentName}`,
+          note: `${riskScan?.title || '续费风险巡检'} · 风险 ${riskScore} 分 · ${item?.action || '优先沟通'}`,
+          priority: 'high',
+          channel: 'founder'
+        });
+        completedStudents.push(studentName);
+      }
+      if (completedStudents.length > 0) {
+        const joined = completedStudents.join(' / ');
+        setRiskFollowupMessage(`已生成 ${completedStudents.length} 条跟进任务`);
+        setHomeActionText(`已生成风险跟进：${joined}`);
+        onAction?.('home', `生成续费跟进任务：${joined}`);
+      } else {
+        setRiskFollowupMessage('未找到可提交的高风险学员');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '跟进任务生成失败';
+      setRiskFollowupMessage(message);
+      setHomeActionText(`跟进任务生成失败：${message}`);
+      onAction?.('home', `生成风险跟进失败：${message}`);
+    } finally {
+      setRiskFollowupBusy(false);
     }
   };
 
@@ -5499,6 +5725,22 @@ function HomePage({
               ) : (
                 <div className="small-note" style={{ marginTop: 10 }}>请先选择试听课程</div>
               )}
+              {selectedPublicCourse && selectedPublicCourseRules ? (
+                <div className="alert-list" style={{ marginTop: 10 }}>
+                  <div className="alert-row">
+                    <span className="status-dot green" />
+                    <div>
+                      <strong>课程详情</strong>
+                      <small>上课日期：{selectedPublicCourseRules.scheduleDate}</small>
+                      <small>到课规则：{selectedPublicCourseRules.attendanceRule}</small>
+                      <small>保留规则：{selectedPublicCourseRules.holdRule}</small>
+                    </div>
+                    <small className="small-note">
+                      {selectedPublicCourseDisplay?.classType || '班型待设置'} · {selectedPublicCourseDisplay?.time || '时间待设置'}
+                    </small>
+                  </div>
+                </div>
+              ) : null}
               <label>
                 <span>咨询内容</span>
                 <textarea value={consultInitialMessage} onChange={(event) => setConsultInitialMessage(event.target.value)} />
@@ -5510,6 +5752,33 @@ function HomePage({
               <div className="hero-chip-row" style={{ marginTop: 8 }}>
                 <button className="row-action" onClick={handleTrialBooking} disabled={!consultLeadId || publicLeadSubmitting || consultBusy}>
                   提交试听预约
+                </button>
+              </div>
+              <div className="section-headline" style={{ marginTop: 14 }}>
+                <div>
+                  <span>AI 回执</span>
+                  <h3>发送咨询回复</h3>
+                </div>
+              </div>
+              <label>
+                <span>回执线索ID</span>
+                <input
+                  value={selectedReplyLeadId}
+                  onChange={(event) => setSelectedReplyLeadId(event.target.value)}
+                  placeholder="提交咨询后自动填入，也可手动调整"
+                />
+              </label>
+              <label>
+                <span>回执内容</span>
+                <textarea
+                  value={consultReplyMessage}
+                  onChange={(event) => setConsultReplyMessage(event.target.value)}
+                  placeholder="如：已收到咨询，我们会尽快安排试听..."
+                />
+              </label>
+              <div className="hero-chip-row" style={{ marginTop: 8 }}>
+                <button className="row-action" onClick={handleReplyConsult} disabled={publicLeadSubmitting || consultBusy || !onSendLeadAiReply}>
+                  发送 AI 回执
                 </button>
               </div>
             </div>
@@ -5574,6 +5843,22 @@ function HomePage({
                   <small className="small-note">
                     {(riskScan.factors || []).map((item) => `${item.key}: ${item.value}`).join('；') || '未检测到异常'}
                   </small>
+                  {riskFollowupItems.length > 0 ? (
+                    <div className="alert-list" style={{ marginTop: 10 }}>
+                      {riskFollowupItems.map((item) => (
+                        <div className="alert-row" key={`${item.studentId || item.student}-${item.risk}`}>
+                          <span className={`status-dot ${item.priority === 'high' ? 'red' : 'yellow'}`} />
+                          <div>
+                            <strong>{item.student || '学员'}</strong>
+                            <small>
+                              {item.grade || '未标注年级'} · 课时 {Number(item.hoursLeft || 0)} 节 · 风险 {Number(item.risk || 0)} 分
+                            </small>
+                            <small>{item.action || '续费跟进'}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </>
               ) : null}
               <ul className="check-list">
@@ -5581,6 +5866,18 @@ function HomePage({
                   <li key={item}><MessageCircleHeart size={16} />{item}</li>
                 ))}
               </ul>
+              {riskFollowupMessage ? <small className="small-note">{riskFollowupMessage}</small> : null}
+              <div className="hero-chip-row" style={{ marginTop: 8 }}>
+                {onSubmitIntervention ? (
+                  <button
+                    className="row-action"
+                    onClick={createRiskFollowups}
+                    disabled={isRiskLoading || riskFollowupBusy || riskFollowupItems.length === 0}
+                  >
+                    {riskFollowupBusy ? '生成中...' : '生成风险跟进'}
+                  </button>
+                ) : null}
+              </div>
             </div>
           </section>
         ) : null}
@@ -5650,6 +5947,7 @@ function CoursesPage({
   studentReviewSummary = {},
   studentReviewHistory = [],
   selectedCourseId = '',
+  selectedChildId = '',
   onNavigatePage,
   onRunAIAgent,
   onRefreshCourses,
@@ -6106,6 +6404,7 @@ function CoursesPage({
             <span className="small-note">课程进度已更新</span>
             <span className="small-note">复盘记录可追溯</span>
             <span className="small-note">剩余课时即时可见</span>
+            {selectedChildId ? <span className="small-note">当前孩子：{selectedChildId}</span> : null}
           </div>
         </div>
         <div className="course-summary-token">
@@ -6409,6 +6708,7 @@ function PracticePage({
   studentReviewMistakes = [],
   onRunAIAgent,
   onResetChallenge,
+  onSubmitPracticeReview,
   onSubmitVoiceAssess,
   onAction
 }) {
@@ -6528,6 +6828,26 @@ function PracticePage({
         };
       }) : tasks;
 
+      if (activeRole === 'student' && typeof onSubmitPracticeReview === 'function') {
+        await Promise.resolve(onSubmitPracticeReview({
+          taskType: 'practice_reset',
+          title: `${activeArena.title} 练习重置`,
+          answer: outputTasks.length > 0 ? outputTasks.join('；') : `${activeArena.title} 已重置`,
+          score: 0,
+          status: 'pending',
+          payload: {
+            action: 'reset',
+            arenaId: activeArena.id,
+            arenaTitle: activeArena.title,
+            difficulty: activeArena.level,
+            tasks: nextTasks.map((item) => ({
+              title: item.title,
+              note: item.note
+            }))
+          }
+        }));
+      }
+
       setChallengeState({
         running: false,
         rounds: 0,
@@ -6535,7 +6855,7 @@ function PracticePage({
         completed: false
       });
       setTasks(nextTasks);
-      setPracticeHint(output?.title || output?.content ? `已生成新内容：${output.title || output.content}` : `已重置 ${activeArena.title}`);
+      setPracticeHint(output?.title || output?.content ? `已生成并保存新内容：${output.title || output.content}` : `已重置并保存 ${activeArena.title}`);
       onAction?.('practice', `重置练习：${activeArena.title}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '重置练习失败';
@@ -6578,31 +6898,39 @@ function PracticePage({
       return;
     }
 
-    if (activeRole === 'student' && onSubmitVoiceAssess) {
+    if (activeRole === 'student' && typeof onSubmitPracticeReview === 'function') {
       setSubmittingTaskId(task.id);
       try {
-        const transcript = `${task.note || task.title || task.result || ''}`.trim();
-        const response = await onSubmitVoiceAssess({
-          taskId: task.id,
-          transcript
-        });
+        const result = await Promise.resolve(onSubmitPracticeReview({
+          taskType: 'practice_task',
+          title: task.title,
+          answer: `${task.note || task.title || task.result || ''}`.trim(),
+          score: task.done ? 100 : 60,
+          status: 'done',
+          studentId: report?.student?.id || report?.student?.studentId || '',
+          payload: {
+            source: 'practice_task',
+            arenaId: activeArena.id,
+            arenaTitle: activeArena.title,
+            taskId: task.id,
+            note: task.note || ''
+          }
+        }));
 
-        const result = response?.data?.result
-          || response?.data?.record?.result
-          || response?.data?.output
-          || '评分已完成';
-        const score = Number(response?.data?.score || response?.data?.record?.score || 0);
+        const record = result?.data?.item || result?.data?.record || result?.item || {};
+        const score = Number(record.score || 100);
+        const resultText = record.answer || record.title || '练习已提交';
 
         setTasks((prev) => prev.map((item) => item.id === task.id
-          ? { ...item, done: true, note: result, score }
+          ? { ...item, done: true, note: resultText, score }
           : item
         ));
         setPracticeHint(`已完成：${task.title}（${score}分）`);
-        onAction?.('practice', `学生语音评分：${task.title}`);
+        onAction?.('practice', `学生练习已提交：${task.title}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : '评分提交失败';
         setPracticeHint(`评分失败：${message}`);
-        onAction?.('practice', `学生语音评分失败：${task.title}`);
+        onAction?.('practice', `学生练习提交失败：${task.title}`);
       } finally {
         setSubmittingTaskId('');
       }
@@ -6674,6 +7002,24 @@ function PracticePage({
           : `已完成第 ${nextRounds} 步，当前得分 ${nextScore} 分。`
       );
       onAction?.('practice', `练习操作：${choice}`);
+
+      if (activeRole === 'student' && typeof onSubmitPracticeReview === 'function') {
+        Promise.resolve(onSubmitPracticeReview({
+          taskType: 'practice_choice',
+          title: `${activeArena.title} · ${choice}`,
+          answer: choice,
+          score: nextScore,
+          status: done ? 'done' : 'pending',
+          studentId: report?.student?.id || report?.student?.studentId || '',
+          payload: {
+            source: 'practice_choice',
+            arenaId: activeArena.id,
+            arenaTitle: activeArena.title,
+            round: nextRounds,
+            choice
+          }
+        })).catch(() => {});
+      }
 
       if (onRunAIAgent) {
         Promise.resolve(
@@ -6957,9 +7303,11 @@ function ProfilePage({
   child,
   report,
   cultureWall = {},
+  childMessages = [],
   onRefresh,
   onExportReport,
   onRunAIAgent,
+  onCreateChildMessage,
   onAction,
   onNavigatePage,
   onRefreshCultureWall,
@@ -6975,6 +7323,9 @@ function ProfilePage({
   const [cultureWallStatus, setCultureWallStatus] = useState('待同步');
   const [lessonAccountSyncAt, setLessonAccountSyncAt] = useState('');
   const [lessonAccountSyncState, setLessonAccountSyncState] = useState('待同步');
+  const latestChildMessage = useMemo(() => (
+    Array.isArray(childMessages) && childMessages.length > 0 ? childMessages[0] : null
+  ), [childMessages]);
   const completedDays = WEEKLY_STREAK.filter((day) => day.done).length;
   const lessonHours = Number(
     child.hoursLeft
@@ -7037,7 +7388,7 @@ function ProfilePage({
       await handleOpenCultureWall();
     }
   };
-  const handleProfileNavigate = async (targetPage, actionText) => {
+  const handleProfileNavigate = async (targetPage, actionText, context = {}) => {
     if (onRefresh) {
       try {
         await Promise.resolve(onRefresh());
@@ -7046,7 +7397,7 @@ function ProfilePage({
       }
     }
     if (targetPage) {
-      onNavigatePage?.(targetPage);
+      onNavigatePage?.(targetPage, context && typeof context === 'object' ? context : {});
     }
     if (actionText && onAction) {
       onAction('profile', actionText);
@@ -7058,7 +7409,13 @@ function ProfilePage({
       label: '课程与课表',
       hint: '查看在读课程与本周课程安排',
       action: () => {
-        void handleProfileNavigate('courses', '个人中心进入课程与课表');
+        const nextCourseId = Array.isArray(childCourses) && childCourses[0]
+          ? (childCourses[0].id || childCourses[0].courseId || childCourses[0].course_id || '')
+          : '';
+        void handleProfileNavigate('courses', '个人中心进入课程与课表', {
+          selectedChildId: child?.id || '',
+          selectedCourseId: nextCourseId
+        });
       }
     },
     {
@@ -7118,9 +7475,9 @@ function ProfilePage({
   ];
 
   useEffect(() => {
-    setParentMessage(report.summary || '阶段总结生成中');
-    setParentStatus('处理中');
-  }, [report.summary]);
+    setParentMessage(latestChildMessage?.message || report.summary || '阶段总结生成中');
+    setParentStatus(latestChildMessage ? '已同步到家校沟通记录' : '处理中');
+  }, [latestChildMessage, report.summary]);
 
   const exportReport = async () => {
     if (!onExportReport) {
@@ -7174,7 +7531,20 @@ function ProfilePage({
         `下周目标：${report.nextStep}`
       ].join('；');
       setParentMessage(nextMessage);
-      setParentStatus(output.title || '已生成');
+      let savedMessage = null;
+      if (typeof onCreateChildMessage === 'function') {
+        savedMessage = await Promise.resolve(onCreateChildMessage({
+          studentId: child?.id || '',
+          payload: {
+            actorRole: 'parent',
+            sender: child?.name ? `${child.name} 家长` : '家长',
+            message: nextMessage,
+            tone: output.tone || '高情商',
+            relatedLessonId: latestChildMessage?.relatedLessonId || latestChildMessage?.lessonId || ''
+          }
+        }));
+      }
+      setParentStatus(savedMessage ? '已生成并保存到家校沟通记录' : (output.title || '已生成'));
       onAction?.('profile', '生成家校反馈');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '生成失败';
@@ -7423,7 +7793,9 @@ function ProfilePage({
             <button className="row-action" onClick={generateParentMessage} disabled={feedbacking}>
               {feedbacking ? '生成中...' : '生成家校反馈'}
             </button>
-            <div className="small-note">家校反馈状态：{parentStatus}</div>
+            <div className="small-note">
+              家校反馈状态：{parentStatus} · 已存 {Array.isArray(childMessages) ? childMessages.length : 0} 条
+            </div>
           </section>
         </div>
       </section>
@@ -8466,6 +8838,7 @@ function App() {
   const [studentReviewMistakes, setStudentReviewMistakes] = useState([]);
   const [studentCourses, setStudentCourses] = useState([]);
   const [studentLessonAccount, setStudentLessonAccount] = useState({});
+  const [studentChildMessages, setStudentChildMessages] = useState([]);
   const [studentVoicePractice, setStudentVoicePractice] = useState({});
   const [studentDataLoading, setStudentDataLoading] = useState(false);
   const [studentDataMessage, setStudentDataMessage] = useState('');
@@ -8480,6 +8853,7 @@ function App() {
   const [parentChildCourses, setParentChildCourses] = useState([]);
   const [parentChildLessonAccount, setParentChildLessonAccount] = useState({});
   const [parentChildPayments, setParentChildPayments] = useState([]);
+  const [parentChildMessages, setParentChildMessages] = useState([]);
   const [parentDataLoading, setParentDataLoading] = useState(false);
   const [parentDataMessage, setParentDataMessage] = useState('');
   const [founderCockpit, setFounderCockpit] = useState({});
@@ -8707,6 +9081,7 @@ function App() {
   const studentSummary = studentReviewSummary?.summary || studentReviewSummary || {};
   const child = activeRole === 'student'
     ? {
+      id: studentSummary?.studentId || studentSummary?.id || studentLessonAccount?.studentId || parentChild?.id || '',
       name: studentSummary?.studentName || studentSummary?.name || parentChild?.name || '当前学员',
       grade: studentSummary?.grade || studentSummary?.studentGrade || parentChild?.grade || '五年级',
       progress: Number(studentSummary?.doneRate || studentSummary?.progress || 0),
@@ -8848,6 +9223,16 @@ function App() {
       setStudentCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
       setStudentLessonAccount(accountPayload?.data || {});
       setStudentVoicePractice(todayPathPayload?.data?.voicePractice || {});
+      const studentId = `${accountPayload?.data?.studentId || summaryPayload?.data?.studentId || summaryPayload?.data?.student?.id || ''}`.trim();
+      if (studentId) {
+        const messagesPayload = await loadChildMessages({
+          authToken: initTokenRef.current,
+          childId: studentId
+        }).catch(() => null);
+        setStudentChildMessages(Array.isArray(messagesPayload?.data?.messages) ? messagesPayload.data.messages : []);
+      } else {
+        setStudentChildMessages([]);
+      }
     } catch (error) {
       if (!isNotFoundApiError(error)) {
         setStudentDataMessage(error?.message || '学生数据加载失败');
@@ -8881,6 +9266,23 @@ function App() {
         stepIndex: Number.isFinite(Number(payload.stepIndex)) ? Number(payload.stepIndex) : -1,
         studentId: `${payload.studentId || ''}`.trim(),
         source: `${payload.source || 'student_home_path'}`.trim()
+      }
+    });
+  };
+
+  const submitStudentPractice = async (payload = {}) => {
+    return submitStudentPracticeReview({
+      authToken: initTokenRef.current,
+      payload: {
+        taskType: payload.taskType || 'practice_task',
+        title: `${payload.title || ''}`.trim(),
+        answer: `${payload.answer || ''}`.trim(),
+        score: Number.isFinite(Number(payload.score)) ? Number(payload.score) : 0,
+        status: `${payload.status || 'done'}`.trim(),
+        studentId: `${payload.studentId || ''}`.trim(),
+        payload: {
+          ...(payload.payload || {})
+        }
       }
     });
   };
@@ -9021,10 +9423,11 @@ function App() {
     return result?.data?.task || null;
   };
 
-  const submitTeacherStudentIntervention = async (studentId, payload = {}) => {
+  const submitStudentIntervention = async (studentId, payload = {}, role = 'teacher') => {
     return submitTeacherIntervention({
       authToken: initTokenRef.current,
       studentId,
+      role,
       payload: {
         interventionType: payload.interventionType || 'follow',
         action: payload.action || '',
@@ -9033,6 +9436,46 @@ function App() {
         channel: payload.channel || 'teacher'
       }
     });
+  };
+
+  const submitTeacherStudentIntervention = async (studentId, payload = {}) => {
+    return submitStudentIntervention(studentId, payload, 'teacher');
+  };
+
+  const submitFounderStudentIntervention = async (studentId, payload = {}) => {
+    return submitStudentIntervention(studentId, payload, activeRole || 'founder');
+  };
+
+  const adjustFounderLessonAccountRecord = async (payload = {}) => {
+    const result = await adjustFounderLessonAccount({
+      authToken: initTokenRef.current,
+      payload
+    });
+    await loadFounderData(founderFilters).catch(() => {});
+    return result;
+  };
+
+  const persistChildMessage = async ({ childId = '', payload = {} } = {}) => {
+    const targetChildId = `${childId || parentSelectedChildId || child?.id || parentSummary?.student?.id || ''}`.trim();
+    if (!targetChildId) {
+      throw new Error('childId is required');
+    }
+
+    const result = await createChildMessage({
+      authToken: initTokenRef.current,
+      childId: targetChildId,
+      payload: {
+        ...payload,
+        actorRole: payload.actorRole || activeRole || 'parent'
+      }
+    });
+
+    if (activeRole === 'parent') {
+      await loadParentData().catch(() => {});
+    } else if (activeRole === 'student') {
+      await loadStudentData().catch(() => {});
+    }
+    return result?.data?.message || null;
   };
 
   const loadParentData = async () => {
@@ -9052,6 +9495,7 @@ function App() {
         setParentChildCourses([]);
         setParentChildLessonAccount({});
         setParentChildPayments([]);
+        setParentChildMessages([]);
         setParentDataMessage('当前账号未绑定可查看的学员');
         return;
       }
@@ -9066,6 +9510,11 @@ function App() {
       setParentChildCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
       setParentChildLessonAccount(accountPayload?.data || {});
       setParentChildPayments(Array.isArray(paymentsPayload?.data?.records) ? paymentsPayload.data.records : []);
+      const messagesPayload = await loadChildMessages({
+        authToken: initTokenRef.current,
+        childId: nextChildId
+      }).catch(() => null);
+      setParentChildMessages(Array.isArray(messagesPayload?.data?.messages) ? messagesPayload.data.messages : []);
     } catch (error) {
       if (!isNotFoundApiError(error)) {
         setParentDataMessage(error?.message || '家长数据加载失败');
@@ -9188,23 +9637,28 @@ function App() {
       setParentSelectedChildId('');
       return;
     }
-    setParentSelectedChildId(childId);
-    setParentDataLoading(true);
-    setParentDataMessage('');
-    try {
-      const [summaryPayload, coursesPayload, accountPayload, paymentsPayload] = await Promise.all([
-        loadChildSummary({ authToken: initTokenRef.current, childId }),
-        loadChildCourses({ authToken: initTokenRef.current, childId }),
-        loadChildLessonAccount({ authToken: initTokenRef.current, childId }),
-        loadChildPaymentRecords({ authToken: initTokenRef.current, childId })
-      ]);
-      setParentSummary(summaryPayload?.data || {});
-      setParentChildCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
-      setParentChildLessonAccount(accountPayload?.data || {});
-      setParentChildPayments(Array.isArray(paymentsPayload?.data?.records) ? paymentsPayload.data.records : []);
-    } catch (error) {
-      setParentDataMessage(error?.message || '切换孩子失败');
-    } finally {
+      setParentSelectedChildId(childId);
+      setParentDataLoading(true);
+      setParentDataMessage('');
+      try {
+        const [summaryPayload, coursesPayload, accountPayload, paymentsPayload] = await Promise.all([
+          loadChildSummary({ authToken: initTokenRef.current, childId }),
+          loadChildCourses({ authToken: initTokenRef.current, childId }),
+          loadChildLessonAccount({ authToken: initTokenRef.current, childId }),
+          loadChildPaymentRecords({ authToken: initTokenRef.current, childId })
+        ]);
+        setParentSummary(summaryPayload?.data || {});
+        setParentChildCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
+        setParentChildLessonAccount(accountPayload?.data || {});
+        setParentChildPayments(Array.isArray(paymentsPayload?.data?.records) ? paymentsPayload.data.records : []);
+        const messagesPayload = await loadChildMessages({
+          authToken: initTokenRef.current,
+          childId
+        }).catch(() => null);
+        setParentChildMessages(Array.isArray(messagesPayload?.data?.messages) ? messagesPayload.data.messages : []);
+      } catch (error) {
+        setParentDataMessage(error?.message || '切换孩子失败');
+      } finally {
       setParentDataLoading(false);
     }
   };
@@ -9880,6 +10334,7 @@ function App() {
             onAction={appendOperationLog}
             onTakeoverLead={takeoverLead}
             onConvertLead={convertLead}
+            onAdjustLessonAccount={adjustFounderLessonAccountRecord}
           />
         )
         : activeRole === 'teacher'
@@ -9939,6 +10394,7 @@ function App() {
             onSubmitTrialBooking={submitTrialBooking}
             onRefreshPublicCourses={loadPublicCourses}
             onSubmitPathCompletion={activeRole === 'student' ? submitStudentPath : null}
+            onSubmitPracticeReview={activeRole === 'student' ? submitStudentPractice : null}
             onNavigatePage={switchPage}
             onAction={appendOperationLog}
           />
@@ -9961,6 +10417,7 @@ function App() {
             onSubmitPublicLead={submitPublicLead}
             onSubmitTrialBooking={submitTrialBooking}
             onSendLeadAiReply={sendPublicLeadReply}
+            onSubmitIntervention={['founder', 'platform'].includes(activeRole) ? submitFounderStudentIntervention : null}
             onRefreshPublicCourses={loadPublicCourses}
             onRefreshStudentCourses={
               activeRole === 'student'
@@ -9990,13 +10447,14 @@ function App() {
             activeRole={activeRole}
             studentCourses={activeRole === 'student'
               ? studentCourses
-              : activeRole === 'parent'
-                ? parentChildCourses
-                : lessons}
+                : activeRole === 'parent'
+                  ? parentChildCourses
+                  : lessons}
             studentReviewSummary={studentReviewSummary}
             studentReviewHistory={studentReviewHistory}
             studentLessonAccount={studentLessonAccount}
             selectedCourseId={pageContext.selectedCourseId || ''}
+            selectedChildId={pageContext.selectedChildId || ''}
             onNavigatePage={switchPage}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
             onSubmitPathCompletion={activeRole === 'student' ? submitStudentPath : null}
@@ -10019,7 +10477,12 @@ function App() {
     practice:
       activeRole === 'platform'
         ? (
-          <PlatformPlansPage billingPlans={runtimeData.billingPlans || FALLBACK_DATA.billingPlans} />
+          <PlatformPlansPage
+            organizations={runtimeData.organizations || FALLBACK_DATA.organizations}
+            orgStatusDefaults={runtimeData.orgStatusDefaults || FALLBACK_DATA.orgStatusDefaults}
+            orgActionsByStatus={runtimeData.orgActionsByStatus || FALLBACK_DATA.orgActionsByStatus}
+            platformSummary={runtimeData.platformSummary || FALLBACK_DATA.platformSummary}
+          />
         )
         : (
           <PracticePage
@@ -10031,6 +10494,7 @@ function App() {
             report={report}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
             onResetChallenge={activeRole !== 'platform' ? invokeAIAgent : null}
+            onSubmitPracticeReview={activeRole === 'student' ? submitStudentPractice : null}
             onSubmitVoiceAssess={activeRole === 'student' ? submitStudentVoice : null}
             onAction={appendOperationLog}
           />
@@ -10043,6 +10507,7 @@ function App() {
               child={child}
               report={report}
               cultureWall={cultureWall}
+              childMessages={activeRole === 'parent' ? parentChildMessages : studentChildMessages}
               lessonAccount={activeRole === 'parent' ? parentChildLessonAccount : studentLessonAccount}
               lessonAccountSourceLabel={activeRole === 'parent' ? '家长课时账户接口' : '学生课时账户接口'}
               childCourses={activeRole === 'parent' ? parentChildCourses : studentCourses}
@@ -10053,6 +10518,7 @@ function App() {
                   ? () => exportProfileReport()
                   : null}
               onRunAIAgent={invokeAIAgent}
+              onCreateChildMessage={persistChildMessage}
               onRefreshCultureWall={canManageCultureWallData ? loadCultureWallData : null}
               onAction={appendOperationLog}
               onNavigatePage={switchPage}

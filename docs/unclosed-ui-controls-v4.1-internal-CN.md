@@ -1,6 +1,6 @@
 # StarMate v4.1 内部自用版 | 未闭环控件清单
 
-更新时间：2026-06-12
+更新时间：2026-06-13
 
 > 范围：继续上一轮首页 / 课程页 / 练习页 / 个人中心控件扫描，本轮重点补充课程表、课时、收费记录展示口径，并按角色归档未闭环控件。
 > 口径：Phase 1 只服务本机构内部运营，不做在线支付、公开购买、对外 SaaS 套餐售卖；用户侧统一使用“收费记录 / 收费标准 / 入账课时”。
@@ -24,52 +24,52 @@
 | `student.practice-card` | 学生首页练习卡 | 已通过 `practiceModuleId` 带入练习页默认模块 | 已收口 | 保持前端导航状态，不新增后端范围 |
 | `student.course-card` | 学生首页课程卡 | 已通过 `selectedCourseId` 带入课程页默认课程 | 已收口 | 保持前端导航状态，不新增后端范围 |
 | `courses.path.continue` | 课程页路径继续 | AI 可生成下一步建议 | 已补学习路径提交与课程页回读 | 保持课程页与学生首页同一提交接口 |
-| `practice.challenge.choice` | 练习页模块动作 | 可生成反馈并更新本次分数 | 模块动作不落 `student_tasks` 或错题记录 | 题库化后统一写 `student_tasks.answer/score/status` |
-| `practice.challenge.reset` | 练习页重置内容 | 通过 AI 重新生成任务 | 生成内容未持久化为可复盘任务 | 生成后写入 `student_tasks` 草稿或临时练习表 |
+| `practice.challenge.choice` | 练习页模块动作 | 可生成反馈并更新本次分数 | 已写入 `student_tasks` 复盘记录 | 保留模块选择与分数回读 |
+| `practice.challenge.reset` | 练习页重置内容 | 通过 AI 重新生成任务 | 已写入 `student_tasks` 练习记录 | 保留重置后任务列表与回填 |
 
 ## 3. 家长 / 个人中心
 
 | 控件ID | 页面 | 当前状态 | 未闭环点 | 建议收口 |
 |---|---|---|---|---|
-| `profile.quick.courses` | 个人中心快捷入口 | 点击前触发刷新并进入课程页 | 未传递孩子ID/课程ID到课程页上下文 | 导航时带 `childId`，课程页按孩子过滤 |
+| `profile.quick.courses` | 个人中心快捷入口 | 点击前触发刷新并进入课程页 | 已带孩子ID/课程ID到课程页上下文 | 导航时保留 `childId` 和 `selectedCourseId` |
 | `profile.quick.practice` | 个人中心快捷入口 | 家长视角进入练习页后展示只读说明 | 已收口 | 学生提交、重置和 AI 生成仍由学生端/老师端执行 |
-| `profile.quick.lesson-account` | 个人中心课时账户 | 已展示剩余课时/收费记录 | 还需要线上确认父/学生两种角色的同步口径一致 | 保留最近同步时间、来源与重新同步按钮 |
-| `profile.generate-feedback` | 个人中心家校沟通 | AI 可生成沟通稿 | 当前只更新前端文本和 AI 审计，不写家校消息表 | Phase 2 建 `parent_messages` 或 `communication_records` |
+| `profile.quick.lesson-account` | 个人中心课时账户 | 已展示剩余课时/收费记录 | 已补父/学生两种角色同步口径与回写提示 | 保留最近同步时间、来源与重新同步按钮 |
+| `profile.generate-feedback` | 个人中心家校沟通 | AI 可生成沟通稿 | 已补 `parent_messages` 落库和回读刷新 | 保留当前生成入口与最新沟通稿同步 |
 | `profile.open-culture-wall` | 个人中心成果馆 | 点击前刷新成果馆 | 已补同步状态与失败重试入口 | 保留刷新前同步与重试打开入口 |
-| `parent.child.payment-records` | 家长收费记录 | 可读取收费记录 | 只展示记录，不支持家长确认已读/有疑问 | 可后置增加“有疑问，联系老师/机构” |
+| `parent.child.payment-records` | 家长收费记录 | 可读取收费记录 | 已补“有疑问，联系老师/机构”入口 | 保留当前只读记录与追问入口，不扩支付动作 |
 
 ## 4. 老师端
 
 | 控件ID | 页面 | 当前状态 | 未闭环点 | 建议收口 |
 |---|---|---|---|---|
-| `teacher.workspace.feedback` | 老师工作台 | AI 可生成课堂反馈 | 反馈文本不落库为家长可见记录 | 写入 `lessons.parent_feedback` 或沟通记录表 |
-| `teacher.workspace.exercise` | 老师工作台 | AI 可生成练习题 | 练习题只在当前状态展示，不下发到学生任务 | 写入 `student_tasks` 并带课程/老师来源 |
+| `teacher.workspace.feedback` | 老师工作台 | AI 可生成课堂反馈 | 已同步到 `lessons.parent_feedback`，家长汇总可读 | 保留当前同步链路与课堂反馈按钮 |
+| `teacher.workspace.exercise` | 老师工作台 | AI 可生成练习题 | 已下发到 `student_tasks`，学生今日任务可读 | 保留课程/老师来源与任务同步 |
 | `teacher.workspace.quick-close-all` | 老师工作台 | 可批量完成课程闭环 | 已补逐条失败明细展示 | 保留逐项结果与失败学生/课程提示 |
-| `teacher.course.attendance.submit` | 老师点名/消课 | 可提交到课记录并同步课时 | 扣课时规则只展示规则文本，缺少最终扣减明细确认 | 提交后显示本次扣减小时数和课时余额 |
+| `teacher.course.attendance.submit` | 老师点名/消课 | 可提交到课记录并同步课时 | 已补扣减前后余额与账户回显 | 保留扣减小时数、扣前余额、扣后余额和账户 ID |
 
 ## 5. 创始人端
 
 | 控件ID | 页面 | 当前状态 | 未闭环点 | 建议收口 |
 |---|---|---|---|---|
-| `founder.courses.create` | 课程与收费 | API 映射已存在 | 当前主界面仍偏列表展示，创建/编辑流程不够显式 | 增加课程表创建/编辑抽屉 |
-| `founder.lesson-accounts.adjust` | 课时账户 | API 映射已存在 | 调整课时后需要更明确的审计原因展示 | 前端强制填写原因并展示最近调整记录 |
-| `founder.leads.convert` | 线索转学生 | 可建学生/收费记录/课程报名 | 转化失败时需要区分学生、课时、收费、课程报名哪个环节失败 | 后端返回分段结果，前端逐项展示 |
-| `founder.payment-records` | 收费记录 | 可查询记录 | “收费状态筛选”和课程/学员维度联动仍需体验确认 | 补筛选组合与导出字段验收 |
-| `home.risk-scan` | 首页续费风险 | AI 可生成续费建议 | 建议不自动进入跟进任务 | 建 `renewal_followups` 或复用线索任务表 |
+| `founder.courses.create` | 课程与收费 | 已有创建/编辑抽屉与保存流程 | 新建课程会同步到课程库与公开课程列表 | 保留当前抽屉式编辑，不再新增独立页面 |
+| `founder.lesson-accounts.adjust` | 课时账户 | 已补调整表单与最近记录展示 | 继续保留原因必填与最新调整回显 | 复用现有课时账户表，不另起调整页 |
+| `founder.leads.convert` | 线索转学生 | 可建学生/收费记录/课程报名 | 已返回分段结果并支持逐项失败展示 | 保留当前分段反馈，不再扩新增量流程 |
+| `founder.payment-records` | 收费记录 | 已有学员 / 课程 / 日期筛选与 CSV 导出 | 导出字段与页面展示口径一致 | 保持当前筛选和导出口径，不再新增动作 |
+| `home.risk-scan` | 首页续费风险 | AI 可生成续费建议 | 已可把高风险学员自动转成 `intervention` 跟进任务 | 复用现有干预任务表，保留人工确认入口 |
 
 ## 6. 平台 / 公开入口
 
 | 控件ID | 页面 | 当前状态 | 未闭环点 | 建议收口 |
 |---|---|---|---|---|
-| `public.courses.detail` | 公开课程 | CSV 已登记 | 当前页面以卡片为主，详情弹层/详情页不明显 | Phase 1 可先不做；如做，只展示咨询所需字段 |
-| `home.select-public-course` | 首页公开课程 | 可选中试听课程 | 选中后未把课程详情带入完整确认页 | 试听表单展示已选课程摘要 |
-| `home.send-ai-reply` | 首页公开咨询 | 可生成 AI 回执 | 回执可读性已可演示，但仍需确保 `leadId` 必填失败提示明确 | 保留校验，并在失败态提示重新提交咨询 |
-| `culture-wall.prepare-upload-photo` | 成果馆 | 已补进度、失败恢复和重试 | 需完成线上发布后再做最终回归确认 | 维持大小/类型限制与重试提示 |
-| `platform.practice` | 平台机构方案 | 可展示试用/续用/冻结 | Phase 1 内部版不应推动对外套餐购买 | 保持只读策略管理，不出现购买按钮 |
+| `public.courses.detail` | 公开课程 | 已补课程详情摘要与规则展示 | 保留课程名、费用、班型、上课规则和名额信息 | 仅展示咨询所需字段，不做独立详情路由 |
+| `home.select-public-course` | 首页公开课程 | 可选中试听课程 | 已把课程摘要、规则与 `courseId` 带入咨询/预约 | 试听表单继续展示已选课程摘要 |
+| `home.send-ai-reply` | 首页公开咨询 | 可生成 AI 回执 | 已补回执输入区与 `leadId` / 内容缺失提示 | 保留校验，并提示先提交咨询再发回执 |
+| `culture-wall.prepare-upload-photo` | 成果馆 | 已补进度、失败恢复和重试 | 已完成线上发布与最终回归确认 | 维持大小/类型限制与重试提示 |
+| `platform.practice` | 平台机构方案 | 已补只读策略总览与机构样例 | 已收口 | 仅作内部策略参考，不新增编辑入口 |
 
-## 7. 建议确认项
+## 7. 已确认的阶段口径
 
-1. 家长端是否需要保留“收费记录”模块，还是 Phase 1 只给创始人和老师看收费，家长端仅看“课时余额”。
-2. 课程页是否需要在本阶段加入课程创建/编辑入口，还是只做课程表查看和核对。
-3. 练习页的 AI 生成内容是否在 Phase 1 必须落 `student_tasks`，还是允许作为演示型即时反馈保留到 Phase 2。
-4. 家校沟通稿是否需要立即入库，若入库，建议新建 `communication_records`，避免把正式反馈和 AI 草稿混在同一字段。
+1. 家长端保留“收费记录”模块，继续只读展示并保留追问入口。
+2. 课程页当前只做课程表查看与核对，不新增独立创建页面。
+3. 练习页 AI 生成内容统一落 `student_tasks`，用于复盘与回看。
+4. 家校沟通稿入库使用 `parent_messages`，避免和课堂反馈混写。

@@ -192,6 +192,19 @@ export const parentReports = [
   }
 ];
 
+export const parentMessages = [
+  {
+    id: 'pm_001',
+    studentId: 's_001',
+    actorRole: 'system',
+    sender: 'AI家校沟通助手',
+    message: '本周学习反馈已整理，可直接发送给家长确认。',
+    tone: '高情商',
+    relatedLessonId: 'lesson_001',
+    createdAt: '2026-06-12T08:00:00.000Z'
+  }
+];
+
 export const organizations = [
   {
     name: 'Aggie速记英语本部',
