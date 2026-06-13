@@ -8,8 +8,10 @@ import {
   founderAlerts,
   leadPipeline,
   organizations,
+  mediaLibrary,
   cultureWall,
   parentReports,
+  parentMessages,
   students,
   teacherLessons
 } from './seedData.js';
@@ -51,7 +53,11 @@ const basePayload = {
   teacherLessons,
   students,
   parentReports,
+  parentMessages,
   organizations,
+  mediaLibrary: {
+    assets: mediaLibrary.assets.map((item) => ({ ...item }))
+  },
   cultureWall: {
     videos: cultureWall.videos.map((item) => ({ ...item })),
     photos: cultureWall.photos.map((item) => ({ ...item })),
@@ -155,6 +161,7 @@ const ROLE_SCOPE = {
     'teacherLessons',
     'students',
     'parentReports',
+    'mediaLibrary',
     'cultureWall',
     'billingPlans',
     'aiAgents',
@@ -165,6 +172,7 @@ const ROLE_SCOPE = {
     'menuConfig',
     'teacherLessons',
     'students',
+    'mediaLibrary',
     'cultureWall',
     'aiAgents',
     'platformSummary'
@@ -174,6 +182,7 @@ const ROLE_SCOPE = {
     'menuConfig',
     'students',
     'parentReports',
+    'mediaLibrary',
     'cultureWall',
     'platformSummary',
     'aiAgents'
@@ -182,6 +191,7 @@ const ROLE_SCOPE = {
     'appCopy',
     'menuConfig',
     'students',
+    'mediaLibrary',
     'cultureWall',
     'studentTasks',
     'aiAgents',
@@ -192,6 +202,7 @@ const ROLE_SCOPE = {
     'menuConfig',
     'organizations',
     'billingPlans',
+    'mediaLibrary',
     'cultureWall',
     'aiAgents',
     'orgActionsByStatus',
@@ -212,6 +223,7 @@ export const FIELD_TO_ROLE_PERMISSION = {
   parentWechat: ['founder', 'platform'],
   students: ['founder', 'teacher', 'parent', 'student', 'platform'],
   aiAgents: ['founder', 'teacher', 'parent', 'student', 'platform'],
+  mediaLibrary: ['founder', 'teacher', 'parent', 'student', 'platform'],
   cultureWall: ['founder', 'teacher', 'parent', 'student', 'platform'],
   organizations: ['founder', 'platform'],
   billingPlans: ['founder', 'platform']
@@ -431,6 +443,11 @@ function normalizePayload(data = {}) {
     parentReports: Array.isArray(data.parentReports)
       ? data.parentReports
       : clone(parentReports),
+    mediaLibrary: {
+      assets: Array.isArray(data.mediaLibrary?.assets)
+        ? data.mediaLibrary.assets.map((item) => ({ ...item }))
+        : mediaLibrary.assets.map((item) => ({ ...item }))
+    },
     aiAgents: (data.aiAgents || []).map((agent) => ({
       ...agent,
       icon: aiIconMap(agent.icon)

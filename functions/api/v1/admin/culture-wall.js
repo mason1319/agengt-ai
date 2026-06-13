@@ -12,6 +12,8 @@ import {
 const ALLOWED_ROLES_FOR_WRITE = ['platform', 'founder'];
 const ALLOWED_ROLES_FOR_READ = ['platform', 'founder', 'teacher', 'parent', 'student'];
 const resolveR2 = (env = {}) => env?.ASSETS || env?.STAR_MATE_ASSETS;
+const PHOTO_MAX_BYTES = 12 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 120 * 1024 * 1024;
 
 function r2UnavailableErrorMessage() {
   return 'R2 bucket not bound. Please configure wrangler r2_buckets ASSETS or STAR_MATE_ASSETS.';
@@ -57,10 +59,81 @@ function allowedToWrite(role = '') {
   return ALLOWED_ROLES_FOR_WRITE.includes(role);
 }
 
+function validateUploadFile(kind, file) {
+  const mimeType = `${file?.type || ''}`.trim().toLowerCase();
+  const size = Number(file?.size || 0);
+
+  if (!file || typeof file.arrayBuffer !== 'function') {
+    return '未提供上传文件';
+  }
+
+  if (size <= 0) {
+    return '上传文件为空';
+  }
+
+  if (kind === 'photo') {
+    if (!mimeType.startsWith('image/')) {
+      return '图片只能上传 image 类型文件';
+    }
+    if (size > PHOTO_MAX_BYTES) {
+      return `图片大小不能超过 ${Math.round(PHOTO_MAX_BYTES / 1024 / 1024)}MB`;
+    }
+    return '';
+  }
+
+  if (kind === 'video') {
+    if (!mimeType.startsWith('video/')) {
+      return '视频只能上传 video 类型文件';
+    }
+    if (size > VIDEO_MAX_BYTES) {
+      return `视频大小不能超过 ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)}MB`;
+    }
+    return '';
+  }
+
+  return '';
+}
+
+function normalizePlacement(value, fallback = 'culture-wall') {
+  const placement = `${value || ''}`.trim();
+  return placement || fallback;
+}
+
+function parseTags(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => `${item || ''}`.trim()).filter(Boolean);
+  }
+
+  const raw = `${value || ''}`.trim();
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => `${item || ''}`.trim()).filter(Boolean);
+    }
+  } catch {
+    // fall through to comma-separated parsing
+  }
+
+  return raw
+    .split(',')
+    .map((item) => `${item || ''}`.trim())
+    .filter(Boolean);
+}
+
+function parseSortOrder(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 async function listAssets(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const kind = `${url.searchParams.get('kind') || ''}`.trim();
+  const placement = normalizePlacement(url.searchParams.get('placement'), '');
   const mediaKey = `${url.searchParams.get('mediaKey') || ''}`.trim();
   const auth = await parseAuthContext(request, env);
   const role = auth?.role || 'founder';
@@ -97,7 +170,7 @@ async function listAssets(context) {
   }
 
   const institutionId = pickInstitutionId(mergedContext, role);
-  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, kind);
+  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, kind, placement);
 
   return jsonResponse({
     success: true,
@@ -149,6 +222,9 @@ async function uploadAssets(context) {
   if (isMultipart) {
     const form = await request.formData();
     const kind = `${form.get('kind') || 'photo'}`.trim();
+    const placement = normalizePlacement(form.get('placement'));
+    const sortOrder = parseSortOrder(form.get('sortOrder'));
+    const tags = parseTags(form.get('tags'));
 
     if (!['video', 'photo', 'teacher', 'feedback'].includes(kind)) {
       return jsonResponse({ success: false, error: 'kind must be video/photo/teacher/feedback' }, 400);
@@ -156,6 +232,11 @@ async function uploadAssets(context) {
 
     if (kind === 'video' || kind === 'photo') {
       const file = form.get('file');
+      const fileError = validateUploadFile(kind, file);
+      if (fileError) {
+        return jsonResponse({ success: false, error: fileError }, 400);
+      }
+
       if (!file || typeof file.arrayBuffer !== 'function') {
         return jsonResponse({ success: false, error: '未提供上传文件' }, 400);
       }
@@ -179,6 +260,9 @@ async function uploadAssets(context) {
           title: `${form.get('title') || file.name}`,
           description: `${form.get('description') || ''}`,
           uploader: `${form.get('uploader') || '平台管理员'}`,
+          placement,
+          sortOrder,
+          tags,
           mediaKey: key,
           mediaUrl,
           coverUrl: kind === 'video' ? mediaUrl : '',
@@ -216,7 +300,7 @@ async function uploadAssets(context) {
         );
       }
 
-      const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId);
+      const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, '', placement);
       return jsonResponse({ success: true, data: { cultureWall: wall } });
     }
 
@@ -231,6 +315,9 @@ async function uploadAssets(context) {
   const kind = `${body.kind}`.trim();
   const title = `${body.title || ''}`.trim();
   const description = `${body.description || ''}`.trim();
+  const placement = normalizePlacement(body.placement);
+  const sortOrder = parseSortOrder(body.sortOrder);
+  const tags = parseTags(body.tags);
 
   try {
     const saved = await insertCultureWallAssetUnsafe(env.DB, {
@@ -240,6 +327,9 @@ async function uploadAssets(context) {
       title,
       description,
       uploader: `${body.uploader || '平台管理员'}`,
+      placement,
+      sortOrder,
+      tags,
       status: `${body.status || '已发布'}`,
       extra: {
         text: `${body.text || ''}`
@@ -249,7 +339,7 @@ async function uploadAssets(context) {
     if (!saved) {
       return jsonResponse({ success: false, error: '保存素材失败' }, 500);
     }
-    } catch (error) {
+  } catch (error) {
     console.error('[culture-wall] upload failed', {
       requestId,
       kind,
@@ -265,7 +355,7 @@ async function uploadAssets(context) {
     );
   }
 
-  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId);
+  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, '', placement);
   return jsonResponse({ success: true, data: { cultureWall: wall } });
 }
 

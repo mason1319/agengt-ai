@@ -4,6 +4,42 @@ import { getMockRuntimeData } from './src/services/runtimeDataService.js';
 
 const runtimeData = () => getMockRuntimeData();
 
+function normalizePlacement(value, fallback = '') {
+  const placement = `${value || ''}`.trim();
+  return placement || fallback;
+}
+
+function filterCultureWall(wall = {}, { kind = '', placement = '' } = {}) {
+  const safeKind = `${kind || ''}`.trim();
+  const safePlacement = normalizePlacement(placement, '');
+
+  const photos = Array.isArray(wall.photos) ? wall.photos.slice() : [];
+  const videos = Array.isArray(wall.videos) ? wall.videos.slice() : [];
+  const teachers = Array.isArray(wall.teachers) ? wall.teachers.slice() : [];
+  const feedback = Array.isArray(wall.feedback) ? wall.feedback.slice() : [];
+
+  const filteredPhotos =
+    safeKind && safeKind !== 'photo'
+      ? []
+      : safePlacement
+        ? photos.filter((item) => `${item.placement || ''}`.trim() === safePlacement)
+        : photos;
+  const filteredVideos =
+    safeKind && safeKind !== 'video'
+      ? []
+      : safePlacement
+        ? videos.filter((item) => `${item.placement || ''}`.trim() === safePlacement)
+        : videos;
+
+  return {
+    ...wall,
+    photos: filteredPhotos,
+    videos: filteredVideos,
+    teachers: safeKind && safeKind !== 'teacher' ? [] : teachers,
+    feedback: safeKind && safeKind !== 'feedback' ? [] : feedback
+  };
+}
+
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -86,11 +122,13 @@ function handleDevApi(req, res) {
   }
 
   if (pathname === '/api/v1/admin/culture-wall' && req.method === 'GET') {
+    const kind = requestUrl.searchParams.get('kind') || '';
+    const placement = requestUrl.searchParams.get('placement') || '';
     return sendJson(res, 200, {
       success: true,
       source: 'api',
       data: {
-        cultureWall: data.cultureWall
+        cultureWall: filterCultureWall(data.cultureWall, { kind, placement })
       }
     });
   }

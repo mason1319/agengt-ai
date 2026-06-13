@@ -255,6 +255,35 @@ async function runPhase2Smoke() {
         })
     },
     {
+      name: 'culture wall admissions placement',
+      ok: () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return Promise.resolve();
+        }
+
+        return request({
+          method: 'GET',
+          path: '/api/v1/admin/culture-wall?placement=admissions',
+          token,
+          expectStatus: 200
+        }).then((res) => {
+          ensure(res.ok, `http ${res.status}`);
+          ensure(hasJsonSuccess(res.payload), 'response success=false');
+          const photos = res.payload?.data?.cultureWall?.photos || [];
+          ensure(Array.isArray(photos), 'admissions photos missing');
+          ensure(
+            photos.every((item) => `${item.placement || ''}`.trim() === 'admissions'),
+            'admissions placement leaked non-admissions assets'
+          );
+        });
+      }
+    },
+    {
       name: 'public leads list',
       ok: () =>
         request({
@@ -755,6 +784,169 @@ async function runPhase2Smoke() {
       }
     },
     {
+      name: 'founder payment records filter and export fields',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const recordsRes = await request({
+          method: 'GET',
+          path: '/api/v1/founder/payment-records?limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(recordsRes.ok, `http ${recordsRes.status}`);
+        ensure(hasJsonSuccess(recordsRes.payload), 'response success=false');
+        const records = Array.isArray(recordsRes.payload?.data?.records) ? recordsRes.payload.data.records : [];
+        if (!records.length) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder payment records empty');
+          }
+          printStatus('warn', 'founder payment records empty, skip');
+          return;
+        }
+
+        const sample = records[0];
+        const createdAt = `${sample.createdAt || sample.created_at || ''}`.trim();
+        const createdDate = createdAt ? createdAt.slice(0, 10) : '';
+        const filtered = await request({
+          method: 'GET',
+          path:
+            `/api/v1/founder/payment-records?limit=20` +
+            `&studentId=${encodeURIComponent(sample.studentId || sample.student_id || '')}` +
+            `&courseId=${encodeURIComponent(sample.courseId || sample.course_id || '')}` +
+            `&status=${encodeURIComponent(sample.status || '')}` +
+            (createdDate ? `&startAt=${encodeURIComponent(createdDate)}&endAt=${encodeURIComponent(createdDate)}` : ''),
+          token,
+          expectStatus: 200
+        });
+        ensure(filtered.ok, `http ${filtered.status}`);
+        ensure(hasJsonSuccess(filtered.payload), 'response success=false');
+        const filteredRecords = Array.isArray(filtered.payload?.data?.records) ? filtered.payload.data.records : [];
+        const match = filteredRecords.find((item) => `${item.id || ''}`.trim() === `${sample.id || ''}`.trim());
+        ensure(Boolean(match), 'filtered payment record missing');
+        ensure(Boolean(match.studentName || match.student_name), 'student name missing');
+        ensure(Boolean(match.courseName || match.course_name), 'course name missing');
+        ensure(Boolean(match.createdAt || match.created_at), 'createdAt missing');
+      }
+    },
+    {
+      name: 'founder course drawer create/edit flow',
+      role: 'founder',
+      ok: async () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return;
+        }
+
+        const cockpit = await request({
+          method: 'GET',
+          path: '/api/v1/founder/cockpit?courseStatus=active',
+          token,
+          expectStatus: 200
+        });
+        ensure(cockpit.ok, `http ${cockpit.status}`);
+        ensure(hasJsonSuccess(cockpit.payload), 'response success=false');
+        const institutionId = `${cockpit.payload?.data?.institution?.id || ''}`.trim();
+        ensure(Boolean(institutionId), 'founder cockpit institution id missing');
+
+        const tag = Date.now();
+        const createPayload = {
+          institutionId,
+          teacherId: '',
+          name: `SMOKE 课程抽屉 ${tag}`,
+          grade: '五年级',
+          level: '基础',
+          classType: 'small',
+          schedule: `第 ${tag % 100} 周周三 19:30`,
+          startTime: new Date(Date.now() + 3600_000).toISOString().slice(0, 16),
+          durationMinutes: 90,
+          capacity: 12,
+          priceCents: 18800,
+          status: 'active',
+          imageUrl: ''
+        };
+
+        const created = await request({
+          method: 'POST',
+          path: '/api/v1/founder/courses',
+          token,
+          body: createPayload,
+          expectStatus: 200
+        });
+        ensure(created.ok, `http ${created.status}`);
+        ensure(hasJsonSuccess(created.payload), 'response success=false');
+        const createdCourse = created.payload?.data?.course || {};
+        const courseId = `${createdCourse.id || ''}`.trim();
+        ensure(courseId, 'created course id missing');
+        ensure(`${createdCourse.name || ''}`.trim() === createPayload.name, 'created course name mismatch');
+
+        const patchedName = `SMOKE 课程抽屉 ${tag} - 已更新`;
+        const updated = await request({
+          method: 'PATCH',
+          path: '/api/v1/founder/courses',
+          token,
+          body: {
+            id: courseId,
+            name: patchedName,
+            grade: '六年级',
+            level: '进阶',
+            classType: 'one_to_one',
+            schedule: `第 ${tag % 100} 周周五 20:00`,
+            startTime: new Date(Date.now() + 7200_000).toISOString().slice(0, 16),
+            priceCents: 20800,
+            capacity: 8,
+            status: 'active'
+          },
+          expectStatus: 200
+        });
+        ensure(updated.ok, `http ${updated.status}`);
+        ensure(hasJsonSuccess(updated.payload), 'response success=false');
+        const updatedCourse = updated.payload?.data?.course || {};
+        ensure(`${updatedCourse.id || ''}`.trim() === courseId, 'updated course id mismatch');
+        ensure(`${updatedCourse.name || ''}`.trim() === patchedName, 'updated course name mismatch');
+
+        const founderList = await request({
+          method: 'GET',
+          path: `/api/v1/founder/courses?institutionId=${encodeURIComponent(institutionId)}&limit=50`,
+          token,
+          expectStatus: 200
+        });
+        ensure(founderList.ok, `http ${founderList.status}`);
+        ensure(hasJsonSuccess(founderList.payload), 'response success=false');
+        const founderCourses = Array.isArray(founderList.payload?.data?.courses)
+          ? founderList.payload.data.courses
+          : [];
+        const founderMatch = founderCourses.find((item) => `${item.id || ''}`.trim() === courseId);
+        ensure(Boolean(founderMatch), 'created course missing from founder list');
+        ensure(`${founderMatch?.name || ''}`.trim() === patchedName, 'founder list did not reflect update');
+
+        const publicList = await request({
+          method: 'GET',
+          path: '/api/v1/public/courses?limit=200',
+          expectStatus: 200
+        });
+        ensure(publicList.ok, `http ${publicList.status}`);
+        ensure(hasJsonSuccess(publicList.payload), 'response success=false');
+        const publicCourses = Array.isArray(publicList.payload?.data?.courses)
+          ? publicList.payload.data.courses
+          : [];
+        const publicMatch = publicCourses.find((item) => `${item.id || ''}`.trim() === courseId || `${item.name || ''}`.trim() === patchedName);
+        ensure(Boolean(publicMatch), 'created course missing from public list');
+      }
+    },
+    {
       name: 'founder lesson account adjustment requires reason',
       role: 'founder',
       ok: async () => {
@@ -1114,6 +1306,82 @@ async function runPhase2Smoke() {
         });
         ensure(todayPath.ok, `http ${todayPath.status}`);
         ensure(hasJsonSuccess(todayPath.payload), 'response success=false');
+      }
+    },
+    {
+      name: 'student path completion persists review history',
+      role: 'student',
+      ok: async () => {
+        const token = roleTokens.student;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('student token unavailable');
+          }
+          printStatus('warn', 'student token unavailable, skip');
+          return;
+        }
+
+        const today = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token,
+          expectStatus: 200
+        });
+        ensure(today.ok, `http ${today.status}`);
+        ensure(hasJsonSuccess(today.payload), 'student today response success=false');
+        const studentId = `${today.payload?.data?.studentId || ''}`.trim();
+        ensure(studentId, 'student id missing');
+
+        const pathId = `path-${Date.now()}`;
+        const pathTitle = `Phase2路径完成-${Date.now()}`;
+        const submitted = await request({
+          method: 'POST',
+          path: '/api/v1/student/review/submit',
+          token,
+          body: {
+            taskType: 'path_completion',
+            title: pathTitle,
+            answer: '已完成今日学习路径',
+            score: 100,
+            status: 'done',
+            payload: {
+              pathId,
+              pathTitle,
+              source: 'student_home_path'
+            }
+          },
+          expectStatus: 200
+        });
+        ensure(submitted.ok, `http ${submitted.status}`);
+        ensure(hasJsonSuccess(submitted.payload), 'path submit response success=false');
+
+        const history = await request({
+          method: 'GET',
+          path: '/api/v1/student/review/history?limit=20',
+          token,
+          expectStatus: 200
+        });
+        ensure(history.ok, `http ${history.status}`);
+        ensure(hasJsonSuccess(history.payload), 'student review history response success=false');
+        const historyItems = history.payload?.data?.items || [];
+        ensure(
+          historyItems.some((item) => `${item.title || ''}`.trim() === pathTitle && `${item.taskType || item.task_type || ''}`.trim() === 'path_completion'),
+          'student review history missing path completion'
+        );
+
+        const after = await request({
+          method: 'GET',
+          path: '/api/v1/student/today-path',
+          token,
+          expectStatus: 200
+        });
+        ensure(after.ok, `http ${after.status}`);
+        ensure(hasJsonSuccess(after.payload), 'student today response success=false');
+        const tasks = after.payload?.data?.tasks || [];
+        ensure(
+          tasks.some((item) => `${item.title || ''}`.trim() === pathTitle && `${item.taskType || item.task_type || ''}`.trim() === 'path_completion'),
+          'student today path missing submitted path completion'
+        );
       }
     },
     {

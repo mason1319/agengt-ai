@@ -226,6 +226,20 @@ function normalizeLeadMessageRow(row = {}) {
   };
 }
 
+function normalizeParentMessageRow(row = {}) {
+  return {
+    id: row.id,
+    institutionId: row.institution_id,
+    studentId: row.student_id,
+    actorRole: row.actor_role || '',
+    sender: row.sender || '',
+    message: row.message || '',
+    tone: row.tone || '',
+    relatedLessonId: row.related_lesson_id || '',
+    createdAt: row.created_at || ''
+  };
+}
+
 function normalizeTrialBookingRow(row = {}) {
   return {
     id: row.id,
@@ -247,7 +261,10 @@ function normalizePaymentRecordRow(row = {}) {
     id: row.id,
     institutionId: row.institution_id,
     studentId: row.student_id || '',
+    studentName: row.student_name || '',
+    studentGrade: row.student_grade || '',
     courseId: row.course_id || '',
+    courseName: row.course_name || '',
     orderNo: row.order_no || '',
     amountCents: toNumber(row.amount_cents, 0),
     currency: row.currency || 'CNY',
@@ -358,19 +375,32 @@ const normalizeCultureWallRow = (row = {}) => {
   const date = `${row.created_at || ''}`.slice(0, 10);
   const title = `${row.title || ''}`.trim();
   const description = `${row.description || ''}`.trim();
+  const placement = `${payload?.placement || 'culture-wall'}`.trim();
+  const sortOrder = Number(payload?.sortOrder || 0);
+  const tags = Array.isArray(payload?.tags) ? payload.tags : [];
+  const mediaUrl = `${row.media_url || ''}`;
+  const coverUrl = `${row.cover_url || row.media_url || ''}`;
+  const createdAt = `${row.created_at || ''}`;
 
   if (kind === 'video') {
     return {
       id: `${row.id}`,
       kind: 'video',
+      placement,
       title: title || '教学视频',
       description: description || '教学视频',
+      summary: description || title || '教学视频',
       date,
+      createdAt,
       uploader: `${row.uploader || '机构管理员'}`,
-      cover: `${row.cover_url || row.media_url || ''}`,
-      src: `${row.media_url || ''}`,
+      cover: coverUrl,
+      coverUrl,
+      mediaUrl,
+      src: mediaUrl,
       duration: `${row.duration || '--:--'}`,
-      status: `${row.status || '已发布'}`
+      status: `${row.status || '已发布'}`,
+      sortOrder,
+      tags
     };
   }
 
@@ -378,12 +408,19 @@ const normalizeCultureWallRow = (row = {}) => {
     return {
       id: `${row.id}`,
       kind: 'photo',
+      placement,
       title: title || '教学照片',
       description: description || '教学照片',
+      summary: description || title || '教学照片',
       date,
+      createdAt,
       uploader: `${row.uploader || '机构管理员'}`,
-      src: `${row.media_url || ''}`,
-      status: `${row.status || '已发布'}`
+      mediaUrl,
+      src: mediaUrl,
+      coverUrl,
+      status: `${row.status || '已发布'}`,
+      sortOrder,
+      tags
     };
   }
 
@@ -410,6 +447,18 @@ const normalizeCultureWallRow = (row = {}) => {
 
   return null;
 };
+
+const sortMediaItems = (items = []) =>
+  [...items].sort((left, right) => {
+    const orderDiff = Number(left.sortOrder || 0) - Number(right.sortOrder || 0);
+    if (orderDiff !== 0) {
+      return orderDiff;
+    }
+
+    const leftTime = `${left.createdAt || left.date || ''}`;
+    const rightTime = `${right.createdAt || right.date || ''}`;
+    return rightTime.localeCompare(leftTime);
+  });
 
 const normalizeCultureWallRows = (rows = []) => {
   const videos = [];
@@ -440,7 +489,12 @@ const normalizeCultureWallRows = (rows = []) => {
     }
   });
 
-  return { videos, photos, teachers, feedback };
+  return {
+    videos: sortMediaItems(videos),
+    photos: sortMediaItems(photos),
+    teachers,
+    feedback
+  };
 };
 
 function safeParseDb(fn) {
@@ -1417,8 +1471,9 @@ const revokePermissionRaw = async (db, payload = {}) => {
   return row?.meta?.changes >= 0;
 };
 
-const fetchCultureWallAssetsByInstitutionRaw = async (db, institutionId, kind = '') => {
+const fetchCultureWallAssetsByInstitutionRaw = async (db, institutionId, kind = '', placement = '') => {
   const safeKind = `${kind || ''}`.trim();
+  const safePlacement = `${placement || ''}`.trim();
   const bindValues = [institutionId];
   const conditions = [];
 
@@ -1436,7 +1491,17 @@ const fetchCultureWallAssetsByInstitutionRaw = async (db, institutionId, kind = 
   `;
 
   const { results } = await db.prepare(query).bind(...bindValues).all();
-  return normalizeCultureWallRows(results || []);
+  const wall = normalizeCultureWallRows(results || []);
+
+  if (!safePlacement) {
+    return wall;
+  }
+
+  return {
+    ...wall,
+    videos: wall.videos.filter((item) => `${item.placement || ''}`.trim() === safePlacement),
+    photos: wall.photos.filter((item) => `${item.placement || ''}`.trim() === safePlacement)
+  };
 };
 
 const insertCultureWallAssetRaw = async (db, payload = {}) => {
@@ -1450,6 +1515,15 @@ const insertCultureWallAssetRaw = async (db, payload = {}) => {
   const title = `${payload.title || ''}`.trim();
   const description = `${payload.description || ''}`.trim();
   const uploader = `${payload.uploader || '机构管理员'}`.trim();
+  const placement = `${payload.placement || 'culture-wall'}`.trim();
+  const sortOrder = Number(payload.sortOrder || 0);
+  const tags = Array.isArray(payload.tags) ? payload.tags : [];
+  const payloadText = JSON.stringify({
+    placement,
+    sortOrder,
+    tags,
+    extra: payload.extra || {}
+  });
 
   const query = `
     INSERT INTO culture_wall_assets (
@@ -1483,7 +1557,7 @@ const insertCultureWallAssetRaw = async (db, payload = {}) => {
       `${payload.coverUrl || ''}`,
       `${payload.duration || ''}`,
       `${payload.status || '已发布'}`,
-      `${JSON.stringify(payload.extra || {})}`
+      payloadText
     );
 
   await prepared.run();
@@ -2124,7 +2198,7 @@ const insertCourseRaw = async (db, payload = {}) => {
       `INSERT INTO courses
        (id, institution_id, teacher_id, name, grade, level, class_type, schedule, start_time,
         duration_minutes, capacity, price_cents, currency, status, image_url)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`
     )
     .bind(
       id,
@@ -2328,6 +2402,56 @@ const fetchLeadMessagesRaw = async (db, leadId) => {
     .all();
 
   return (list.results || []).map(normalizeLeadMessageRow);
+};
+
+const insertParentMessageRaw = async (db, payload = {}) => {
+  const studentId = `${payload.studentId || ''}`.trim();
+  const institutionId = `${payload.institutionId || ''}`.trim();
+  if (!studentId || !institutionId) {
+    return null;
+  }
+
+  const id = `${payload.id || `pm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`}`;
+  const actorRole = `${payload.actorRole || 'parent'}`.trim();
+  const sender = `${payload.sender || ''}`.trim();
+  const message = `${payload.message || ''}`.trim();
+  const tone = `${payload.tone || ''}`.trim();
+  const relatedLessonId = `${payload.relatedLessonId || ''}`.trim();
+
+  await db
+    .prepare(
+      `INSERT INTO parent_messages (id, institution_id, student_id, actor_role, sender, message, tone, related_lesson_id)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+    )
+    .bind(id, institutionId, studentId, actorRole, sender, message, tone, relatedLessonId)
+    .run();
+
+  return { id, institutionId, studentId, actorRole, sender, message, tone, relatedLessonId };
+};
+
+const fetchParentMessagesRaw = async (db, { institutionId, studentId, limit = 20 } = {}) => {
+  const where = [];
+  const values = [];
+
+  if (institutionId) {
+    values.push(institutionId);
+    where.push(`institution_id = ?${values.length}`);
+  }
+
+  if (studentId) {
+    values.push(studentId);
+    where.push(`student_id = ?${values.length}`);
+  }
+
+  values.push(Math.max(1, Math.min(50, Math.round(Number(limit) || 20))));
+
+  const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const list = await db
+    .prepare(`SELECT * FROM parent_messages ${clause} ORDER BY created_at DESC LIMIT ?${values.length}`)
+    .bind(...values)
+    .all();
+
+  return (list.results || []).map(normalizeParentMessageRow);
 };
 
 const createTrialBookingRaw = async (db, payload = {}) => {
@@ -2709,25 +2833,50 @@ const upsertAttendanceRaw = async (db, payload = {}) => {
 const fetchPaymentRecordsByInstitutionRaw = async (db, filters = {}) => {
   const institutionId = `${filters.institutionId || ''}`.trim();
   const studentId = `${filters.studentId || ''}`.trim();
+  const courseId = `${filters.courseId || ''}`.trim();
   const status = `${filters.status || ''}`.trim();
+  const startAt = `${filters.startAt || ''}`.trim();
+  const endAt = `${filters.endAt || ''}`.trim();
 
   if (!institutionId) {
     return [];
   }
 
-  const where = ['institution_id = ?1'];
+  const where = ['pr.institution_id = ?1'];
   const values = [institutionId];
   if (studentId) {
     values.push(studentId);
-    where.push(`student_id = ?${values.length}`);
+    where.push(`pr.student_id = ?${values.length}`);
+  }
+  if (courseId) {
+    values.push(courseId);
+    where.push(`pr.course_id = ?${values.length}`);
   }
   if (status) {
     values.push(status);
-    where.push(`status = ?${values.length}`);
+    where.push(`pr.status = ?${values.length}`);
+  }
+  if (startAt) {
+    values.push(`${startAt} 00:00:00`);
+    where.push(`pr.created_at >= ?${values.length}`);
+  }
+  if (endAt) {
+    values.push(`${endAt} 23:59:59`);
+    where.push(`pr.created_at <= ?${values.length}`);
   }
 
   const rows = await db
-    .prepare(`SELECT * FROM payment_records WHERE ${where.join(' AND ')} ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT pr.*,
+              s.name AS student_name,
+              s.grade AS student_grade,
+              c.name AS course_name
+         FROM payment_records pr
+         LEFT JOIN students s ON s.id = pr.student_id
+         LEFT JOIN courses c ON c.id = pr.course_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY pr.created_at DESC`
+    )
     .bind(...values)
     .all();
 
@@ -2838,6 +2987,8 @@ export const fetchLeadsByInstitution = safeParseDb(fetchLeadsByInstitutionRaw);
 export const fetchLeadsByQuery = safeParseDb(fetchLeadsByQueryRaw);
 export const insertLeadMessage = safeParseDb(insertLeadMessageRaw);
 export const fetchLeadMessages = safeParseDb(fetchLeadMessagesRaw);
+export const insertParentMessage = safeParseDb(insertParentMessageRaw);
+export const fetchParentMessages = safeParseDb(fetchParentMessagesRaw);
 export const createTrialBooking = safeParseDb(createTrialBookingRaw);
 export const fetchTrialBookings = safeParseDb(fetchTrialBookingsRaw);
 export const fetchCourses = safeParseDb(fetchCoursesRaw);

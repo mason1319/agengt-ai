@@ -217,6 +217,21 @@ CREATE TABLE IF NOT EXISTS lead_messages (
   FOREIGN KEY (lead_id) REFERENCES leads(id)
 );
 
+CREATE TABLE IF NOT EXISTS parent_messages (
+  id TEXT PRIMARY KEY,
+  institution_id TEXT NOT NULL,
+  student_id TEXT NOT NULL,
+  actor_role TEXT NOT NULL,
+  sender TEXT,
+  message TEXT,
+  tone TEXT,
+  related_lesson_id TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (institution_id) REFERENCES institutions(id),
+  FOREIGN KEY (student_id) REFERENCES students(id),
+  FOREIGN KEY (related_lesson_id) REFERENCES lessons(id)
+);
+
 CREATE TABLE IF NOT EXISTS trial_bookings (
   id TEXT PRIMARY KEY,
   institution_id TEXT NOT NULL,
@@ -363,6 +378,7 @@ CREATE INDEX IF NOT EXISTS idx_attendance_status ON attendance_records(status);
 CREATE INDEX IF NOT EXISTS idx_leads_institution ON leads(institution_id);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_lead_messages_lead ON lead_messages(lead_id);
+CREATE INDEX IF NOT EXISTS idx_parent_messages_student ON parent_messages(student_id);
 CREATE INDEX IF NOT EXISTS idx_trial_bookings_institution ON trial_bookings(institution_id);
 CREATE INDEX IF NOT EXISTS idx_trial_bookings_lead ON trial_bookings(lead_id);
 CREATE INDEX IF NOT EXISTS idx_trial_bookings_course ON trial_bookings(course_id);
@@ -530,6 +546,19 @@ INSERT OR IGNORE INTO lead_messages (
 )
 VALUES
 ('msg_001', 'lead_001', 'system', 'AI咨询助手', '欢迎咨询，已记录孩子信息。', 'neutral');
+
+INSERT OR IGNORE INTO parent_messages (
+  id,
+  institution_id,
+  student_id,
+  actor_role,
+  sender,
+  message,
+  tone,
+  related_lesson_id
+)
+VALUES
+('pm_001', 'inst-star', 's_001', 'system', 'AI家校沟通助手', '本周学习反馈已整理，可直接发送给家长确认。', '高情商', 'lesson_001');
 
 INSERT OR IGNORE INTO payment_records (
   id,

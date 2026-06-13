@@ -1030,6 +1030,9 @@ paths:
           name: kind
           schema: { type: string }
         - in: query
+          name: placement
+          schema: { type: string }
+        - in: query
           name: mediaKey
           schema: { type: string }
       responses:
@@ -1047,6 +1050,52 @@ paths:
           multipart/form-data:
             schema:
               type: object
+              properties:
+                kind:
+                  type: string
+                  description: photo/video/teacher/feedback
+                placement:
+                  type: string
+                  description: 用于图片位分区，例如 admissions 或 culture-wall
+                title:
+                  type: string
+                description:
+                  type: string
+                uploader:
+                  type: string
+                duration:
+                  type: string
+                sortOrder:
+                  type: number
+                tags:
+                  type: string
+                  description: 逗号分隔或 JSON 数组字符串
+                file:
+                  type: string
+                  format: binary
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  description: teacher/feedback
+                placement:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                uploader:
+                  type: string
+                sortOrder:
+                  type: number
+                tags:
+                  type: array
+                  items:
+                    type: string
+                text:
+                  type: string
       responses:
         '200':
           description: 新增结果
@@ -1394,7 +1443,7 @@ paths:
 
   /api/v1/institution/payments:
     get:
-      summary: 查询机构收费记录
+      summary: 查询机构缴费记录
       tags: [institution]
       security:
         - bearerAuth: []
@@ -1419,12 +1468,12 @@ paths:
           schema: { type: integer }
       responses:
         '200':
-          description: 收费记录列表或单条记录
+          description: 缴费记录列表或单条记录
           content:
             application/json:
               schema: { type: object }
     post:
-      summary: 新增收费记录
+      summary: 新增缴费记录
       tags: [institution]
       security:
         - bearerAuth: []
@@ -1452,7 +1501,7 @@ paths:
             application/json:
               schema: { type: object }
     patch:
-      summary: 更新收费记录
+      summary: 更新缴费记录
       tags: [institution]
       security:
         - bearerAuth: []

@@ -8,10 +8,12 @@ import {
   aiAgents,
   billingPlans,
   cultureWall,
+  mediaLibrary,
   founderAlerts,
   leadPipeline,
   organizations,
   parentReports,
+  parentMessages,
   students,
   teacherLessons
 } from '../seedData';
@@ -137,7 +139,18 @@ function getMockAIAgentOutput(action, payload = {}) {
         { key: '家长反馈', value: '可跟进' }
       ],
       reasons: ['检测到课后反馈提交间隔偏长', '近端口学生课时剩余偏低'],
-      recommendations: ['给高风险学员发学习成果周报', '联系家长确认续费意愿']
+      recommendations: ['给高风险学员发学习成果周报', '联系家长确认续费意愿'],
+      risks: [
+        {
+          studentId: 's_001',
+          student: '小宇',
+          grade: '五年级',
+          hoursLeft: 6,
+          risk: 78,
+          priority: 'high',
+          action: '优先家校沟通'
+        }
+      ]
     }
   };
 };
@@ -251,7 +264,11 @@ const buildMockRuntimeData = () => ({
   teacherLessons: teacherLessons.map((item) => ({ ...item })),
   students: students.map((item) => ({ ...item })),
   parentReports: parentReports.map((item) => ({ ...item })),
+  parentMessages: parentMessages.map((item) => ({ ...item })),
   organizations: organizations.map((item) => ({ ...item })),
+  mediaLibrary: {
+    assets: mediaLibrary.assets.map((item) => ({ ...item }))
+  },
   cultureWall: {
     ...cultureWall,
     videos: cultureWall.videos.map((item) => ({ ...item })),
@@ -440,12 +457,77 @@ async function requestCultureWall({
   }
 }
 
-async function requestMultipart({ path, token, role, body }) {
+function parseResponseText(text) {
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function requestMultipart({ path, token, role, body, onProgress }) {
   const timeoutMs = Number(getEnv('VITE_DATA_TIMEOUT_MS') || 4000);
   const timeout = Math.max(1000, timeoutMs);
   const apiBase = resolveApiBase();
   const roleQuery = trimEnv(token) ? '' : `${path.includes('?') ? '&' : '?'}role=${encodeURIComponent(role || 'platform')}`;
   const endpoint = `${apiBase}${path}${roleQuery}`;
+  const hasProgress = typeof onProgress === 'function' && typeof window !== 'undefined' && typeof XMLHttpRequest !== 'undefined';
+
+  if (hasProgress) {
+    return await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', endpoint, true);
+      xhr.responseType = 'text';
+      xhr.timeout = timeout;
+      xhr.setRequestHeader('Accept', 'application/json');
+
+      const headers = buildRequestHeaders(token);
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) {
+          onProgress({ loaded: event.loaded || 0, total: event.total || 0, progress: 0 });
+          return;
+        }
+
+        const total = Math.max(1, event.total || 1);
+        onProgress({
+          loaded: event.loaded || 0,
+          total,
+          progress: Math.min(100, Math.round(((event.loaded || 0) / total) * 100))
+        });
+      };
+
+      xhr.onload = () => {
+        const payload = parseResponseText(xhr.responseText) || {};
+        if (xhr.status < 200 || xhr.status >= 300) {
+          const err = new Error(payload?.error || `api request failed: ${xhr.status}`);
+          err.status = xhr.status;
+          reject(err);
+          return;
+        }
+
+        resolve(payload);
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('网络请求失败'));
+      };
+
+      xhr.ontimeout = () => {
+        reject(new Error('请求超时'));
+      };
+
+      xhr.send(body);
+    });
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -465,7 +547,8 @@ async function requestMultipart({ path, token, role, body }) {
       try {
         const text = await response.text();
         if (text) {
-          message = `${message} ${text}`;
+          const parsed = parseResponseText(text);
+          message = parsed?.error || `${message} ${text}`;
         }
       } catch {
         // ignore parse error
@@ -577,6 +660,11 @@ export async function loadRuntimeData({ role, authToken } = {}) {
 
     return mergeRuntimeData(baseData, {
       ...mergedPlatform,
+      mediaLibrary: Array.isArray(data.mediaLibrary?.assets)
+        ? {
+            assets: data.mediaLibrary.assets.map((item) => ({ ...item }))
+          }
+        : baseData.mediaLibrary,
       cultureWall: apiCultureWall,
       organizations: Array.isArray(mergedPlatform.organizations)
         ? mergedPlatform.organizations
@@ -686,7 +774,8 @@ export async function uploadCultureWallAsset({
   file,
   title = '',
   description = '',
-  uploader = '当前管理员'
+  uploader = '当前管理员',
+  onProgress
 } = {}) {
   if (!file) {
     throw new Error('upload file is required');
@@ -749,7 +838,8 @@ export async function uploadCultureWallAsset({
     path,
     token: trimEnv(authToken),
     role,
-    body: form
+    body: form,
+    onProgress
   });
 
   return {
@@ -1616,6 +1706,108 @@ export async function loadStudentReview({ authToken, type = 'summary' } = {}) {
   });
 }
 
+export async function submitStudentPathCompletion({
+  authToken,
+  payload = {}
+} = {}) {
+  const normalizedTitle = `${payload.title || ''}`.trim();
+  const normalizedPathId = `${payload.pathId || ''}`.trim();
+  const normalizedStudentId = `${payload.studentId || ''}`.trim();
+
+  if (!normalizedTitle) {
+    throw new Error('title is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        studentId: normalizedStudentId || 's_001',
+        item: {
+          id: normalizedPathId || `path-${Date.now()}`,
+          taskType: payload.taskType || 'path_completion',
+          title: normalizedTitle,
+          answer: `${payload.answer || ''}`.trim(),
+          score: toIntSafe(payload.score, 100),
+          status: `${payload.status || 'done'}`.trim(),
+          payload: {
+            pathId: normalizedPathId,
+            pathTitle: normalizedTitle,
+            source: `${payload.source || 'student_home_path'}`.trim()
+          }
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/student/review/submit',
+    token: trimEnv(authToken),
+    role: 'student',
+    body: {
+      taskType: `${payload.taskType || 'path_completion'}`.trim(),
+      title: normalizedTitle,
+      answer: `${payload.answer || ''}`.trim(),
+      score: toIntSafe(payload.score, 100),
+      status: `${payload.status || 'done'}`.trim(),
+      payload: {
+        pathId: normalizedPathId,
+        pathTitle: normalizedTitle,
+        source: `${payload.source || 'student_home_path'}`.trim(),
+        stepIndex: toIntSafe(payload.stepIndex, -1),
+        studentId: normalizedStudentId || null
+      }
+    }
+  });
+}
+
+export async function submitStudentPracticeReview({
+  authToken,
+  payload = {}
+} = {}) {
+  const normalizedTitle = `${payload.title || ''}`.trim();
+  if (!normalizedTitle) {
+    throw new Error('title is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        studentId: `${payload.studentId || 's_001'}`.trim() || 's_001',
+        item: {
+          id: `practice-${Date.now()}`,
+          taskType: `${payload.taskType || 'practice_task'}`.trim() || 'practice_task',
+          title: normalizedTitle,
+          answer: `${payload.answer || ''}`.trim(),
+          score: toIntSafe(payload.score, 0),
+          status: `${payload.status || 'done'}`.trim(),
+          payload: payload.payload || {}
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/student/review/submit',
+    token: trimEnv(authToken),
+    role: 'student',
+    body: {
+      taskType: `${payload.taskType || 'practice_task'}`.trim(),
+      title: normalizedTitle,
+      answer: `${payload.answer || ''}`.trim(),
+      score: toIntSafe(payload.score, 0),
+      status: `${payload.status || 'done'}`.trim(),
+      payload: {
+        ...(payload.payload || {}),
+        studentId: `${payload.studentId || ''}`.trim() || null
+      }
+    }
+  });
+}
+
 export async function submitStudentVoiceAssess({
   authToken,
   taskId,
@@ -1958,6 +2150,7 @@ export async function updateInstitutionLesson({
 export async function submitTeacherIntervention({
   authToken,
   studentId,
+  role = 'teacher',
   payload = {}
 } = {}) {
   if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
@@ -2000,7 +2193,7 @@ export async function submitTeacherIntervention({
     method: 'POST',
     path: `/v1/teacher/student/${encodeURIComponent(safeStudentId)}/intervention`,
     token: trimEnv(authToken),
-    role: 'teacher',
+    role: `${role || 'teacher'}`.trim() || 'teacher',
     body: actionPayload
   });
 }
@@ -2207,6 +2400,75 @@ export async function loadChildPaymentRecords({
   });
 }
 
+export async function loadChildMessages({
+  authToken,
+  childId
+} = {}) {
+  const normalizedChildId = `${childId || ''}`.trim();
+
+  if (!normalizedChildId) {
+    throw new Error('childId is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    const messages = (getMockRuntimeData().parentMessages || [])
+      .filter((item) => `${item.studentId || ''}`.trim() === normalizedChildId)
+      .map((item) => ({ ...item }));
+    return {
+      success: true,
+      data: {
+        messages,
+        total: messages.length
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'GET',
+    path: `/v1/parent/child/${encodeURIComponent(normalizedChildId)}/messages`,
+    token: trimEnv(authToken),
+    role: 'parent'
+  });
+}
+
+export async function createChildMessage({
+  authToken,
+  childId,
+  payload = {}
+} = {}) {
+  const normalizedChildId = `${childId || ''}`.trim();
+  if (!normalizedChildId) {
+    throw new Error('childId is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    const record = {
+      id: `pm-${Date.now()}`,
+      studentId: normalizedChildId,
+      actorRole: `${payload.actorRole || 'parent'}`.trim(),
+      sender: `${payload.sender || ''}`.trim(),
+      message: `${payload.message || ''}`.trim(),
+      tone: `${payload.tone || ''}`.trim(),
+      relatedLessonId: `${payload.relatedLessonId || ''}`.trim(),
+      createdAt: new Date().toISOString()
+    };
+    return {
+      success: true,
+      data: {
+        message: record
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: `/v1/parent/child/${encodeURIComponent(normalizedChildId)}/messages`,
+    token: trimEnv(authToken),
+    role: 'parent',
+    body: payload
+  });
+}
+
 export async function exportParentChildReport({ authToken, childId = '', institutionId = '' } = {}) {
   const normalizedChildId = `${childId || ''}`.trim();
   const normalizedInstitutionId = `${institutionId || ''}`.trim();
@@ -2355,6 +2617,128 @@ export async function loadFounderCourses({
   });
 }
 
+export async function createFounderCourse({
+  authToken,
+  payload = {}
+} = {}) {
+  const normalizedName = `${payload.name || ''}`.trim();
+  const normalizedInstitutionId = `${payload.institutionId || ''}`.trim();
+  const normalizedCourse = {
+    institutionId: normalizedInstitutionId,
+    teacherId: `${payload.teacherId || ''}`.trim(),
+    name: normalizedName,
+    grade: `${payload.grade || ''}`.trim(),
+    level: `${payload.level || ''}`.trim(),
+    classType: `${payload.classType || ''}`.trim(),
+    schedule: `${payload.schedule || ''}`.trim(),
+    startTime: `${payload.startTime || ''}`.trim(),
+    durationMinutes: toIntSafe(payload.durationMinutes, 90),
+    capacity: toIntSafe(payload.capacity, 12),
+    priceCents: toIntSafe(payload.priceCents, 0),
+    status: `${payload.status || 'active'}`.trim(),
+    imageUrl: `${payload.imageUrl || ''}`.trim()
+  };
+
+  if (!normalizedName) {
+    throw new Error('name is required');
+  }
+  if (!normalizedInstitutionId && !shouldUseDemoFallback(authToken)) {
+    throw new Error('institutionId is required');
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        created: true,
+        course: {
+          id: `course-${Date.now()}`,
+          ...normalizedCourse
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/founder/courses',
+    token: trimEnv(authToken),
+    role: 'founder',
+    body: normalizedCourse
+  });
+}
+
+export async function updateFounderCourse({
+  authToken,
+  payload = {}
+} = {}) {
+  const courseId = `${payload.id || payload.courseId || ''}`.trim();
+  if (!courseId) {
+    throw new Error('courseId is required');
+  }
+
+  const patch = {
+    id: courseId
+  };
+  if (payload.teacherId !== undefined) {
+    patch.teacherId = `${payload.teacherId || ''}`.trim();
+  }
+  if (payload.name !== undefined) {
+    patch.name = `${payload.name || ''}`.trim();
+  }
+  if (payload.grade !== undefined) {
+    patch.grade = `${payload.grade || ''}`.trim();
+  }
+  if (payload.level !== undefined) {
+    patch.level = `${payload.level || ''}`.trim();
+  }
+  if (payload.classType !== undefined) {
+    patch.classType = `${payload.classType || ''}`.trim();
+  }
+  if (payload.schedule !== undefined) {
+    patch.schedule = `${payload.schedule || ''}`.trim();
+  }
+  if (payload.startTime !== undefined) {
+    patch.startTime = `${payload.startTime || ''}`.trim();
+  }
+  if (payload.durationMinutes !== undefined) {
+    patch.durationMinutes = toIntSafe(payload.durationMinutes, 90);
+  }
+  if (payload.capacity !== undefined) {
+    patch.capacity = toIntSafe(payload.capacity, 12);
+  }
+  if (payload.priceCents !== undefined) {
+    patch.priceCents = toIntSafe(payload.priceCents, 0);
+  }
+  if (payload.status !== undefined) {
+    patch.status = `${payload.status || ''}`.trim();
+  }
+  if (payload.imageUrl !== undefined) {
+    patch.imageUrl = `${payload.imageUrl || ''}`.trim();
+  }
+
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        updated: true,
+        course: {
+          id: courseId,
+          ...patch
+        }
+      }
+    };
+  }
+
+  return requestJson({
+    method: 'PATCH',
+    path: '/v1/founder/courses',
+    token: trimEnv(authToken),
+    role: 'founder',
+    body: patch
+  });
+}
+
 export async function loadFounderPaymentRecords({
   authToken,
   filters = {}
@@ -2369,8 +2753,17 @@ export async function loadFounderPaymentRecords({
   if (filters.studentId) {
     params.set('studentId', `${filters.studentId}`.trim());
   }
+  if (filters.courseId) {
+    params.set('courseId', `${filters.courseId}`.trim());
+  }
   if (filters.status) {
     params.set('status', `${filters.status}`.trim());
+  }
+  if (filters.startAt) {
+    params.set('startAt', `${filters.startAt}`.trim());
+  }
+  if (filters.endAt) {
+    params.set('endAt', `${filters.endAt}`.trim());
   }
 
   return requestJson({
@@ -2420,6 +2813,54 @@ export async function loadFounderLessonAccounts({
     path: `/v1/founder/lesson-accounts?${params.toString()}`,
     token: trimEnv(authToken),
     role: 'founder'
+  });
+}
+
+export async function adjustFounderLessonAccount({
+  authToken,
+  payload = {}
+} = {}) {
+  if (!isApiDataSource() || shouldUseDemoFallback(authToken)) {
+    return {
+      success: true,
+      data: {
+        adjusted: true,
+        record: {
+          id: `account-${Date.now()}`,
+          studentId: `${payload.studentId || ''}`.trim(),
+          purchasedHours: toIntSafe(payload.purchasedHours, 0),
+          remainingHours: toIntSafe(payload.purchasedHours, 0),
+          amountCents: toIntSafe(payload.amountCents, 0),
+          reason: `${payload.reason || ''}`.trim()
+        },
+        reason: `${payload.reason || ''}`.trim()
+      }
+    };
+  }
+
+  const actionPayload = {
+    studentId: `${payload.studentId || ''}`.trim(),
+    purchasedHours: toIntSafe(payload.purchasedHours, 0),
+    amountCents: toIntSafe(payload.amountCents, 0),
+    reason: `${payload.reason || ''}`.trim()
+  };
+
+  if (!actionPayload.studentId) {
+    throw new Error('studentId is required');
+  }
+  if (actionPayload.purchasedHours <= 0) {
+    throw new Error('purchasedHours must be greater than 0');
+  }
+  if (!actionPayload.reason) {
+    throw new Error('reason is required');
+  }
+
+  return requestJson({
+    method: 'POST',
+    path: '/v1/founder/lesson-accounts',
+    token: trimEnv(authToken),
+    role: 'founder',
+    body: actionPayload
   });
 }
 
@@ -2545,7 +2986,7 @@ export async function convertFounderLead({
         segments: [
           { stage: 'student', label: '学生创建', status: 'success', message: '已创建模拟学生' },
           { stage: 'lessonAccount', label: '课时账户', status: 'skipped', message: '模拟模式未创建课时账户' },
-          { stage: 'paymentRecord', label: '收费记录', status: 'skipped', message: '模拟模式未创建收费记录' },
+          { stage: 'paymentRecord', label: '缴费记录', status: 'skipped', message: '模拟模式未创建缴费记录' },
           { stage: 'courseEnrollment', label: '课程报名', status: `${payload.courseId || ''}` ? 'success' : 'skipped', message: `${payload.courseId || ''}` ? '已报名模拟课程' : '未选择课程' }
         ],
         payment: null

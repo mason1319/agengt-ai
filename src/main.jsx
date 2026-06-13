@@ -92,6 +92,8 @@ import {
   createTrialBooking,
   loadStudentTodayPath,
   loadStudentReview,
+  submitStudentPathCompletion,
+  submitStudentPracticeReview,
   submitStudentVoiceAssess,
   loadStudentCourses,
   loadStudentLessonAccount,
@@ -107,14 +109,19 @@ import {
   loadChildCourses,
   loadChildLessonAccount,
   loadChildPaymentRecords,
+  loadChildMessages,
+  createChildMessage,
   loadFounderCockpit,
   loadFounderCourses,
   loadFounderPaymentRecords,
   loadFounderLessonAccounts,
   loadFounderAttendanceRecords,
+  adjustFounderLessonAccount,
   loadFounderLeads,
   takeoverFounderLead,
   convertFounderLead,
+  createFounderCourse,
+  updateFounderCourse,
   exportParentChildReport,
   exportStudentProfileReport,
   loginWithCredentials,
@@ -705,19 +712,97 @@ function FounderDashboard({
   message = '',
   onAction,
   onTakeoverLead,
-  onConvertLead
+  onConvertLead,
+  onAdjustLessonAccount
 }) {
   const [leadBusyId, setLeadBusyId] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState('');
   const [leadConvertSegments, setLeadConvertSegments] = useState({});
+  const [accountStudentId, setAccountStudentId] = useState('');
+  const [accountPurchasedHours, setAccountPurchasedHours] = useState('8');
+  const [accountAmountCents, setAccountAmountCents] = useState('0');
+  const [accountReason, setAccountReason] = useState('');
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountMessage, setAccountMessage] = useState('');
   const summary = cockpit || {};
   const leadRows = Array.isArray(leads) ? leads : [];
   const selectedLead = leadRows.find((item) => `${item.id || item.leadId || ''}`.trim() === `${selectedLeadId}`.trim()) || leadRows[0] || null;
   const leadStatusCounts = summary.leadsByStatus || {};
   const paymentStatusCounts = summary.paymentRecords?.byStatus || {};
   const attendanceStatusCounts = summary.attendanceByStatus || {};
-    const refreshText = loading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshData;
+  const refreshText = loading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshData;
   const countItems = (value = []) => (Array.isArray(value) ? value.length : 0);
+  const paymentRows = Array.isArray(paymentRecords) ? paymentRecords : [];
+  const lessonRows = Array.isArray(lessonAccounts) ? lessonAccounts : [];
+  const recentLessonAdjustment = lessonRows[0] || null;
+
+  const csvEscape = (value) => {
+    const text = `${value ?? ''}`;
+    if (/[",\n\r]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const exportPaymentRecords = () => {
+    if (paymentRows.length === 0) {
+      onAction?.('founder', '缴费记录导出失败：当前没有可导出的记录');
+      return;
+    }
+
+    const columns = [
+      ['record_id', '记录ID'],
+      ['order_no', '订单号'],
+      ['student_name', '学员'],
+      ['student_id', '学员ID'],
+      ['student_grade', '年级'],
+      ['course_name', '课程'],
+      ['course_id', '课程ID'],
+      ['status', '收费状态'],
+      ['payment_method', '支付方式'],
+      ['amount_cents', '金额(分)'],
+      ['currency', '币种'],
+      ['paid_at', '入账时间'],
+      ['created_at', '创建时间'],
+      ['notes', '备注']
+    ];
+
+    const header = columns.map((item) => item[1]).join(',');
+    const csvRows = paymentRows.map((record) =>
+      columns.map(([key]) => {
+        const value = {
+          record_id: record.id || '',
+          order_no: record.orderNo || record.order_no || '',
+          student_name: record.studentName || record.student_name || '',
+          student_id: record.studentId || record.student_id || '',
+          student_grade: record.studentGrade || record.student_grade || '',
+          course_name: record.courseName || record.course_name || '',
+          course_id: record.courseId || record.course_id || '',
+          status: record.status || '',
+          payment_method: record.paymentMethod || record.payment_method || '',
+          amount_cents: record.amountCents || record.amount_cents || 0,
+          currency: record.currency || '',
+          paid_at: record.paidAt || record.paid_at || '',
+          created_at: record.createdAt || record.created_at || '',
+          notes: record.notes || ''
+        }[key];
+        return csvEscape(value);
+      }).join(',')
+    );
+
+    const fileName = `founder-payment-records-${new Date().toISOString().slice(0, 10)}.csv`;
+    const blob = new Blob([`\ufeff${[header, ...csvRows].join('\n')}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.target = '_self';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    onAction?.('founder', `导出缴费记录：${paymentRows.length} 条`);
+  };
 
   const updateFilters = (patch = {}) => {
     onFiltersChange?.({
@@ -739,6 +824,46 @@ function FounderDashboard({
   const requestRefresh = () => {
     onRefresh?.();
     onAction?.('founder', '刷新创始人数据');
+  };
+
+  const handleAdjustLessonAccount = async () => {
+    if (!onAdjustLessonAccount) {
+      return;
+    }
+
+    const studentId = `${accountStudentId || ''}`.trim();
+    const purchasedHours = Number(accountPurchasedHours || 0);
+    const amountCents = Number(accountAmountCents || 0);
+    const reason = `${accountReason || ''}`.trim();
+    if (!studentId || !reason || !Number.isFinite(purchasedHours) || purchasedHours <= 0) {
+      setAccountMessage('请补全学员、课时和原因');
+      return;
+    }
+
+    setAccountBusy(true);
+    setAccountMessage('');
+    try {
+      const payload = await onAdjustLessonAccount({
+        studentId,
+        purchasedHours,
+        amountCents: Number.isFinite(amountCents) ? amountCents : 0,
+        reason
+      });
+      const note = `${payload?.data?.reason || reason}`.trim();
+      setAccountMessage(note ? `已调整：${note}` : '课时已调整');
+      setAccountReason('');
+      setAccountStudentId('');
+      setAccountPurchasedHours('8');
+      setAccountAmountCents('0');
+      onAction?.('founder', `课时调整：${studentId} / ${note || '已提交'}`);
+      await Promise.resolve(onRefresh?.());
+    } catch (error) {
+      const messageText = error?.message || '课时调整失败';
+      setAccountMessage(messageText);
+      onAction?.('founder', messageText);
+    } finally {
+      setAccountBusy(false);
+    }
   };
 
   const handleTakeover = async (leadId) => {
@@ -793,7 +918,7 @@ function FounderDashboard({
       <div className="hero-panel">
           <div>
             <h1>经营驾驶舱</h1>
-            <p>课程、课时、收费记录、咨询线索统一在这里管理，关键动作都可回写与审计。</p>
+            <p>课程、课时、缴费记录、咨询线索统一在这里管理，关键动作都可回写与审计。</p>
             <div className="hero-actions">
               <button onClick={requestRefresh}>{refreshText}</button>
             </div>
@@ -870,9 +995,9 @@ function FounderDashboard({
               <span className="status-dot green" />
               <div>
                 <strong>对账口径</strong>
-              <small>课时、收费记录和到课数据已统一接通</small>
+              <small>课时、缴费记录和到课数据已统一接通</small>
               </div>
-              <small className="small-note">课时表项：{summary.lessonAccountSummary?.totalRecords || 0}</small>
+              <small className="small-note">课时账项：{summary.lessonAccountSummary?.totalRecords || 0}</small>
             </div>
             <div className="alert-row">
               <span className="status-dot blue" />
@@ -969,7 +1094,7 @@ function FounderDashboard({
       </div>
 
       <div className="panel">
-        <PanelTitle icon={BookOpenCheck} title="课程与收费" action={`课程 ${countItems(courses)} / 收费 ${countItems(paymentRecords)}`} />
+        <PanelTitle icon={BookOpenCheck} title="课程与缴费" action={`课程 ${countItems(courses)} / 缴费 ${countItems(paymentRows)}`} />
         {countItems(courses) === 0 ? <div className="small-note">{UI_COPY.empty.noCourseData}</div> : null}
         {(courses || []).slice(0, 6).map((course) => (
           <div className="alert-row" key={course.id || `${course.name}-${course.startAt || ''}`}>
@@ -989,28 +1114,122 @@ function FounderDashboard({
           </div>
         ))}
         <div style={{ height: 10 }} />
-        {countItems(paymentRecords) === 0 ? <div className="small-note">{UI_COPY.empty.noPaymentRecords}</div> : null}
-        {(paymentRecords || []).slice(0, 6).map((record) => (
+        <div className="section-headline" style={{ marginTop: 12 }}>
+          <div>
+            <span>缴费记录</span>
+            <h3>缴费记录筛选与导出</h3>
+          </div>
+          <button className="row-action" onClick={exportPaymentRecords} disabled={paymentRows.length === 0}>
+            导出 CSV
+          </button>
+        </div>
+        <div className="payment-filter-grid">
+          <label>
+            <span className="small-note">学员ID</span>
+            <input
+              value={filters.paymentStudentId || ''}
+              onChange={(event) => updateFilters({ paymentStudentId: event.target.value })}
+              placeholder="按学员筛选"
+            />
+          </label>
+          <label>
+            <span className="small-note">课程ID</span>
+            <input
+              value={filters.paymentCourseId || ''}
+              onChange={(event) => updateFilters({ paymentCourseId: event.target.value })}
+              placeholder="按课程筛选"
+            />
+          </label>
+          <label>
+            <span className="small-note">开始日期</span>
+            <input
+              type="date"
+              value={filters.paymentStartAt || ''}
+              onChange={(event) => updateFilters({ paymentStartAt: event.target.value })}
+            />
+          </label>
+          <label>
+            <span className="small-note">结束日期</span>
+            <input
+              type="date"
+              value={filters.paymentEndAt || ''}
+              onChange={(event) => updateFilters({ paymentEndAt: event.target.value })}
+            />
+          </label>
+        </div>
+        <div className="hero-chip-row" style={{ marginTop: 8 }}>
+          <span className="small-note">已收：{paymentStatusCounts.paid || 0}</span>
+          <span className="small-note">待收：{paymentStatusCounts.pending || 0}</span>
+          <span className="small-note">已退：{paymentStatusCounts.refunded || 0}</span>
+          <span className="small-note">筛选后：{paymentRows.length} 条</span>
+        </div>
+        {countItems(paymentRows) === 0 ? <div className="small-note">{UI_COPY.empty.noPaymentRecords}</div> : null}
+        {(paymentRows || []).slice(0, 6).map((record) => (
           <div className="alert-row" key={record.id || record.order_no || `${record.studentId || ''}-${record.paid_at || ''}`}>
             <span className="status-dot blue" />
             <div>
               <strong>{record.studentName || record.student_name || '匿名学员'}</strong>
-              <small>{record.status || '已入账'} · {record.order_no || record.orderNo || '订单号待核对'}</small>
+              <small>
+                {record.status || '已入账'} · {record.courseName || record.course_name || '课程待核对'} · {record.order_no || record.orderNo || '订单号待核对'}
+              </small>
             </div>
-            <small className="small-note">{formatCents(record.amount_cents || record.amountCents || 0)}</small>
+            <small className="small-note">
+              {formatCents(record.amount_cents || record.amountCents || 0)} · {record.paidAt || record.paid_at || record.createdAt || ''}
+            </small>
           </div>
         ))}
-        <div className="hero-chip-row" style={{ marginTop: 10 }}>
-          <span className="small-note">已收：{paymentStatusCounts.paid || 0}</span>
-          <span className="small-note">待收：{paymentStatusCounts.pending || 0}</span>
-          <span className="small-note">已退：{paymentStatusCounts.refunded || 0}</span>
-        </div>
       </div>
 
       <div className="panel">
-        <PanelTitle icon={WalletCards} title="课时对账" action={`账户 ${countItems(lessonAccounts)}`} />
-        {countItems(lessonAccounts) === 0 ? <div className="small-note">{UI_COPY.empty.noLessonAccounts}</div> : null}
-        {(lessonAccounts || []).slice(0, 6).map((account) => (
+        <PanelTitle icon={WalletCards} title="课时对账" action={`账户 ${countItems(lessonRows)}`} />
+        <div className="audit-filters" style={{ marginBottom: 12 }}>
+          <input
+            value={accountStudentId}
+            onChange={(event) => setAccountStudentId(event.target.value)}
+            placeholder="学员ID"
+          />
+          <input
+            type="number"
+            min="1"
+            value={accountPurchasedHours}
+            onChange={(event) => setAccountPurchasedHours(event.target.value)}
+            placeholder="调整课时"
+          />
+          <input
+            type="number"
+            min="0"
+            value={accountAmountCents}
+            onChange={(event) => setAccountAmountCents(event.target.value)}
+            placeholder="金额(分)"
+          />
+          <input
+            value={accountReason}
+            onChange={(event) => setAccountReason(event.target.value)}
+            placeholder="调整原因"
+          />
+          <button className="row-action" onClick={handleAdjustLessonAccount} disabled={accountBusy || !accountReason.trim()}>
+            {accountBusy ? '提交中...' : '提交调整'}
+          </button>
+        </div>
+        {accountMessage ? <div className="small-note" style={{ marginBottom: 12 }}>{accountMessage}</div> : null}
+        {recentLessonAdjustment ? (
+          <div className="alert-row" style={{ marginBottom: 12 }}>
+            <span className="status-dot yellow" />
+            <div>
+              <strong>最近调整</strong>
+              <small>
+                {recentLessonAdjustment.studentName || recentLessonAdjustment.student_name || recentLessonAdjustment.studentId || '未知学员'}
+                {' '}· 购课 {recentLessonAdjustment.purchased_hours || recentLessonAdjustment.purchasedHours || 0}
+                {' '}· 剩余 {recentLessonAdjustment.remaining_hours || recentLessonAdjustment.remainingHours || 0}
+              </small>
+            </div>
+            <small className="small-note">
+              {recentLessonAdjustment.notes || recentLessonAdjustment.reason || '无原因'}
+            </small>
+          </div>
+        ) : null}
+        {countItems(lessonRows) === 0 ? <div className="small-note">{UI_COPY.empty.noLessonAccounts}</div> : null}
+        {lessonRows.slice(0, 6).map((account) => (
           <div className="alert-row" key={account.id || `${account.studentId || ''}-${account.courseId || ''}`}>
             <span className="status-dot green" />
             <div>
@@ -1019,9 +1238,10 @@ function FounderDashboard({
                 购课 {account.purchased_hours || account.purchasedHours || 0} · 已用 {account.used_hours || account.usedHours || 0} · 保留 {account.hold_hours || account.holdHours || 0}
               </small>
             </div>
-            <small className="small-note">
-              剩余 {account.remaining_hours || account.remainingHours || 0}
-            </small>
+            <div className="small-note" style={{ textAlign: 'right' }}>
+              <div>剩余 {account.remaining_hours || account.remainingHours || 0}</div>
+              <div>{account.notes || account.reason || '无调整原因'}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -1074,6 +1294,7 @@ function TeacherWorkspace({
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [teacherMessage, setTeacherMessage] = useState('');
   const [bulkClosing, setBulkClosing] = useState(false);
+  const [bulkCloseReport, setBulkCloseReport] = useState([]);
   const [agentBusy, setAgentBusy] = useState({
     feedback: false,
     exercise: false
@@ -1181,7 +1402,7 @@ function TeacherWorkspace({
       const deductions = result?.data?.summary?.lessons || [];
       const deduction = deductions.find((item) => `${item.studentId || ''}`.trim() === `${targetStudentId}`.trim()) || deductions[0] || null;
       const deductionText = Number(deduction?.hoursDeducted || 0) > 0
-        ? `，扣减 ${deduction.hoursDeducted} 节，剩余 ${deduction.afterRemaining} 节`
+        ? `，扣减 ${deduction.hoursDeducted} 节，扣前 ${Number(deduction.beforeRemaining || 0)} 节，剩余 ${Number(deduction.afterRemaining || 0)} 节${deduction?.accountId ? `，账户 ${deduction.accountId}` : ''}`
         : '';
       setActiveState({
         closed: true,
@@ -1209,27 +1430,47 @@ function TeacherWorkspace({
       return;
     }
     setBulkClosing(true);
+    setBulkCloseReport([]);
     try {
-      const results = await Promise.allSettled(
+      const results = await Promise.all(
         visibleLessons.map(async (lesson) => {
           if (!onSubmitAttendance) {
             throw new Error('缺少点名接口');
           }
-          await onSubmitAttendance(lesson.id, {
-            studentId: lesson.studentId || lesson.student_id || '',
-            status: attendanceStatus || 'attended',
-            sourceLessonId: lesson.id,
-        note: attendanceNote || '教师课时记录（批量）',
-            teacherId: lesson.teacherId || ''
-          });
-          return lesson.id;
+
+          try {
+            const result = await onSubmitAttendance(lesson.id, {
+              studentId: lesson.studentId || lesson.student_id || '',
+              status: attendanceStatus || 'attended',
+              sourceLessonId: lesson.id,
+              note: attendanceNote || '教师课时记录（批量）',
+              teacherId: lesson.teacherId || ''
+            });
+            const summary = result?.data?.summary || {};
+            const shortages = Array.isArray(summary.shortages) ? summary.shortages : [];
+            const deductions = Array.isArray(summary.lessons) ? summary.lessons : [];
+            return {
+              status: shortages.length > 0 ? 'partial' : 'ok',
+              lessonId: lesson.id,
+              lessonTitle: lesson.student || lesson.studentName || lesson.course || lesson.topic || lesson.id,
+              shortages,
+              deduction: deductions.find((item) => `${item.studentId || ''}`.trim() === `${lesson.studentId || lesson.student_id || ''}`.trim()) || deductions[0] || null
+            };
+          } catch (error) {
+            return {
+              status: 'failed',
+              lessonId: lesson.id,
+              lessonTitle: lesson.student || lesson.studentName || lesson.course || lesson.topic || lesson.id,
+              error: error instanceof Error ? error.message : '批量记录失败'
+            };
+          }
         })
       );
 
-      const succeededIds = results
-        .filter((item) => item.status === 'fulfilled')
-        .map((item) => item.value);
-      const failedCount = results.length - succeededIds.length;
+      const succeededIds = results.filter((item) => item.status === 'ok' || item.status === 'partial').map((item) => item.lessonId);
+      const failedItems = results.filter((item) => item.status !== 'ok');
+      const failedCount = failedItems.length;
+      setBulkCloseReport(failedItems);
 
       setLessonStates((prev) => {
         const nextStates = { ...prev };
@@ -1249,8 +1490,19 @@ function TeacherWorkspace({
       });
 
       if (failedCount > 0) {
+        const failedNames = failedItems.slice(0, 3).map((item) => item.lessonTitle).filter(Boolean).join('、');
+        const failedReasons = failedItems.slice(0, 3).map((item) => {
+          if (item.status === 'partial') {
+            const shortageText = (item.shortages || []).map((shortage) => shortage.reason || '课时不足').join('；');
+            return `${item.lessonTitle}：${shortageText || '部分失败'}`;
+          }
+          return `${item.lessonTitle}：${item.error || '处理失败'}`;
+        });
         onAction?.('teacher', `批量记录完成：${succeededIds.length}/${visibleLessons.length} 节，${failedCount}条失败`);
-        setTeacherMessage(`批量记录部分失败：${failedCount} 条未写入`);
+        setTeacherMessage(`批量记录部分失败：${failedCount} 条未写入${failedNames ? `（${failedNames}）` : ''}`);
+        if (failedReasons.length > 0) {
+          setBulkCloseReport(failedItems);
+        }
       } else {
         onAction?.('teacher', `批量记录 ${visibleLessons.length} 节课程`);
         setTeacherMessage(`批量记录完成：${visibleLessons.length} 节`);
@@ -1555,6 +1807,18 @@ function TeacherWorkspace({
               {activeState.exerciseDone ? '练习题已同步' : 'AI生成练习题'}
             </button>
         </div>
+        {bulkCloseReport.length > 0 ? (
+          <div className="small-note" style={{ marginTop: 8 }}>
+            <strong>批量处理明细：</strong>
+            {bulkCloseReport.map((item) => {
+              if (item.status === 'partial') {
+                const shortageText = (item.shortages || []).map((shortage) => shortage.reason || '课时不足').filter(Boolean).join('；');
+                return `${item.lessonTitle}${shortageText ? `（${shortageText}）` : ''}`;
+              }
+              return `${item.lessonTitle}${item.error ? `（${item.error}）` : ''}`;
+            }).join('、')}
+          </div>
+        ) : null}
         <div className="ai-output">
           {activeState.feedbackText || '当前无未完成课程，可继续处理授权学生。'}
             {activeState.feedbackSuggestions.length > 0 ? (
@@ -1806,7 +2070,7 @@ function ParentView({
       </div>
 
       <div className="panel">
-        <PanelTitle icon={CreditCard} title="收费记录摘要" action={`已记录 ${paidCount} 笔`} />
+        <PanelTitle icon={CreditCard} title="缴费记录摘要" action={`已记录 ${paidCount} 笔`} />
         {childPaymentRecords.length === 0 ? <div className="small-note">{UI_COPY.empty.noPayments}</div> : null}
         {(childPaymentRecords || []).slice(0, 6).map((record) => (
           <div className="alert-row" key={record.id || record.order_no || `${record.studentId || ''}-${record.paid_at || ''}`}>
@@ -1822,6 +2086,15 @@ function ParentView({
         ))}
         <div className="small-note" style={{ marginTop: 8 }}>
           合计金额：{totalPaid}
+        </div>
+        <div className="hero-chip-row" style={{ marginTop: 10 }}>
+          <button
+            className="row-action"
+            onClick={() => onAction?.('parent', '家长查看缴费记录有疑问，可联系老师/机构')}
+          >
+            <MessageCircleHeart size={16} />
+            <span>有疑问，联系老师/机构</span>
+          </button>
         </div>
       </div>
 
@@ -1862,7 +2135,7 @@ function ParentView({
         <p className="large-text">{report.summary}</p>
         <div className="small-note">{reportStatus}</div>
         <div className="small-note">
-          收费记录：已记录 {paidCount} 笔，金额 {formatCents(totalPaidCents)}
+          缴费记录：已记录 {paidCount} 笔，金额 {formatCents(totalPaidCents)}
         </div>
       </div>
     </section>
@@ -1890,7 +2163,9 @@ function StudentView({
   onSubmitTrialBooking,
   onRefreshPublicCourses,
   onNavigatePage,
-  onAction
+  onSubmitPathCompletion,
+  onAction,
+  admissionsMedia = []
 }) {
   const normalizeTasks = (source) => {
     const sourceTasks = Array.isArray(source) ? source : [];
@@ -1962,8 +2237,11 @@ function StudentView({
   const historyItems = Array.isArray(reviewHistory) ? reviewHistory : [];
   const mistakeItems = Array.isArray(reviewMistakes) ? reviewMistakes : [];
   const publicCourseList = Array.isArray(publicCourses) ? publicCourses : [];
+  const admissionsPosterList = Array.isArray(admissionsMedia) ? admissionsMedia.slice(0, 4) : [];
+  const [pathActionText, setPathActionText] = useState('');
   const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
   const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
+  const selectedPublicCourseRules = selectedPublicCourse ? normalizeCourseRules(selectedPublicCourse) : null;
   const taskToneIcons = [BookOpenCheck, Headphones, Mic, Trophy];
   const homePracticeCards = [
     { id: 'words', title: '单词星球', desc: '看图记词 + 发音模仿', note: '适合每天 8 分钟', icon: Headphones },
@@ -1994,6 +2272,44 @@ function StudentView({
       progress
     };
   });
+  const completedPathIds = useMemo(() => {
+    const collected = [];
+    const pathItems = [...historyItems, ...tasks].filter((item) => {
+      const taskType = `${item?.taskType || item?.task_type || ''}`.trim();
+      const source = `${item?.payload?.source || item?.source || ''}`.trim();
+      return taskType === 'path_completion' || source === 'student_home_path';
+    });
+
+    pathItems.forEach((item) => {
+      const payload = item?.payload || {};
+      const pathId = `${payload.pathId || item.pathId || item.id || ''}`.trim();
+      const pathTitle = `${payload.pathTitle || item.title || ''}`.trim();
+      const matchedStep = COURSE_PATH_STEPS.find((step) => step.id === pathId || step.title === pathTitle);
+      const resolvedId = matchedStep?.id || pathId || '';
+      if (resolvedId && !collected.includes(resolvedId)) {
+        collected.push(resolvedId);
+      }
+    });
+
+    if (collected.length === 0) {
+      collected.push(COURSE_PATH_STEPS[0]?.id || 'story');
+    }
+
+    return collected;
+  }, [historyItems, tasks]);
+  const lastCompletedIndex = Math.max(
+    ...completedPathIds.map((id) => COURSE_PATH_STEPS.findIndex((item) => item.id === id)),
+    COURSE_PATH_STEPS.findIndex((item) => item.id === COURSE_PATH_STEPS[0]?.id)
+  );
+  const getStudentPathStatus = (step, index) => {
+    if (completedPathIds.includes(step.id)) {
+      return 'done';
+    }
+    if (index <= lastCompletedIndex + 1) {
+      return 'active';
+    }
+    return 'locked';
+  };
 
   useEffect(() => {
     if (!selectedPublicCourseId && publicCourseList[0]?.id) {
@@ -2086,6 +2402,30 @@ function StudentView({
   const handleOpenPath = async (step) => {
     if (!step) {
       return;
+    }
+    const stepIndex = COURSE_PATH_STEPS.findIndex((item) => item.id === step.id);
+    const payload = {
+      pathId: step.id,
+      title: step.title,
+      pathTitle: step.title,
+      stepIndex,
+      source: 'student_home_path'
+    };
+    if (onSubmitPathCompletion) {
+      setPathActionText('正在记录路径完成状态...');
+      try {
+        await onSubmitPathCompletion({
+          ...payload,
+          answer: `已完成「${step.title}」`
+        });
+        setPathActionText(`已记录「${step.title}」`);
+        onAction?.('student', `完成路径：${step.title}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '路径提交失败';
+        setPathActionText(`路径提交失败：${message}`);
+        onAction?.('student', `路径提交失败：${step.title}${message ? `（${message}）` : ''}`);
+        return;
+      }
     }
     if (onRefreshPractice) {
       try {
@@ -2359,22 +2699,23 @@ function StudentView({
         />
         <div className="student-path-grid">
           {COURSE_PATH_STEPS.map((step, index) => {
-            const statusLabel = step.status === 'done'
+            const status = getStudentPathStatus(step, index);
+            const statusLabel = status === 'done'
               ? '已完成'
-              : step.status === 'active'
+              : status === 'active'
                 ? '进行中'
-                : step.status === 'locked'
+                : status === 'locked'
                   ? '待解锁'
                   : '未开始';
             return (
-              <article className={`student-path-card ${step.status}`} key={step.id}>
+              <article className={`student-path-card ${status}`} key={step.id}>
                 <div className="student-path-head">
                   <span className="student-path-index">{String(index + 1).padStart(2, '0')}</span>
                   <span className="home-path-status">{statusLabel}</span>
                 </div>
                 <strong>{step.title}</strong>
                 <p>{step.desc}</p>
-                <div className="student-path-footer">
+              <div className="student-path-footer">
                   <small>{step.reward}</small>
                   <button className="row-action ghost" onClick={() => void handleOpenPath(step)}>开始任务</button>
                 </div>
@@ -2382,6 +2723,7 @@ function StudentView({
             );
           })}
         </div>
+        {pathActionText ? <div className="small-note" style={{ marginTop: 8 }}>{pathActionText}</div> : null}
       </div>
 
       <div className="panel wide student-task-panel">
@@ -2565,6 +2907,35 @@ function StudentView({
             {publicCoursesLoading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshPublicCourses}
           </button>
         </div>
+        <section className="panel admissions-panel">
+          <div className="section-headline compact">
+            <div>
+              <span>招生海报</span>
+              <h3>可随时更新的前台素材</h3>
+            </div>
+            <button className="row-action ghost" onClick={() => onNavigatePage?.('culture-wall')}>
+              查看成果馆
+            </button>
+          </div>
+          {admissionsPosterList.length > 0 ? (
+            <div className="media-grid photo-grid admissions-poster-grid">
+              {admissionsPosterList.map((item) => (
+                <article className="media-item admissions-poster-card" key={item.id}>
+                  <div className="media-cover photo-cover admissions-poster-cover">
+                    <img src={item.src || item.mediaUrl || item.coverUrl || ''} alt={item.title || '招生海报'} />
+                  </div>
+                  <div className="media-body">
+                    <strong>{item.title || '招生海报'}</strong>
+                    <small>{item.summary || item.description || item.badge || '招生素材'}</small>
+                    <small>{item.category || item.badge || item.placement || 'admissions'}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="small-note">暂无招生海报素材。</div>
+          )}
+        </section>
         <div className="feature-split home-public-layout">
           <div className="panel home-course-panel">
             <div className="home-course-grid">
@@ -2613,6 +2984,22 @@ function StudentView({
             ) : (
               <div className="small-note">请先选择试听课程</div>
             )}
+            {selectedPublicCourse && selectedPublicCourseRules ? (
+              <div className="alert-list" style={{ marginBottom: 10 }}>
+                <div className="alert-row">
+                  <span className="status-dot green" />
+                  <div>
+                    <strong>课程详情</strong>
+                    <small>上课日期：{selectedPublicCourseRules.scheduleDate}</small>
+                    <small>到课规则：{selectedPublicCourseRules.attendanceRule}</small>
+                    <small>保留规则：{selectedPublicCourseRules.holdRule}</small>
+                  </div>
+                  <small className="small-note">
+                    {selectedPublicCourseDisplay.classType} · {selectedPublicCourseDisplay.time}
+                  </small>
+                </div>
+              </div>
+            ) : null}
             <label>
               <span>家长姓名</span>
               <input value={trialGuardianName} onChange={(event) => setTrialGuardianName(event.target.value)} />
@@ -2914,34 +3301,73 @@ function PlatformOverview({ platformSummary = {}, organizations = [], onExportRe
   );
 }
 
-function PlatformPlansPage({ billingPlans = [] }) {
+function PlatformPlansPage({
+  organizations = [],
+  orgStatusDefaults = {},
+  orgActionsByStatus = {},
+  platformSummary = {}
+}) {
+  const orgList = Array.isArray(organizations) ? organizations : [];
+  const statusEntries = Object.entries(orgStatusDefaults || {});
+  const actionEntries = Object.entries(orgActionsByStatus || {});
+  const groupedOrganizations = statusEntries.map(([status]) => ({
+    status,
+    items: orgList.filter((org) => `${org.status || ''}`.trim() === status || `${org.planMode || ''}`.trim() === status)
+  }));
+
   return (
     <section className="role-grid">
       <div className="panel wide">
-        <PanelTitle icon={CreditCard} title="机构方案（可视化）" />
-        <div className="pricing-grid">
-          {billingPlans.map((plan) => (
-            <article className={`price-card ${plan.featured ? 'featured' : ''}`} key={plan.name}>
-              <span>{plan.name}</span>
-              <strong>{plan.priceMonthly} / 月 · {plan.priceYearly} / 年</strong>
-              <small>{plan.period}</small>
-              <small>{plan.desc}</small>
-              <ul>
-                {plan.features.map((feature) => <li key={feature}>{feature}</li>)}
-              </ul>
+        <PanelTitle icon={CreditCard} title="机构策略总览" />
+        <div className="summary-grid">
+          {statusEntries.map(([status, defaults]) => (
+            <article className="summary-card" key={status}>
+              <strong>{status}</strong>
+              <span>{defaults.plan || defaults.planMode || '试用/正式'}</span>
+              <small>{defaults.expiryAction || '到期后只读'}</small>
+              <small>试用期：{defaults.dayOffset || 0} 天</small>
             </article>
           ))}
+          <article className="summary-card">
+            <strong>当前机构</strong>
+            <span>{platformSummary.currentPlanName || '待确认'}</span>
+            <small>{platformSummary.studentUsageText || '暂无机构用量摘要'}</small>
+            <small>仅作内部策略参考</small>
+          </article>
         </div>
       </div>
 
       <div className="panel">
-        <PanelTitle icon={Rocket} title="到期规则" />
+        <PanelTitle icon={Rocket} title="状态规则" />
         <ul className="check-list">
-          <li><Check size={16} /> 试用到期：自动冻结并提示续用</li>
-          <li><Check size={16} /> 到期未处理：进入只读状态，保留历史数据</li>
-          <li><Check size={16} /> 续用失败：保留原数据并降级提示</li>
-          <li><Check size={16} /> 逾期 7 日未处理：标记高优先级</li>
+          {actionEntries.map(([status, actions]) => (
+            <li key={status}>
+              <Check size={16} /> {status}：{actions.map((action) => action.label).join(' / ')}
+            </li>
+          ))}
         </ul>
+      </div>
+
+      <div className="panel wide">
+        <PanelTitle icon={Building2} title="机构样例" />
+        <div className="org-table">
+          {groupedOrganizations.flatMap((group) => group.items.map((org) => (
+            <div className="org-row" key={`${group.status}-${org.id || org.name}`}>
+              <div>
+                <strong>{org.name || '未命名机构'}</strong>
+                <small>状态：{org.status || group.status || 'trial'} · 套餐：{org.plan || '体验版'}</small>
+                <small>到期：{org.expires || '未设置'} · 机构ID：{org.id || '—'}</small>
+              </div>
+              <div className="small-note" style={{ justifySelf: 'end', textAlign: 'right' }}>
+                <div>学员 {org.students || 0} / {org.limitStudents || 0}</div>
+                <div>老师 {org.teachers || 0} / {org.limitTeachers || 0}</div>
+              </div>
+            </div>
+          )))}
+          {groupedOrganizations.every((group) => group.items.length === 0) ? (
+            <div className="small-note">当前没有可显示的机构样例</div>
+          ) : null}
+        </div>
       </div>
     </section>
   );
@@ -4702,6 +5128,7 @@ function HomePage({
   child,
   report,
   cultureWall = {},
+  admissionsMedia = [],
   activeStageMeta,
   roleLabel,
   currentStage,
@@ -4716,18 +5143,22 @@ function HomePage({
   onSubmitPublicLead,
   onSubmitTrialBooking,
   onSendLeadAiReply,
+  onSubmitIntervention,
   onRefreshPublicCourses,
   onRefreshStudentCourses,
   onRefreshCultureWall,
   onAction
 }) {
   const learningCards = (lessons.length ? lessons : FALLBACK_DATA.teacherLessons).slice(0, 4);
+  const admissionsPosterList = Array.isArray(admissionsMedia) ? admissionsMedia.slice(0, 4) : [];
   const safeChild = child || {};
   const childName = safeChild.name || safeChild.studentName || safeChild.nickname || '当前学员';
   const remainingHours = Number(safeChild.hoursLeft || safeChild.hoursLeftCount || safeChild.remainingHours || 0);
   const studentProgress = Number(safeChild.progress || safeChild.doneRate || safeChild.progressRate || 0);
   const [isRiskLoading, setIsRiskLoading] = useState(false);
   const [riskScan, setRiskScan] = useState(null);
+  const [riskFollowupBusy, setRiskFollowupBusy] = useState(false);
+  const [riskFollowupMessage, setRiskFollowupMessage] = useState('');
   const [homeActionText, setHomeActionText] = useState('今日建议先完成 1-2 个关键任务，优先推进进度。');
   const [selectedModuleId, setSelectedModuleId] = useState(PRACTICE_MODULES[0]?.id || '');
   const [selectedPublicCourseId, setSelectedPublicCourseId] = useState('');
@@ -4868,6 +5299,7 @@ function HomePage({
   const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
   const selectedPublicCourseInfo = selectedPublicCourse ? resolveCourseText(selectedPublicCourse) : null;
   const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
+  const selectedPublicCourseRules = selectedPublicCourse ? normalizeCourseRules(selectedPublicCourse) : null;
 
   const normalizeActionError = (error = {}, fallback = '操作失败') => {
     const raw = `${error?.message || error?.body || '操作失败'}`.trim();
@@ -4954,7 +5386,15 @@ function HomePage({
   };
 
   const handleReplyConsult = async () => {
-    if (!onSendLeadAiReply || !selectedReplyLeadId || !consultReplyMessage.trim()) {
+    if (!onSendLeadAiReply) {
+      return;
+    }
+    if (!selectedReplyLeadId) {
+      setConsultStatusText('请先提交咨询，生成线索ID后再发送回执');
+      return;
+    }
+    if (!consultReplyMessage.trim()) {
+      setConsultStatusText('请先输入回执内容');
       return;
     }
     setConsultBusy(true);
@@ -4978,6 +5418,7 @@ function HomePage({
       return;
     }
     setIsRiskLoading(true);
+    setRiskFollowupMessage('');
     try {
       const payload = await onRunAIAgent({
         action: 'renewal_risk_scan',
@@ -4997,6 +5438,54 @@ function HomePage({
       onAction?.('home', `续费扫描失败：${error instanceof Error ? error.message : '扫描失败'}`);
     } finally {
       setIsRiskLoading(false);
+    }
+  };
+
+  const riskFollowupItems = Array.isArray(riskScan?.risks)
+    ? riskScan.risks.filter((item) => Number(item?.risk || 0) >= 70)
+    : [];
+
+  const createRiskFollowups = async () => {
+    if (!onSubmitIntervention || riskFollowupItems.length === 0) {
+      return;
+    }
+
+    setRiskFollowupBusy(true);
+    setRiskFollowupMessage('');
+    const completedStudents = [];
+
+    try {
+      for (const item of riskFollowupItems) {
+        const studentId = `${item?.studentId || ''}`.trim();
+        if (!studentId) {
+          continue;
+        }
+        const studentName = `${item?.student || '学员'}`.trim();
+        const riskScore = Number(item?.risk || 0);
+        await onSubmitIntervention(studentId, {
+          interventionType: 'follow',
+          action: `续费跟进：${studentName}`,
+          note: `${riskScan?.title || '续费风险巡检'} · 风险 ${riskScore} 分 · ${item?.action || '优先沟通'}`,
+          priority: 'high',
+          channel: 'founder'
+        });
+        completedStudents.push(studentName);
+      }
+      if (completedStudents.length > 0) {
+        const joined = completedStudents.join(' / ');
+        setRiskFollowupMessage(`已生成 ${completedStudents.length} 条跟进任务`);
+        setHomeActionText(`已生成风险跟进：${joined}`);
+        onAction?.('home', `生成续费跟进任务：${joined}`);
+      } else {
+        setRiskFollowupMessage('未找到可提交的高风险学员');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '跟进任务生成失败';
+      setRiskFollowupMessage(message);
+      setHomeActionText(`跟进任务生成失败：${message}`);
+      onAction?.('home', `生成风险跟进失败：${message}`);
+    } finally {
+      setRiskFollowupBusy(false);
     }
   };
 
@@ -5191,6 +5680,35 @@ function HomePage({
             {publicCoursesLoading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshPublicCourses}
           </button>
         </div>
+        <section className="panel admissions-panel">
+          <div className="section-headline compact">
+            <div>
+              <span>招生海报</span>
+              <h3>可随时更新的前台素材</h3>
+            </div>
+            <button className="row-action ghost" onClick={handleOpenCultureWall}>
+              打开素材中心
+            </button>
+          </div>
+          {admissionsPosterList.length > 0 ? (
+            <div className="media-grid photo-grid admissions-poster-grid">
+              {admissionsPosterList.map((item) => (
+                <article className="media-item admissions-poster-card" key={item.id}>
+                  <div className="media-cover photo-cover admissions-poster-cover">
+                    <img src={item.src || item.mediaUrl || item.coverUrl || ''} alt={item.title || '招生海报'} />
+                  </div>
+                  <div className="media-body">
+                    <strong>{item.title || '招生海报'}</strong>
+                    <small>{item.summary || item.description || item.badge || '招生素材'}</small>
+                    <small>{item.category || item.badge || item.placement || 'admissions'}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="small-note">暂无招生海报素材。</div>
+          )}
+        </section>
         <div className="feature-split home-public-layout">
           <section className="panel home-course-panel">
             <div className="section-headline">
@@ -5269,6 +5787,22 @@ function HomePage({
               ) : (
                 <div className="small-note" style={{ marginTop: 10 }}>请先选择试听课程</div>
               )}
+              {selectedPublicCourse && selectedPublicCourseRules ? (
+                <div className="alert-list" style={{ marginTop: 10 }}>
+                  <div className="alert-row">
+                    <span className="status-dot green" />
+                    <div>
+                      <strong>课程详情</strong>
+                      <small>上课日期：{selectedPublicCourseRules.scheduleDate}</small>
+                      <small>到课规则：{selectedPublicCourseRules.attendanceRule}</small>
+                      <small>保留规则：{selectedPublicCourseRules.holdRule}</small>
+                    </div>
+                    <small className="small-note">
+                      {selectedPublicCourseDisplay?.classType || '班型待设置'} · {selectedPublicCourseDisplay?.time || '时间待设置'}
+                    </small>
+                  </div>
+                </div>
+              ) : null}
               <label>
                 <span>咨询内容</span>
                 <textarea value={consultInitialMessage} onChange={(event) => setConsultInitialMessage(event.target.value)} />
@@ -5280,6 +5814,33 @@ function HomePage({
               <div className="hero-chip-row" style={{ marginTop: 8 }}>
                 <button className="row-action" onClick={handleTrialBooking} disabled={!consultLeadId || publicLeadSubmitting || consultBusy}>
                   提交试听预约
+                </button>
+              </div>
+              <div className="section-headline" style={{ marginTop: 14 }}>
+                <div>
+                  <span>AI 回执</span>
+                  <h3>发送咨询回复</h3>
+                </div>
+              </div>
+              <label>
+                <span>回执线索ID</span>
+                <input
+                  value={selectedReplyLeadId}
+                  onChange={(event) => setSelectedReplyLeadId(event.target.value)}
+                  placeholder="提交咨询后自动填入，也可手动调整"
+                />
+              </label>
+              <label>
+                <span>回执内容</span>
+                <textarea
+                  value={consultReplyMessage}
+                  onChange={(event) => setConsultReplyMessage(event.target.value)}
+                  placeholder="如：已收到咨询，我们会尽快安排试听..."
+                />
+              </label>
+              <div className="hero-chip-row" style={{ marginTop: 8 }}>
+                <button className="row-action" onClick={handleReplyConsult} disabled={publicLeadSubmitting || consultBusy || !onSendLeadAiReply}>
+                  发送 AI 回执
                 </button>
               </div>
             </div>
@@ -5344,6 +5905,22 @@ function HomePage({
                   <small className="small-note">
                     {(riskScan.factors || []).map((item) => `${item.key}: ${item.value}`).join('；') || '未检测到异常'}
                   </small>
+                  {riskFollowupItems.length > 0 ? (
+                    <div className="alert-list" style={{ marginTop: 10 }}>
+                      {riskFollowupItems.map((item) => (
+                        <div className="alert-row" key={`${item.studentId || item.student}-${item.risk}`}>
+                          <span className={`status-dot ${item.priority === 'high' ? 'red' : 'yellow'}`} />
+                          <div>
+                            <strong>{item.student || '学员'}</strong>
+                            <small>
+                              {item.grade || '未标注年级'} · 课时 {Number(item.hoursLeft || 0)} 节 · 风险 {Number(item.risk || 0)} 分
+                            </small>
+                            <small>{item.action || '续费跟进'}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </>
               ) : null}
               <ul className="check-list">
@@ -5351,6 +5928,18 @@ function HomePage({
                   <li key={item}><MessageCircleHeart size={16} />{item}</li>
                 ))}
               </ul>
+              {riskFollowupMessage ? <small className="small-note">{riskFollowupMessage}</small> : null}
+              <div className="hero-chip-row" style={{ marginTop: 8 }}>
+                {onSubmitIntervention ? (
+                  <button
+                    className="row-action"
+                    onClick={createRiskFollowups}
+                    disabled={isRiskLoading || riskFollowupBusy || riskFollowupItems.length === 0}
+                  >
+                    {riskFollowupBusy ? '生成中...' : '生成风险跟进'}
+                  </button>
+                ) : null}
+              </div>
             </div>
           </section>
         ) : null}
@@ -5418,11 +6007,16 @@ function CoursesPage({
   activeRole = '',
   studentCourses = [],
   studentReviewSummary = {},
+  studentReviewHistory = [],
   selectedCourseId = '',
+  selectedChildId = '',
   onNavigatePage,
   onRunAIAgent,
   onRefreshCourses,
-  onAction
+  onAction,
+  onSubmitPathCompletion,
+  onCreateCourse,
+  onUpdateCourse
 }) {
   const sourceLessons = activeRole === 'student' && Array.isArray(studentCourses) && studentCourses.length
     ? studentCourses
@@ -5430,6 +6024,7 @@ function CoursesPage({
   const courseCards = Array.isArray(sourceLessons) && sourceLessons.length > 0
     ? sourceLessons.map((item, index) => ({
       ...getCourseDisplay(item, '未排课'),
+      sourceLesson: item,
       id: item.id || item.courseId || item.course_id || `course_${index}`,
       course: item.course || item.name || item.courseName || item.title || '课程项',
       topic: item.topic || item.subject || item.course_type || item.type || '综合英语',
@@ -5441,18 +6036,64 @@ function CoursesPage({
   const [selectedId, setSelectedId] = useState(courseCards[0]?.id);
   const [selectedPathId, setSelectedPathId] = useState('story');
   const [courseDetailMode, setCourseDetailMode] = useState('overview');
+  const [courseDrawerOpen, setCourseDrawerOpen] = useState(false);
+  const [courseDrawerMode, setCourseDrawerMode] = useState('create');
+  const [courseDrawerCourseId, setCourseDrawerCourseId] = useState('');
+  const [courseDrawerSubmitting, setCourseDrawerSubmitting] = useState(false);
+  const [courseDrawerError, setCourseDrawerError] = useState('');
+  const [courseDraft, setCourseDraft] = useState({
+    name: '',
+    grade: '',
+    level: '',
+    classType: 'small',
+    schedule: '',
+    startTime: '',
+    durationMinutes: 90,
+    capacity: 12,
+    priceCents: 0,
+    status: 'active',
+    teacherId: '',
+    imageUrl: ''
+  });
   const currentCourse = courseCards.find((item) => item.id === selectedId) || courseCards[0];
   const currentPath = COURSE_PATH_STEPS.find((item) => item.id === selectedPathId) || COURSE_PATH_STEPS[1];
   const reviewSummary = studentReviewSummary?.summary || studentReviewSummary || {};
+  const deriveCompletedPathIds = useMemo(() => {
+    const collected = [];
+    const items = Array.isArray(studentReviewHistory) ? studentReviewHistory : [];
+    items.forEach((item) => {
+      const taskType = `${item?.taskType || item?.task_type || ''}`.trim();
+      const payload = item?.payload || {};
+      const source = `${payload.source || item?.source || ''}`.trim();
+      if (taskType !== 'path_completion' && source !== 'student_home_path') {
+        return;
+      }
+      const pathId = `${payload.pathId || item.pathId || item.id || ''}`.trim();
+      const pathTitle = `${payload.pathTitle || item.title || ''}`.trim();
+      const matchedStep = COURSE_PATH_STEPS.find((step) => step.id === pathId || step.title === pathTitle);
+      const resolvedId = matchedStep?.id || pathId || '';
+      if (resolvedId && !collected.includes(resolvedId)) {
+        collected.push(resolvedId);
+      }
+    });
+    if (collected.length === 0) {
+      collected.push(COURSE_PATH_STEPS[0]?.id || 'story');
+    }
+    return collected;
+  }, [studentReviewHistory]);
   const courseProgress = Number(reviewSummary.doneRate) > 0
     ? Number(reviewSummary.doneRate)
     : COURSE_SKILL_GOALS.reduce((sum, item) => sum + item.value, 0) / COURSE_SKILL_GOALS.length;
   const currentCourseRules = normalizeCourseRules(currentCourse);
-  const [completedPathIds, setCompletedPathIds] = useState([COURSE_PATH_STEPS[0]?.id || 'story']);
+  const [completedPathIds, setCompletedPathIds] = useState(() => deriveCompletedPathIds);
   const [courseHint, setCourseHint] = useState('选择学习模块后点击进入，即可查看下一步学习安排。');
   const [courseActionEnabled, setCourseActionEnabled] = useState(true);
   const [isRefreshingCourses, setIsRefreshingCourses] = useState(false);
   const hasCoursesRefresh = typeof onRefreshCourses === 'function';
+
+  useEffect(() => {
+    setCompletedPathIds(deriveCompletedPathIds);
+  }, [deriveCompletedPathIds]);
 
   useEffect(() => {
     const nextSelectedId = `${selectedCourseId || ''}`.trim();
@@ -5509,7 +6150,7 @@ function CoursesPage({
     return 'locked';
   };
 
-  const handlePathContinue = () => {
+  const handlePathContinue = async () => {
     const currentStatus = getPathStatus(currentPath);
     if (!courseActionEnabled || currentStatus === 'locked' || !hasUnlockedPath(currentPath.id)) {
       setCourseHint('当前课程待解锁，请先完成前序课程后继续。');
@@ -5528,10 +6169,33 @@ function CoursesPage({
       return;
     }
 
-    setCompletedPathIds((prev) => (prev.includes(currentPath.id) ? prev : [...prev, currentPath.id]));
-    setCourseHint(`已完成「${currentPath.title}」，正在生成下一步建议...`);
-    onAction?.('courses', `完成课程：${currentPath.title}`);
     setCourseActionEnabled(false);
+    setCourseHint(`已完成「${currentPath.title}」，正在记录学习路径...`);
+
+    try {
+      if (onSubmitPathCompletion) {
+        await onSubmitPathCompletion({
+          pathId: currentPath.id,
+          title: currentPath.title,
+          pathTitle: currentPath.title,
+          stepIndex: COURSE_PATH_STEPS.findIndex((item) => item.id === currentPath.id),
+          answer: `已完成「${currentPath.title}」`,
+          source: 'courses_page'
+        });
+      }
+      if (onRefreshCourses) {
+        await onRefreshCourses();
+      }
+      setCompletedPathIds((prev) => (prev.includes(currentPath.id) ? prev : [...prev, currentPath.id]));
+      setCourseHint(`已完成「${currentPath.title}」，正在生成下一步建议...`);
+      onAction?.('courses', `完成课程：${currentPath.title}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '路径提交失败';
+      setCourseHint(`路径提交失败：${message}`);
+      onAction?.('courses', `路径提交失败：${currentPath.title}${message ? `（${message}）` : ''}`);
+      setCourseActionEnabled(true);
+      return;
+    }
 
     const resolveNextStep = (nextStep) => {
       if (nextStep) {
@@ -5590,6 +6254,9 @@ function CoursesPage({
     setSelectedId(lesson.id);
     setCourseHint(`当前课程：${lesson.course || lesson.topic || lesson.id}`);
     onAction?.('courses.library.item', `选中课程：${lesson.course || lesson.topic || lesson.id}`);
+    if (activeRole === 'founder') {
+      openCourseDrawer(lesson.sourceLesson || lesson);
+    }
   };
 
   const handleSelectPath = async (path) => {
@@ -5643,6 +6310,85 @@ function CoursesPage({
       onAction?.('courses.overview.refresh', `课程总览刷新失败：${message}`);
     } finally {
       setIsRefreshingCourses(false);
+    }
+  };
+
+  const buildDrawerDraft = (lesson = null) => ({
+    name: `${lesson?.sourceLesson?.name || lesson?.sourceLesson?.course || lesson?.course || lesson?.name || lesson?.courseName || lesson?.title || ''}`.trim(),
+    grade: `${lesson?.sourceLesson?.grade || lesson?.grade || lesson?.gradeAlias || ''}`.trim(),
+    level: `${lesson?.sourceLesson?.level || lesson?.level || ''}`.trim(),
+    classType: `${lesson?.sourceLesson?.classType || lesson?.sourceLesson?.class_type || lesson?.classType || lesson?.class_type || 'small'}`.trim() || 'small',
+    schedule: `${lesson?.sourceLesson?.schedule || lesson?.schedule || ''}`.trim(),
+    startTime: `${lesson?.sourceLesson?.startTime || lesson?.sourceLesson?.start_time || lesson?.startTime || lesson?.start_time || ''}`.trim(),
+    durationMinutes: Number(lesson?.sourceLesson?.durationMinutes || lesson?.sourceLesson?.duration_minutes || lesson?.durationMinutes || lesson?.duration_minutes || 90),
+    capacity: Number(lesson?.sourceLesson?.capacity || lesson?.capacity || 12),
+    priceCents: Number(lesson?.sourceLesson?.priceCents || lesson?.sourceLesson?.price_cents || lesson?.priceCents || lesson?.price_cents || 0),
+    status: `${lesson?.sourceLesson?.status || lesson?.status || 'active'}`.trim() || 'active',
+    teacherId: `${lesson?.sourceLesson?.teacherId || lesson?.sourceLesson?.teacher_id || lesson?.teacherId || lesson?.teacher_id || ''}`.trim(),
+    imageUrl: `${lesson?.sourceLesson?.imageUrl || lesson?.sourceLesson?.image_url || lesson?.imageUrl || lesson?.image_url || ''}`.trim()
+  });
+
+  const openCourseDrawer = (lesson = null) => {
+    const isEditing = Boolean(lesson?.id);
+    setCourseDrawerMode(isEditing ? 'edit' : 'create');
+    setCourseDrawerCourseId(isEditing ? `${lesson.id}`.trim() : '');
+    setCourseDrawerError('');
+    setCourseDrawerOpen(true);
+    setCourseDraft(buildDrawerDraft(lesson));
+  };
+
+  const closeCourseDrawer = () => {
+    setCourseDrawerOpen(false);
+    setCourseDrawerError('');
+    setCourseDrawerSubmitting(false);
+    setCourseDrawerMode('create');
+    setCourseDrawerCourseId('');
+    setCourseDraft(buildDrawerDraft(null));
+  };
+
+  const handleCourseDraftChange = (field, value) => {
+    setCourseDraft((current) => ({
+      ...current,
+      [field]: field === 'durationMinutes' || field === 'capacity' || field === 'priceCents'
+        ? Number(value || 0)
+        : value
+    }));
+  };
+
+  const handleSaveCourse = async () => {
+    const normalizedName = `${courseDraft.name || ''}`.trim();
+    if (!normalizedName) {
+      setCourseDrawerError('课程名称不能为空');
+      return;
+    }
+    if (courseDrawerMode === 'edit' && !courseDrawerCourseId) {
+      setCourseDrawerError('课程ID缺失，无法保存');
+      return;
+    }
+    const savePayload = {
+      ...courseDraft,
+      name: normalizedName,
+      id: courseDrawerCourseId || undefined,
+      courseId: courseDrawerCourseId || undefined
+    };
+
+    setCourseDrawerSubmitting(true);
+    setCourseDrawerError('');
+    try {
+      if (courseDrawerMode === 'edit') {
+        await onUpdateCourse?.(savePayload);
+      } else {
+        await onCreateCourse?.(savePayload);
+      }
+      onAction?.(
+        'courses.library.refresh',
+        courseDrawerMode === 'edit' ? `更新课程：${normalizedName}` : `创建课程：${normalizedName}`
+      );
+      closeCourseDrawer();
+    } catch (error) {
+      setCourseDrawerError(error instanceof Error ? error.message : '课程保存失败');
+    } finally {
+      setCourseDrawerSubmitting(false);
     }
   };
 
@@ -5720,6 +6466,7 @@ function CoursesPage({
             <span className="small-note">课程进度已更新</span>
             <span className="small-note">复盘记录可追溯</span>
             <span className="small-note">剩余课时即时可见</span>
+            {selectedChildId ? <span className="small-note">当前孩子：{selectedChildId}</span> : null}
           </div>
         </div>
         <div className="course-summary-token">
@@ -5835,19 +6582,26 @@ function CoursesPage({
               <span>在读课程</span>
               <h3>课程表明细（班型/时间/收费标准）</h3>
             </div>
-            <button
-              className="row-action"
-              onClick={async () => {
-                const refreshed = await refreshCoursesContext('courses.library.refresh', '课程列表');
-                if (!refreshed) {
-                  return;
-                }
-                onAction?.('courses.library.refresh', '查看课程列表');
-                onNavigatePage?.('courses');
-              }}
-            >
-              展开课程表
-            </button>
+            <div className="hero-chip-row" style={{ justifyContent: 'flex-end' }}>
+              {activeRole === 'founder' ? (
+                <button className="row-action" onClick={() => openCourseDrawer(null)}>
+                  新建课程
+                </button>
+              ) : null}
+              <button
+                className="row-action"
+                onClick={async () => {
+                  const refreshed = await refreshCoursesContext('courses.library.refresh', '课程列表');
+                  if (!refreshed) {
+                    return;
+                  }
+                  onAction?.('courses.library.refresh', '查看课程列表');
+                  onNavigatePage?.('courses');
+                }}
+              >
+                展开课程表
+              </button>
+            </div>
           </div>
           {courseCards.length === 0 ? (
             <div className="small-note">课程尚未下发，请在课程表设置中完成发布。</div>
@@ -5866,6 +6620,7 @@ function CoursesPage({
                 <p>{lesson.topic}</p>
                 <small>{lesson.grade} · {lesson.classType} · {lesson.fee}</small>
                 <small className="small-note">{lesson.student} · {lesson.time}</small>
+                {activeRole === 'founder' ? <small className="small-note">点击可编辑</small> : null}
               </button>
             ))}
           </div>
@@ -5891,6 +6646,117 @@ function CoursesPage({
           ))}
         </div>
       </section>
+
+      {activeRole === 'founder' && courseDrawerOpen ? (
+        <div className="drawer-backdrop" role="dialog" aria-modal="true" aria-label={courseDrawerMode === 'edit' ? '编辑课程' : '新建课程'}>
+          <aside className="drawer-panel">
+            <div className="drawer-header">
+              <div>
+                <span>{courseDrawerMode === 'edit' ? '编辑课程' : '新建课程'}</span>
+                <h3>{courseDrawerMode === 'edit' ? courseDraft.name || '未命名课程' : '创建一门新课程'}</h3>
+              </div>
+              <button className="row-action ghost" onClick={closeCourseDrawer}>关闭</button>
+            </div>
+            <div className="drawer-body">
+              <label className="drawer-field">
+                <span>课程名称</span>
+                <input value={courseDraft.name} onChange={(event) => handleCourseDraftChange('name', event.target.value)} />
+              </label>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>年级</span>
+                  <input value={courseDraft.grade} onChange={(event) => handleCourseDraftChange('grade', event.target.value)} />
+                </label>
+                <label className="drawer-field">
+                  <span>班型</span>
+                  <select value={courseDraft.classType} onChange={(event) => handleCourseDraftChange('classType', event.target.value)}>
+                    <option value="small">小班课</option>
+                    <option value="one_to_one">一对一</option>
+                    <option value="large">大班课</option>
+                  </select>
+                </label>
+              </div>
+              <label className="drawer-field">
+                <span>课程级别</span>
+                <input value={courseDraft.level} onChange={(event) => handleCourseDraftChange('level', event.target.value)} />
+              </label>
+              <label className="drawer-field">
+                <span>课程安排</span>
+                <textarea value={courseDraft.schedule} onChange={(event) => handleCourseDraftChange('schedule', event.target.value)} rows={3} />
+              </label>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>开课时间</span>
+                  <input
+                    type="datetime-local"
+                    value={courseDraft.startTime}
+                    onChange={(event) => handleCourseDraftChange('startTime', event.target.value)}
+                  />
+                </label>
+                <label className="drawer-field">
+                  <span>课时长度</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={courseDraft.durationMinutes}
+                    onChange={(event) => handleCourseDraftChange('durationMinutes', event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>名额</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={courseDraft.capacity}
+                    onChange={(event) => handleCourseDraftChange('capacity', event.target.value)}
+                  />
+                </label>
+                <label className="drawer-field">
+                  <span>收费标准（分）</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={courseDraft.priceCents}
+                    onChange={(event) => handleCourseDraftChange('priceCents', event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="drawer-field-grid">
+                <label className="drawer-field">
+                  <span>状态</span>
+                  <select value={courseDraft.status} onChange={(event) => handleCourseDraftChange('status', event.target.value)}>
+                    <option value="active">进行中</option>
+                    <option value="paused">已暂停</option>
+                    <option value="closed">已结课</option>
+                  </select>
+                </label>
+                <label className="drawer-field">
+                  <span>老师ID</span>
+                  <input value={courseDraft.teacherId} onChange={(event) => handleCourseDraftChange('teacherId', event.target.value)} />
+                </label>
+              </div>
+              <label className="drawer-field">
+                <span>封面地址</span>
+                <input value={courseDraft.imageUrl} onChange={(event) => handleCourseDraftChange('imageUrl', event.target.value)} />
+              </label>
+              {courseDrawerError ? <div className="drawer-error">{courseDrawerError}</div> : null}
+            </div>
+            <div className="drawer-footer">
+              <div className="small-note">
+                {courseDrawerMode === 'edit' ? `课程ID：${courseDrawerCourseId}` : '新课程会写入课程库并同步到公开课程列表'}
+              </div>
+              <div className="hero-chip-row">
+                <button className="row-action ghost" onClick={closeCourseDrawer} disabled={courseDrawerSubmitting}>取消</button>
+                <button className="row-action" onClick={() => void handleSaveCourse()} disabled={courseDrawerSubmitting}>
+                  {courseDrawerSubmitting ? '保存中...' : '保存课程'}
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -5904,6 +6770,7 @@ function PracticePage({
   studentReviewMistakes = [],
   onRunAIAgent,
   onResetChallenge,
+  onSubmitPracticeReview,
   onSubmitVoiceAssess,
   onAction
 }) {
@@ -6023,6 +6890,26 @@ function PracticePage({
         };
       }) : tasks;
 
+      if (activeRole === 'student' && typeof onSubmitPracticeReview === 'function') {
+        await Promise.resolve(onSubmitPracticeReview({
+          taskType: 'practice_reset',
+          title: `${activeArena.title} 练习重置`,
+          answer: outputTasks.length > 0 ? outputTasks.join('；') : `${activeArena.title} 已重置`,
+          score: 0,
+          status: 'pending',
+          payload: {
+            action: 'reset',
+            arenaId: activeArena.id,
+            arenaTitle: activeArena.title,
+            difficulty: activeArena.level,
+            tasks: nextTasks.map((item) => ({
+              title: item.title,
+              note: item.note
+            }))
+          }
+        }));
+      }
+
       setChallengeState({
         running: false,
         rounds: 0,
@@ -6030,7 +6917,7 @@ function PracticePage({
         completed: false
       });
       setTasks(nextTasks);
-      setPracticeHint(output?.title || output?.content ? `已生成新内容：${output.title || output.content}` : `已重置 ${activeArena.title}`);
+      setPracticeHint(output?.title || output?.content ? `已生成并保存新内容：${output.title || output.content}` : `已重置并保存 ${activeArena.title}`);
       onAction?.('practice', `重置练习：${activeArena.title}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '重置练习失败';
@@ -6073,31 +6960,39 @@ function PracticePage({
       return;
     }
 
-    if (activeRole === 'student' && onSubmitVoiceAssess) {
+    if (activeRole === 'student' && typeof onSubmitPracticeReview === 'function') {
       setSubmittingTaskId(task.id);
       try {
-        const transcript = `${task.note || task.title || task.result || ''}`.trim();
-        const response = await onSubmitVoiceAssess({
-          taskId: task.id,
-          transcript
-        });
+        const result = await Promise.resolve(onSubmitPracticeReview({
+          taskType: 'practice_task',
+          title: task.title,
+          answer: `${task.note || task.title || task.result || ''}`.trim(),
+          score: task.done ? 100 : 60,
+          status: 'done',
+          studentId: report?.student?.id || report?.student?.studentId || '',
+          payload: {
+            source: 'practice_task',
+            arenaId: activeArena.id,
+            arenaTitle: activeArena.title,
+            taskId: task.id,
+            note: task.note || ''
+          }
+        }));
 
-        const result = response?.data?.result
-          || response?.data?.record?.result
-          || response?.data?.output
-          || '评分已完成';
-        const score = Number(response?.data?.score || response?.data?.record?.score || 0);
+        const record = result?.data?.item || result?.data?.record || result?.item || {};
+        const score = Number(record.score || 100);
+        const resultText = record.answer || record.title || '练习已提交';
 
         setTasks((prev) => prev.map((item) => item.id === task.id
-          ? { ...item, done: true, note: result, score }
+          ? { ...item, done: true, note: resultText, score }
           : item
         ));
         setPracticeHint(`已完成：${task.title}（${score}分）`);
-        onAction?.('practice', `学生语音评分：${task.title}`);
+        onAction?.('practice', `学生练习已提交：${task.title}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : '评分提交失败';
         setPracticeHint(`评分失败：${message}`);
-        onAction?.('practice', `学生语音评分失败：${task.title}`);
+        onAction?.('practice', `学生练习提交失败：${task.title}`);
       } finally {
         setSubmittingTaskId('');
       }
@@ -6169,6 +7064,24 @@ function PracticePage({
           : `已完成第 ${nextRounds} 步，当前得分 ${nextScore} 分。`
       );
       onAction?.('practice', `练习操作：${choice}`);
+
+      if (activeRole === 'student' && typeof onSubmitPracticeReview === 'function') {
+        Promise.resolve(onSubmitPracticeReview({
+          taskType: 'practice_choice',
+          title: `${activeArena.title} · ${choice}`,
+          answer: choice,
+          score: nextScore,
+          status: done ? 'done' : 'pending',
+          studentId: report?.student?.id || report?.student?.studentId || '',
+          payload: {
+            source: 'practice_choice',
+            arenaId: activeArena.id,
+            arenaTitle: activeArena.title,
+            round: nextRounds,
+            choice
+          }
+        })).catch(() => {});
+      }
 
       if (onRunAIAgent) {
         Promise.resolve(
@@ -6452,12 +7365,15 @@ function ProfilePage({
   child,
   report,
   cultureWall = {},
+  childMessages = [],
   onRefresh,
   onExportReport,
   onRunAIAgent,
+  onCreateChildMessage,
   onAction,
   onNavigatePage,
   onRefreshCultureWall,
+  lessonAccountSourceLabel = '课时账户接口',
   lessonAccount = {},
   childCourses = []
 }) {
@@ -6466,6 +7382,12 @@ function ProfilePage({
   const [parentMessage, setParentMessage] = useState(report.summary);
   const [feedbacking, setFeedbacking] = useState(false);
   const [parentStatus, setParentStatus] = useState('处理中');
+  const [cultureWallStatus, setCultureWallStatus] = useState('待同步');
+  const [lessonAccountSyncAt, setLessonAccountSyncAt] = useState('');
+  const [lessonAccountSyncState, setLessonAccountSyncState] = useState('待同步');
+  const latestChildMessage = useMemo(() => (
+    Array.isArray(childMessages) && childMessages.length > 0 ? childMessages[0] : null
+  ), [childMessages]);
   const completedDays = WEEKLY_STREAK.filter((day) => day.done).length;
   const lessonHours = Number(
     child.hoursLeft
@@ -6481,24 +7403,54 @@ function ProfilePage({
     teachers: Array.isArray(cultureWall.teachers) ? cultureWall.teachers.length : 0,
     feedback: Array.isArray(cultureWall.feedback) ? cultureWall.feedback.length : 0
   };
+  const lessonAccountSummary = lessonAccount?.summary || {};
+  const lessonAccountSource = `${lessonAccountSourceLabel || '课时账户接口'}`.trim();
+
+  useEffect(() => {
+    const nextAt = new Date().toLocaleString('zh-CN', { hour12: false });
+    setLessonAccountSyncAt(nextAt);
+    setLessonAccountSyncState('已同步');
+  }, [lessonAccount, lessonAccountSourceLabel]);
+
+  const refreshLessonAccount = async () => {
+    if (typeof onRefresh !== 'function') {
+      setLessonAccountSyncState('刷新服务暂不可用');
+      return false;
+    }
+
+    setLessonAccountSyncState('同步中...');
+    try {
+      await Promise.resolve(onRefresh());
+      setLessonAccountSyncAt(new Date().toLocaleString('zh-CN', { hour12: false }));
+      setLessonAccountSyncState('已同步');
+      onAction?.('profile', `课时账户已从${lessonAccountSource}刷新`);
+      return true;
+    } catch (error) {
+      setLessonAccountSyncState(`同步失败：${error instanceof Error ? error.message : '请重试'}`);
+      return false;
+    }
+  };
 
   const handleOpenCultureWall = async () => {
     if (onRefreshCultureWall) {
-      setParentStatus('学习成果同步中...');
+      setCultureWallStatus('学习成果同步中...');
       try {
         await onRefreshCultureWall();
-        setParentStatus('学习成果同步完成');
+        setCultureWallStatus('学习成果同步完成');
       } catch (error) {
-        setParentStatus(`学习成果同步失败：${error instanceof Error ? error.message : '请重试'}`);
-        setTimeout(() => {
-        setParentStatus('处理中');
-        }, 1600);
+        setCultureWallStatus(`学习成果同步失败：${error instanceof Error ? error.message : '请重试'}`);
       }
     }
 
     onNavigatePage?.('culture-wall');
   };
-  const handleProfileNavigate = async (targetPage, actionText) => {
+
+  const retryCultureWall = async () => {
+    if (cultureWallStatus.startsWith('学习成果同步失败') && onRefreshCultureWall) {
+      await handleOpenCultureWall();
+    }
+  };
+  const handleProfileNavigate = async (targetPage, actionText, context = {}) => {
     if (onRefresh) {
       try {
         await Promise.resolve(onRefresh());
@@ -6507,7 +7459,7 @@ function ProfilePage({
       }
     }
     if (targetPage) {
-      onNavigatePage?.(targetPage);
+      onNavigatePage?.(targetPage, context && typeof context === 'object' ? context : {});
     }
     if (actionText && onAction) {
       onAction('profile', actionText);
@@ -6519,7 +7471,13 @@ function ProfilePage({
       label: '课程与课表',
       hint: '查看在读课程与本周课程安排',
       action: () => {
-        void handleProfileNavigate('courses', '个人中心进入课程与课表');
+        const nextCourseId = Array.isArray(childCourses) && childCourses[0]
+          ? (childCourses[0].id || childCourses[0].courseId || childCourses[0].course_id || '')
+          : '';
+        void handleProfileNavigate('courses', '个人中心进入课程与课表', {
+          selectedChildId: child?.id || '',
+          selectedCourseId: nextCourseId
+        });
       }
     },
     {
@@ -6579,9 +7537,9 @@ function ProfilePage({
   ];
 
   useEffect(() => {
-    setParentMessage(report.summary || '阶段总结生成中');
-    setParentStatus('处理中');
-  }, [report.summary]);
+    setParentMessage(latestChildMessage?.message || report.summary || '阶段总结生成中');
+    setParentStatus(latestChildMessage ? '已同步到家校沟通记录' : '处理中');
+  }, [latestChildMessage, report.summary]);
 
   const exportReport = async () => {
     if (!onExportReport) {
@@ -6635,7 +7593,20 @@ function ProfilePage({
         `下周目标：${report.nextStep}`
       ].join('；');
       setParentMessage(nextMessage);
-      setParentStatus(output.title || '已生成');
+      let savedMessage = null;
+      if (typeof onCreateChildMessage === 'function') {
+        savedMessage = await Promise.resolve(onCreateChildMessage({
+          studentId: child?.id || '',
+          payload: {
+            actorRole: 'parent',
+            sender: child?.name ? `${child.name} 家长` : '家长',
+            message: nextMessage,
+            tone: output.tone || '高情商',
+            relatedLessonId: latestChildMessage?.relatedLessonId || latestChildMessage?.lessonId || ''
+          }
+        }));
+      }
+      setParentStatus(savedMessage ? '已生成并保存到家校沟通记录' : (output.title || '已生成'));
       onAction?.('profile', '生成家校反馈');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '生成失败';
@@ -6664,7 +7635,7 @@ function ProfilePage({
             <span>家庭学习总览</span>
             <h3>一页核对课程进展、课时余额与阶段结果</h3>
             <p>
-              课时、课程、阶段报告与家校反馈集中展示，支持课程质量、出勤与收费记录持续追踪。
+              课时、课程、阶段报告与家校反馈集中展示，支持课程质量、出勤与缴费记录持续追踪。
             </p>
             <div className="profile-hero-chip-row">
               <span>学习进度可核对</span>
@@ -6735,7 +7706,7 @@ function ProfilePage({
           <div className="section-headline">
             <div>
               <span>课时账户</span>
-            <h3>课时余额、课程与收费记录一体看板</h3>
+            <h3>课时余额、课程与缴费记录一体看板</h3>
             </div>
           </div>
         <div className="metrics profile-account-metrics">
@@ -6762,11 +7733,25 @@ function ProfilePage({
           />
           <MetricCard
             icon={CreditCard}
-            label="收费记录"
+            label="缴费记录"
             value={`${lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus || '待确认'}`}
             note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已对账'}`}
             tone="purple"
           />
+        </div>
+        <div className="profile-sync-strip">
+          <div>
+            <span>数据来源</span>
+            <strong>{lessonAccountSource}</strong>
+            <small>{lessonAccountSummary.studentName || child.name || '当前学员'} · 最近同步后再看课时、收费和保留状态</small>
+          </div>
+          <div className="profile-sync-meta">
+            <span className="small-note">最近同步：{lessonAccountSyncAt || '刚刚'}</span>
+            <span className="small-note">{lessonAccountSyncState}</span>
+            <button className="row-action ghost" onClick={() => void refreshLessonAccount()}>
+              重新同步
+            </button>
+          </div>
         </div>
         <div className="profile-course-strip">
           <div className="section-headline compact">
@@ -6870,7 +7855,9 @@ function ProfilePage({
             <button className="row-action" onClick={generateParentMessage} disabled={feedbacking}>
               {feedbacking ? '生成中...' : '生成家校反馈'}
             </button>
-            <div className="small-note">家校反馈状态：{parentStatus}</div>
+            <div className="small-note">
+              家校反馈状态：{parentStatus} · 已存 {Array.isArray(childMessages) ? childMessages.length : 0} 条
+            </div>
           </section>
         </div>
       </section>
@@ -6945,6 +7932,23 @@ function ProfilePage({
                 <small>家长和老师可查看</small>
               </div>
             </div>
+            <div className="profile-sync-strip" style={{ marginTop: 12 }}>
+              <div>
+                <span>学习成果同步</span>
+                <strong>{cultureWallStatus}</strong>
+                <small>打开档案中心前会先刷新一次当前素材与反馈。</small>
+              </div>
+              <div className="profile-sync-meta">
+                <span className="small-note">
+                  {cultureWallStatus.startsWith('学习成果同步失败') ? '已保留重试入口' : '自动刷新后跳转'}
+                </span>
+                {cultureWallStatus.startsWith('学习成果同步失败') && onRefreshCultureWall ? (
+                  <button className="row-action ghost" onClick={() => void retryCultureWall()}>
+                    重试打开
+                  </button>
+                ) : null}
+              </div>
+            </div>
             <div className="profile-support-grid">
               {(cultureWall.feedback || []).slice(0, 1).map((item) => (
                 <article className="feedback-item" key={item.id}>
@@ -6970,6 +7974,63 @@ function ProfilePage({
     </div>
   );
 }
+
+const CULTURE_WALL_UPLOAD_RULES = {
+  photo: {
+    label: '图片',
+    maxBytes: 12 * 1024 * 1024
+  },
+  video: {
+    label: '视频',
+    maxBytes: 120 * 1024 * 1024
+  }
+};
+
+const formatUploadBytes = (bytes) => {
+  const size = Number(bytes || 0);
+  if (!Number.isFinite(size) || size <= 0) {
+    return '0 KB';
+  }
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${Math.max(1, Math.round(size / 1024))} KB`;
+  }
+  return `${(size / 1024 / 1024).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+};
+
+const validateCultureWallUpload = (kind, file) => {
+  const rule = CULTURE_WALL_UPLOAD_RULES[kind];
+  if (!rule) {
+    return '素材类型不支持';
+  }
+
+  const mimeType = `${file?.type || ''}`.toLowerCase();
+  const size = Number(file?.size || 0);
+
+  if (!file || typeof file.arrayBuffer !== 'function') {
+    return '未选择可上传的文件';
+  }
+
+  if (kind === 'photo' && !mimeType.startsWith('image/')) {
+    return '图片只能上传 image 类型文件';
+  }
+
+  if (kind === 'video' && !mimeType.startsWith('video/')) {
+    return '视频只能上传 video 类型文件';
+  }
+
+  if (size <= 0) {
+    return '文件大小不能为 0';
+  }
+
+  if (size > rule.maxBytes) {
+    return `${rule.label}大小不能超过 ${formatUploadBytes(rule.maxBytes)}`;
+  }
+
+  return '';
+};
 
 function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onAction, ...sectionProps }) {
   const [videos, setVideos] = useState(() =>
@@ -6997,6 +8058,9 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
   );
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const pendingUploadRef = useRef(null);
+  const uploadResetTimerRef = useRef(null);
+  const [uploadTask, setUploadTask] = useState(null);
   const counts = {
     videos: videos.length,
     photos: photos.length,
@@ -7034,20 +8098,77 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
     );
   }, [data]);
 
-  const appendUpload = (kind, controlId) => async (evt) => {
-    const file = evt.target.files?.[0];
-    if (!file || !canEdit) {
-      if (file && !canEdit) {
-        onAction?.(controlId, '当前账号无权限上传');
+  const resetUploadTask = () => {
+    if (uploadResetTimerRef.current) {
+      clearTimeout(uploadResetTimerRef.current);
+      uploadResetTimerRef.current = null;
+    }
+    setUploadTask(null);
+    pendingUploadRef.current = null;
+  };
+
+  const startUploadTask = (kind, file) => {
+    const rule = CULTURE_WALL_UPLOAD_RULES[kind];
+    const task = {
+      kind,
+      fileName: file.name,
+      fileSize: file.size || 0,
+      label: rule?.label || '素材',
+      progress: 0,
+      status: 'uploading',
+      message: `正在上传${rule?.label || '素材'}：${file.name}`
+    };
+    pendingUploadRef.current = { kind, file };
+    setUploadTask(task);
+    return task;
+  };
+
+  const updateUploadProgress = (progress) => {
+    setUploadTask((current) => {
+      if (!current || current.status !== 'uploading') {
+        return current;
       }
+
+      return {
+        ...current,
+        progress: Math.max(current.progress || 0, Math.min(99, progress))
+      };
+    });
+  };
+
+  const submitUpload = async ({ kind, file, controlId }) => {
+    const validationMessage = validateCultureWallUpload(kind, file);
+    if (validationMessage) {
+      pendingUploadRef.current = null;
+      setUploadTask({
+        kind,
+        fileName: file?.name || '未知文件',
+        fileSize: file?.size || 0,
+        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
+        progress: 0,
+        status: 'error',
+        message: validationMessage
+      });
+      onAction?.(controlId, `上传失败：${validationMessage}`);
       return;
     }
 
+    startUploadTask(kind, file);
     onAction?.(controlId, `开始上传：${kind === 'photo' ? '图片素材' : '教学视频'}（${file.name}）`);
 
     if (typeof onUploadAsset !== 'function') {
-      onAction?.(controlId, '上传失败：上传服务暂不可用');
-      evt.target.value = '';
+      pendingUploadRef.current = null;
+      const message = '上传服务暂不可用';
+      setUploadTask({
+        kind,
+        fileName: file.name,
+        fileSize: file.size || 0,
+        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
+        progress: 0,
+        status: 'error',
+        message: `上传失败：${message}`
+      });
+      onAction?.(controlId, `上传失败：${message}`);
       return;
     }
 
@@ -7055,7 +8176,8 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
       const nextWall = await onUploadAsset({
         kind,
         file,
-        uploader: '当前管理员'
+        uploader: '当前管理员',
+        onProgress: ({ progress }) => updateUploadProgress(progress || 0)
       });
 
       if (nextWall && nextWall.videos) {
@@ -7071,11 +8193,63 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
         setFeedbacks((nextWall.feedback || []).map((item) => ({ ...item })));
       }
 
+      setUploadTask({
+        kind,
+        fileName: file.name,
+        fileSize: file.size || 0,
+        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
+        progress: 100,
+        status: 'success',
+        message: `上传完成：${file.name}`
+      });
       onAction?.(controlId, '上传完成');
+      if (uploadResetTimerRef.current) {
+        clearTimeout(uploadResetTimerRef.current);
+      }
+      uploadResetTimerRef.current = setTimeout(() => {
+        if (pendingUploadRef.current?.file === file) {
+          resetUploadTask();
+        }
+      }, 1400);
     } catch (error) {
-      onAction?.(controlId, `上传失败：${error?.message || '请求失败'}`);
+      const message = error?.message || '请求失败';
+      setUploadTask({
+        kind,
+        fileName: file.name,
+        fileSize: file.size || 0,
+        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
+        progress: 0,
+        status: 'error',
+        message: `上传失败：${message}`
+      });
+      onAction?.(controlId, `上传失败：${message}`);
+    }
+  };
+
+  const retryUpload = async () => {
+    const pending = pendingUploadRef.current;
+    if (!pending || !canEdit) {
+      return;
     }
 
+    await submitUpload({
+      kind: pending.kind,
+      file: pending.file,
+      controlId: pending.kind === 'photo' ? 'culture-wall.prepare-upload-photo' : 'culture-wall.prepare-upload-video'
+    });
+  };
+
+  const appendUpload = (kind, controlId) => async (evt) => {
+    const file = evt.target.files?.[0];
+    if (!file || !canEdit) {
+      if (file && !canEdit) {
+        onAction?.(controlId, '当前账号无权限上传');
+      }
+      evt.target.value = '';
+      return;
+    }
+
+    await submitUpload({ kind, file, controlId });
     evt.target.value = '';
   };
 
@@ -7087,11 +8261,11 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
         action={
           canEdit ? (
             <span className="wall-upload-actions">
-              <button className="row-action" onClick={() => imageInputRef.current?.click()}>
+              <button className="row-action" onClick={() => imageInputRef.current?.click()} disabled={uploadTask?.status === 'uploading'}>
                 <ImageIcon size={14} />
                 上传图片素材
               </button>
-              <button className="row-action" onClick={() => videoInputRef.current?.click()}>
+              <button className="row-action" onClick={() => videoInputRef.current?.click()} disabled={uploadTask?.status === 'uploading'}>
                 <Video size={14} />
                 上传教学视频
               </button>
@@ -7113,6 +8287,33 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
           <span>反馈 {counts.feedbacks}</span>
         </div>
       </div>
+
+      {uploadTask ? (
+        <div className={`culture-upload-status ${uploadTask.status}`}>
+          <div className="culture-upload-status-head">
+            <strong>{uploadTask.label}上传</strong>
+            <span>
+              {uploadTask.status === 'uploading'
+                ? `${uploadTask.progress}%`
+                : uploadTask.status === 'success'
+                  ? '已完成'
+                  : '需重试'}
+            </span>
+          </div>
+          <div className="learning-progress-bar culture-upload-progress">
+            <span style={{ width: `${Math.max(0, Math.min(100, uploadTask.progress || 0))}%` }} />
+          </div>
+          <small>{uploadTask.message}</small>
+          {uploadTask.status === 'error' && pendingUploadRef.current?.file ? (
+            <div className="culture-upload-retry">
+              <button className="row-action ghost" onClick={() => void retryUpload()}>
+                重试上传
+              </button>
+              <span className="small-note">保留上一次选择的文件，可直接重试。</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="culture-showcase">
         <article className="culture-spotlight">
@@ -7256,6 +8457,7 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
             accept="image/*"
             onChange={appendUpload('photo', 'culture-wall.prepare-upload-photo')}
             className="uploader-input"
+            disabled={uploadTask?.status === 'uploading'}
           />
           <input
             ref={videoInputRef}
@@ -7263,6 +8465,7 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
             accept="video/*"
             onChange={appendUpload('video', 'culture-wall.prepare-upload-video')}
             className="uploader-input"
+            disabled={uploadTask?.status === 'uploading'}
           />
         </>
       ) : null}
@@ -7279,6 +8482,9 @@ function CultureWallPage({
 }) {
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const pendingUploadRef = useRef(null);
+  const uploadResetTimerRef = useRef(null);
+  const [uploadTask, setUploadTask] = useState(null);
 
   const counts = {
     videos: Array.isArray(cultureWall.videos) ? cultureWall.videos.length : 0,
@@ -7317,6 +8523,115 @@ function CultureWallPage({
     }
   ];
 
+  const resetUploadTask = () => {
+    if (uploadResetTimerRef.current) {
+      clearTimeout(uploadResetTimerRef.current);
+      uploadResetTimerRef.current = null;
+    }
+    setUploadTask(null);
+    pendingUploadRef.current = null;
+  };
+
+  const updateUploadProgress = (progress) => {
+    setUploadTask((current) => {
+      if (!current || current.status !== 'uploading') {
+        return current;
+      }
+
+      return {
+        ...current,
+        progress: Math.max(current.progress || 0, Math.min(99, progress))
+      };
+    });
+  };
+
+  const submitUpload = async ({ kind, file, controlId }) => {
+    const validationMessage = validateCultureWallUpload(kind, file);
+    const rule = CULTURE_WALL_UPLOAD_RULES[kind];
+    if (validationMessage) {
+      pendingUploadRef.current = null;
+      setUploadTask({
+        kind,
+        fileName: file?.name || '未知文件',
+        fileSize: file?.size || 0,
+        label: rule?.label || '素材',
+        progress: 0,
+        status: 'error',
+        message: validationMessage
+      });
+      onAction?.(controlId, `上传失败：${validationMessage}`);
+      return;
+    }
+
+    pendingUploadRef.current = { kind, file };
+    setUploadTask({
+      kind,
+      fileName: file.name,
+      fileSize: file.size || 0,
+      label: rule?.label || '素材',
+      progress: 0,
+      status: 'uploading',
+      message: `正在上传${rule?.label || '素材'}：${file.name}`
+    });
+    onAction?.(controlId, `开始上传：${kind === 'photo' ? '图片素材' : '教学视频'}（${file.name}）`);
+
+    if (typeof onUploadCultureAsset !== 'function') {
+      pendingUploadRef.current = null;
+      const message = '上传服务暂不可用';
+      setUploadTask({
+        kind,
+        fileName: file.name,
+        fileSize: file.size || 0,
+        label: rule?.label || '素材',
+        progress: 0,
+        status: 'error',
+        message: `上传失败：${message}`
+      });
+      onAction?.(controlId, `上传失败：${message}`);
+      return;
+    }
+
+    try {
+      const nextWall = await onUploadCultureAsset({
+        kind,
+        file,
+        uploader: '当前管理员',
+        onProgress: ({ progress }) => updateUploadProgress(progress || 0)
+      });
+
+      onAction?.(controlId, nextWall ? `上传完成：${file.name}` : '上传完成：本次未返回同步数据');
+      setUploadTask({
+        kind,
+        fileName: file.name,
+        fileSize: file.size || 0,
+        label: rule?.label || '素材',
+        progress: 100,
+        status: 'success',
+        message: `上传完成：${file.name}`
+      });
+      if (uploadResetTimerRef.current) {
+        clearTimeout(uploadResetTimerRef.current);
+      }
+      uploadResetTimerRef.current = setTimeout(() => {
+        if (pendingUploadRef.current?.file === file) {
+          resetUploadTask();
+        }
+      }, 1400);
+    } catch (error) {
+      const message = error?.message || '请求失败';
+      setUploadTask({
+        kind,
+        fileName: file.name,
+        fileSize: file.size || 0,
+        label: rule?.label || '素材',
+        progress: 0,
+        status: 'error',
+        message: `上传失败：${message}`
+      });
+      onAction?.(controlId, `上传失败：${message}`);
+    }
+  };
+
   const refreshCultureWall = async (controlId, message) => {
     if (typeof onRefreshCultureWall !== 'function') {
       onAction?.(controlId, `${message || '数据刷新'}失败：服务暂不可用`);
@@ -7339,29 +8654,8 @@ function CultureWallPage({
       return;
     }
 
-    onAction?.(controlId, `开始上传：${kind === 'photo' ? '图片素材' : '教学视频'}（${file.name}）`);
-
-    if (typeof onUploadCultureAsset !== 'function') {
-      onAction?.(controlId, '上传失败：上传服务暂不可用');
-      evt.target.value = '';
-      return;
-    }
-
-    try {
-      const nextWall = await onUploadCultureAsset({
-        kind,
-        file,
-        uploader: '当前管理员'
-      });
-      onAction?.(
-        controlId,
-        nextWall ? `上传完成：${file.name}` : '上传完成：本次未返回同步数据'
-      );
-    } catch (error) {
-      onAction?.(controlId, `上传失败：${error?.message || '请求失败'}`);
-    } finally {
-      evt.target.value = '';
-    }
+    await submitUpload({ kind, file, controlId });
+    evt.target.value = '';
   };
 
   return (
@@ -7391,6 +8685,7 @@ function CultureWallPage({
           <div className="culture-wall-actions">
             <button
               className="row-action"
+              disabled={uploadTask?.status === 'uploading'}
               onClick={async () => {
                 await refreshCultureWall('culture-wall.view-home-sync', '查看首页同步展示');
               }}
@@ -7399,10 +8694,10 @@ function CultureWallPage({
             </button>
             {canEditCultureWall ? (
               <>
-                <button className="row-action" onClick={() => imageInputRef.current?.click()}>
+                <button className="row-action" onClick={() => imageInputRef.current?.click()} disabled={uploadTask?.status === 'uploading'}>
                   上传图片素材
                 </button>
-                <button className="row-action" onClick={() => videoInputRef.current?.click()}>
+                <button className="row-action" onClick={() => videoInputRef.current?.click()} disabled={uploadTask?.status === 'uploading'}>
                   上传教学视频
                 </button>
               </>
@@ -7410,6 +8705,39 @@ function CultureWallPage({
           </div>
         </div>
       </section>
+
+      {uploadTask ? (
+        <section className={`panel culture-upload-status ${uploadTask.status}`}>
+          <div className="culture-upload-status-head">
+            <strong>{uploadTask.label}上传</strong>
+            <span>
+              {uploadTask.status === 'uploading'
+                ? `${uploadTask.progress}%`
+                : uploadTask.status === 'success'
+                  ? '已完成'
+                  : '需重试'}
+            </span>
+          </div>
+          <div className="learning-progress-bar culture-upload-progress">
+            <span style={{ width: `${Math.max(0, Math.min(100, uploadTask.progress || 0))}%` }} />
+          </div>
+          <small>{uploadTask.message}</small>
+          {uploadTask.status === 'error' && pendingUploadRef.current?.file ? (
+            <div className="culture-upload-retry">
+              <button className="row-action ghost" onClick={() => void submitUpload({
+                kind: pendingUploadRef.current?.kind,
+                file: pendingUploadRef.current?.file,
+                controlId: pendingUploadRef.current?.kind === 'photo'
+                  ? 'culture-wall.prepare-upload-photo'
+                  : 'culture-wall.prepare-upload-video'
+              })}>
+                重试上传
+              </button>
+              <span className="small-note">保留上一次选择的文件，可直接重试。</span>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="panel culture-wall-overview">
         <div className="section-headline">
@@ -7419,6 +8747,7 @@ function CultureWallPage({
           </div>
           <button
             className="row-action ghost"
+            disabled={uploadTask?.status === 'uploading'}
             onClick={async () => {
               await refreshCultureWall('culture-wall.view-all', '查看全部内容');
             }}
@@ -7451,6 +8780,7 @@ function CultureWallPage({
             accept="image/*"
             onChange={triggerUpload('photo', 'culture-wall.prepare-upload-photo')}
             className="uploader-input"
+            disabled={uploadTask?.status === 'uploading'}
           />
           <input
             ref={videoInputRef}
@@ -7458,6 +8788,7 @@ function CultureWallPage({
             accept="video/*"
             onChange={triggerUpload('video', 'culture-wall.prepare-upload-video')}
             className="uploader-input"
+            disabled={uploadTask?.status === 'uploading'}
           />
         </>
       ) : null}
@@ -7569,6 +8900,7 @@ function App() {
   const [studentReviewMistakes, setStudentReviewMistakes] = useState([]);
   const [studentCourses, setStudentCourses] = useState([]);
   const [studentLessonAccount, setStudentLessonAccount] = useState({});
+  const [studentChildMessages, setStudentChildMessages] = useState([]);
   const [studentVoicePractice, setStudentVoicePractice] = useState({});
   const [studentDataLoading, setStudentDataLoading] = useState(false);
   const [studentDataMessage, setStudentDataMessage] = useState('');
@@ -7583,6 +8915,7 @@ function App() {
   const [parentChildCourses, setParentChildCourses] = useState([]);
   const [parentChildLessonAccount, setParentChildLessonAccount] = useState({});
   const [parentChildPayments, setParentChildPayments] = useState([]);
+  const [parentChildMessages, setParentChildMessages] = useState([]);
   const [parentDataLoading, setParentDataLoading] = useState(false);
   const [parentDataMessage, setParentDataMessage] = useState('');
   const [founderCockpit, setFounderCockpit] = useState({});
@@ -7597,6 +8930,10 @@ function App() {
     courseStatus: '',
     leadStatus: '',
     paymentStatus: '',
+    paymentStudentId: '',
+    paymentCourseId: '',
+    paymentStartAt: '',
+    paymentEndAt: '',
     startAt: '',
     endAt: ''
   });
@@ -7806,6 +9143,7 @@ function App() {
   const studentSummary = studentReviewSummary?.summary || studentReviewSummary || {};
   const child = activeRole === 'student'
     ? {
+      id: studentSummary?.studentId || studentSummary?.id || studentLessonAccount?.studentId || parentChild?.id || '',
       name: studentSummary?.studentName || studentSummary?.name || parentChild?.name || '当前学员',
       grade: studentSummary?.grade || studentSummary?.studentGrade || parentChild?.grade || '五年级',
       progress: Number(studentSummary?.doneRate || studentSummary?.progress || 0),
@@ -7829,6 +9167,9 @@ function App() {
   const runtimeLessons = runtimeData.teacherLessons || FALLBACK_DATA.teacherLessons;
   const lessons = (activeRole === 'teacher' ? teacherCourses : teacherCourses.length > 0 ? teacherCourses : runtimeLessons)
     || runtimeLessons;
+  const admissionsMedia = (runtimeData.mediaLibrary?.assets || FALLBACK_DATA.mediaLibrary.assets || [])
+    .filter((item) => `${item.placement || ''}`.trim() === 'admissions' && `${item.kind || ''}`.trim() === 'photo')
+    .map((item) => ({ ...item }));
   const cultureWall = runtimeData.cultureWall || FALLBACK_DATA.cultureWall;
   const canManageCultureWallData = ['founder', 'platform'].includes(activeRole);
   const platformOrgs = runtimeData.organizations || FALLBACK_DATA.organizations;
@@ -7947,10 +9288,21 @@ function App() {
       setStudentCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
       setStudentLessonAccount(accountPayload?.data || {});
       setStudentVoicePractice(todayPathPayload?.data?.voicePractice || {});
+      const studentId = `${accountPayload?.data?.studentId || summaryPayload?.data?.studentId || summaryPayload?.data?.student?.id || ''}`.trim();
+      if (studentId) {
+        const messagesPayload = await loadChildMessages({
+          authToken: initTokenRef.current,
+          childId: studentId
+        }).catch(() => null);
+        setStudentChildMessages(Array.isArray(messagesPayload?.data?.messages) ? messagesPayload.data.messages : []);
+      } else {
+        setStudentChildMessages([]);
+      }
     } catch (error) {
       if (!isNotFoundApiError(error)) {
         setStudentDataMessage(error?.message || '学生数据加载失败');
       }
+      throw error;
     } finally {
       setStudentDataLoading(false);
     }
@@ -7962,6 +9314,41 @@ function App() {
       taskId: `${payload.taskId || ''}`.trim(),
       transcript: `${payload.transcript || ''}`.trim(),
       score: Number.isFinite(Number(payload.score)) ? Number(payload.score) : 0
+    });
+  };
+
+  const submitStudentPath = async (payload = {}) => {
+    return submitStudentPathCompletion({
+      authToken: initTokenRef.current,
+      payload: {
+        taskType: 'path_completion',
+        title: `${payload.title || ''}`.trim(),
+        answer: `${payload.answer || '已完成今日学习路径'}`.trim(),
+        score: Number.isFinite(Number(payload.score)) ? Number(payload.score) : 100,
+        status: 'done',
+        pathId: `${payload.pathId || ''}`.trim(),
+        pathTitle: `${payload.pathTitle || payload.title || ''}`.trim(),
+        stepIndex: Number.isFinite(Number(payload.stepIndex)) ? Number(payload.stepIndex) : -1,
+        studentId: `${payload.studentId || ''}`.trim(),
+        source: `${payload.source || 'student_home_path'}`.trim()
+      }
+    });
+  };
+
+  const submitStudentPractice = async (payload = {}) => {
+    return submitStudentPracticeReview({
+      authToken: initTokenRef.current,
+      payload: {
+        taskType: payload.taskType || 'practice_task',
+        title: `${payload.title || ''}`.trim(),
+        answer: `${payload.answer || ''}`.trim(),
+        score: Number.isFinite(Number(payload.score)) ? Number(payload.score) : 0,
+        status: `${payload.status || 'done'}`.trim(),
+        studentId: `${payload.studentId || ''}`.trim(),
+        payload: {
+          ...(payload.payload || {})
+        }
+      }
     });
   };
 
@@ -8101,10 +9488,11 @@ function App() {
     return result?.data?.task || null;
   };
 
-  const submitTeacherStudentIntervention = async (studentId, payload = {}) => {
+  const submitStudentIntervention = async (studentId, payload = {}, role = 'teacher') => {
     return submitTeacherIntervention({
       authToken: initTokenRef.current,
       studentId,
+      role,
       payload: {
         interventionType: payload.interventionType || 'follow',
         action: payload.action || '',
@@ -8113,6 +9501,46 @@ function App() {
         channel: payload.channel || 'teacher'
       }
     });
+  };
+
+  const submitTeacherStudentIntervention = async (studentId, payload = {}) => {
+    return submitStudentIntervention(studentId, payload, 'teacher');
+  };
+
+  const submitFounderStudentIntervention = async (studentId, payload = {}) => {
+    return submitStudentIntervention(studentId, payload, activeRole || 'founder');
+  };
+
+  const adjustFounderLessonAccountRecord = async (payload = {}) => {
+    const result = await adjustFounderLessonAccount({
+      authToken: initTokenRef.current,
+      payload
+    });
+    await loadFounderData(founderFilters).catch(() => {});
+    return result;
+  };
+
+  const persistChildMessage = async ({ childId = '', payload = {} } = {}) => {
+    const targetChildId = `${childId || parentSelectedChildId || child?.id || parentSummary?.student?.id || ''}`.trim();
+    if (!targetChildId) {
+      throw new Error('childId is required');
+    }
+
+    const result = await createChildMessage({
+      authToken: initTokenRef.current,
+      childId: targetChildId,
+      payload: {
+        ...payload,
+        actorRole: payload.actorRole || activeRole || 'parent'
+      }
+    });
+
+    if (activeRole === 'parent') {
+      await loadParentData().catch(() => {});
+    } else if (activeRole === 'student') {
+      await loadStudentData().catch(() => {});
+    }
+    return result?.data?.message || null;
   };
 
   const loadParentData = async () => {
@@ -8132,6 +9560,7 @@ function App() {
         setParentChildCourses([]);
         setParentChildLessonAccount({});
         setParentChildPayments([]);
+        setParentChildMessages([]);
         setParentDataMessage('当前账号未绑定可查看的学员');
         return;
       }
@@ -8146,10 +9575,16 @@ function App() {
       setParentChildCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
       setParentChildLessonAccount(accountPayload?.data || {});
       setParentChildPayments(Array.isArray(paymentsPayload?.data?.records) ? paymentsPayload.data.records : []);
+      const messagesPayload = await loadChildMessages({
+        authToken: initTokenRef.current,
+        childId: nextChildId
+      }).catch(() => null);
+      setParentChildMessages(Array.isArray(messagesPayload?.data?.messages) ? messagesPayload.data.messages : []);
     } catch (error) {
       if (!isNotFoundApiError(error)) {
         setParentDataMessage(error?.message || '家长数据加载失败');
       }
+      throw error;
     } finally {
       setParentDataLoading(false);
     }
@@ -8163,6 +9598,10 @@ function App() {
         courseStatus: `${inputFilters?.courseStatus || ''}`.trim(),
         leadStatus: `${inputFilters?.leadStatus || ''}`.trim(),
         paymentStatus: `${inputFilters?.paymentStatus || ''}`.trim(),
+        paymentStudentId: `${inputFilters?.paymentStudentId || ''}`.trim(),
+        paymentCourseId: `${inputFilters?.paymentCourseId || ''}`.trim(),
+        paymentStartAt: `${inputFilters?.paymentStartAt || ''}`.trim(),
+        paymentEndAt: `${inputFilters?.paymentEndAt || ''}`.trim(),
         startAt: `${inputFilters?.startAt || ''}`.trim(),
         endAt: `${inputFilters?.endAt || ''}`.trim()
       };
@@ -8170,7 +9609,16 @@ function App() {
         loadFounderCockpit({ authToken: initTokenRef.current, filters: normalizedFilters }),
         loadFounderLeads({ authToken: initTokenRef.current, filters: { status: normalizedFilters.leadStatus } }),
         loadFounderCourses({ authToken: initTokenRef.current, filters: { status: normalizedFilters.courseStatus } }),
-        loadFounderPaymentRecords({ authToken: initTokenRef.current, filters: { status: normalizedFilters.paymentStatus } }),
+        loadFounderPaymentRecords({
+          authToken: initTokenRef.current,
+          filters: {
+            status: normalizedFilters.paymentStatus,
+            studentId: normalizedFilters.paymentStudentId,
+            courseId: normalizedFilters.paymentCourseId,
+            startAt: normalizedFilters.paymentStartAt,
+            endAt: normalizedFilters.paymentEndAt
+          }
+        }),
         loadFounderLessonAccounts({ authToken: initTokenRef.current }),
         loadFounderAttendanceRecords({ authToken: initTokenRef.current, filters: { startAt: normalizedFilters.startAt, endAt: normalizedFilters.endAt } })
       ]);
@@ -8200,6 +9648,33 @@ function App() {
     payload
   });
 
+  const createFounderCourseRecord = async (payload = {}) => {
+    const result = await createFounderCourse({
+      authToken: initTokenRef.current,
+      payload: {
+        ...payload,
+        institutionId: payload.institutionId || runtimeData?.organizations?.[0]?.id || runtimeData?.organizations?.[0]?.institutionId || ''
+      }
+    });
+    await Promise.all([
+      loadFounderData(founderFilters).catch(() => {}),
+      loadPublicCourses().catch(() => {})
+    ]);
+    return result;
+  };
+
+  const updateFounderCourseRecord = async (payload = {}) => {
+    const result = await updateFounderCourse({
+      authToken: initTokenRef.current,
+      payload
+    });
+    await Promise.all([
+      loadFounderData(founderFilters).catch(() => {}),
+      loadPublicCourses().catch(() => {})
+    ]);
+    return result;
+  };
+
   const loadRoleData = async () => {
     if (!isAuthenticated || !isApiMode()) {
       return;
@@ -8227,23 +9702,28 @@ function App() {
       setParentSelectedChildId('');
       return;
     }
-    setParentSelectedChildId(childId);
-    setParentDataLoading(true);
-    setParentDataMessage('');
-    try {
-      const [summaryPayload, coursesPayload, accountPayload, paymentsPayload] = await Promise.all([
-        loadChildSummary({ authToken: initTokenRef.current, childId }),
-        loadChildCourses({ authToken: initTokenRef.current, childId }),
-        loadChildLessonAccount({ authToken: initTokenRef.current, childId }),
-        loadChildPaymentRecords({ authToken: initTokenRef.current, childId })
-      ]);
-      setParentSummary(summaryPayload?.data || {});
-      setParentChildCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
-      setParentChildLessonAccount(accountPayload?.data || {});
-      setParentChildPayments(Array.isArray(paymentsPayload?.data?.records) ? paymentsPayload.data.records : []);
-    } catch (error) {
-      setParentDataMessage(error?.message || '切换孩子失败');
-    } finally {
+      setParentSelectedChildId(childId);
+      setParentDataLoading(true);
+      setParentDataMessage('');
+      try {
+        const [summaryPayload, coursesPayload, accountPayload, paymentsPayload] = await Promise.all([
+          loadChildSummary({ authToken: initTokenRef.current, childId }),
+          loadChildCourses({ authToken: initTokenRef.current, childId }),
+          loadChildLessonAccount({ authToken: initTokenRef.current, childId }),
+          loadChildPaymentRecords({ authToken: initTokenRef.current, childId })
+        ]);
+        setParentSummary(summaryPayload?.data || {});
+        setParentChildCourses(Array.isArray(coursesPayload?.data?.courses) ? coursesPayload.data.courses : []);
+        setParentChildLessonAccount(accountPayload?.data || {});
+        setParentChildPayments(Array.isArray(paymentsPayload?.data?.records) ? paymentsPayload.data.records : []);
+        const messagesPayload = await loadChildMessages({
+          authToken: initTokenRef.current,
+          childId
+        }).catch(() => null);
+        setParentChildMessages(Array.isArray(messagesPayload?.data?.messages) ? messagesPayload.data.messages : []);
+      } catch (error) {
+        setParentDataMessage(error?.message || '切换孩子失败');
+      } finally {
       setParentDataLoading(false);
     }
   };
@@ -8747,32 +10227,29 @@ function App() {
     />
   );
 
-  const uploadCultureWall = async ({ kind, file }) => {
+  const uploadCultureWall = async ({ kind, file, onProgress }) => {
     if (!canManageCultureWallData) {
       return null;
     }
 
-    try {
-      const payload = await uploadCultureWallAsset({
-        authToken: initTokenRef.current,
-        role: activeRole,
-        kind,
-        file,
-        uploader: '当前管理员'
-      });
+    const payload = await uploadCultureWallAsset({
+      authToken: initTokenRef.current,
+      role: activeRole,
+      kind,
+      file,
+      uploader: '当前管理员',
+      onProgress
+    });
 
-      const nextWall = payload?.data?.cultureWall;
-      if (nextWall) {
-        setRuntimeData((prev) => ({
-          ...prev,
-          cultureWall: nextWall
-        }));
-      }
-
-      return nextWall;
-    } catch {
-      return null;
+    const nextWall = payload?.data?.cultureWall;
+    if (nextWall) {
+      setRuntimeData((prev) => ({
+        ...prev,
+        cultureWall: nextWall
+      }));
     }
+
+    return nextWall;
   };
 
   const loadCultureWallData = async () => {
@@ -8922,6 +10399,7 @@ function App() {
             onAction={appendOperationLog}
             onTakeoverLead={takeoverLead}
             onConvertLead={convertLead}
+            onAdjustLessonAccount={adjustFounderLessonAccountRecord}
           />
         )
         : activeRole === 'teacher'
@@ -8980,6 +10458,9 @@ function App() {
             onSubmitPublicLead={submitPublicLead}
             onSubmitTrialBooking={submitTrialBooking}
             onRefreshPublicCourses={loadPublicCourses}
+            admissionsMedia={admissionsMedia}
+            onSubmitPathCompletion={activeRole === 'student' ? submitStudentPath : null}
+            onSubmitPracticeReview={activeRole === 'student' ? submitStudentPractice : null}
             onNavigatePage={switchPage}
             onAction={appendOperationLog}
           />
@@ -8990,6 +10471,7 @@ function App() {
             child={child}
             report={report}
             cultureWall={cultureWall}
+            admissionsMedia={admissionsMedia}
             activeStageMeta={currentStage}
             roleLabel={currentRole?.label || '学生'}
             currentStage={currentStage}
@@ -9002,6 +10484,7 @@ function App() {
             onSubmitPublicLead={submitPublicLead}
             onSubmitTrialBooking={submitTrialBooking}
             onSendLeadAiReply={sendPublicLeadReply}
+            onSubmitIntervention={['founder', 'platform'].includes(activeRole) ? submitFounderStudentIntervention : null}
             onRefreshPublicCourses={loadPublicCourses}
             onRefreshStudentCourses={
               activeRole === 'student'
@@ -9031,14 +10514,19 @@ function App() {
             activeRole={activeRole}
             studentCourses={activeRole === 'student'
               ? studentCourses
-              : activeRole === 'parent'
-                ? parentChildCourses
-                : lessons}
+                : activeRole === 'parent'
+                  ? parentChildCourses
+                  : lessons}
             studentReviewSummary={studentReviewSummary}
+            studentReviewHistory={studentReviewHistory}
             studentLessonAccount={studentLessonAccount}
             selectedCourseId={pageContext.selectedCourseId || ''}
+            selectedChildId={pageContext.selectedChildId || ''}
             onNavigatePage={switchPage}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
+            onSubmitPathCompletion={activeRole === 'student' ? submitStudentPath : null}
+            onCreateCourse={activeRole === 'founder' ? createFounderCourseRecord : null}
+            onUpdateCourse={activeRole === 'founder' ? updateFounderCourseRecord : null}
             onRefreshCourses={
               activeRole === 'student'
                 ? () => loadStudentData().catch(() => {})
@@ -9056,7 +10544,12 @@ function App() {
     practice:
       activeRole === 'platform'
         ? (
-          <PlatformPlansPage billingPlans={runtimeData.billingPlans || FALLBACK_DATA.billingPlans} />
+          <PlatformPlansPage
+            organizations={runtimeData.organizations || FALLBACK_DATA.organizations}
+            orgStatusDefaults={runtimeData.orgStatusDefaults || FALLBACK_DATA.orgStatusDefaults}
+            orgActionsByStatus={runtimeData.orgActionsByStatus || FALLBACK_DATA.orgActionsByStatus}
+            platformSummary={runtimeData.platformSummary || FALLBACK_DATA.platformSummary}
+          />
         )
         : (
           <PracticePage
@@ -9068,6 +10561,7 @@ function App() {
             report={report}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
             onResetChallenge={activeRole !== 'platform' ? invokeAIAgent : null}
+            onSubmitPracticeReview={activeRole === 'student' ? submitStudentPractice : null}
             onSubmitVoiceAssess={activeRole === 'student' ? submitStudentVoice : null}
             onAction={appendOperationLog}
           />
@@ -9080,15 +10574,18 @@ function App() {
               child={child}
               report={report}
               cultureWall={cultureWall}
+              childMessages={activeRole === 'parent' ? parentChildMessages : studentChildMessages}
               lessonAccount={activeRole === 'parent' ? parentChildLessonAccount : studentLessonAccount}
+              lessonAccountSourceLabel={activeRole === 'parent' ? '家长课时账户接口' : '学生课时账户接口'}
               childCourses={activeRole === 'parent' ? parentChildCourses : studentCourses}
-              onRefresh={activeRole === 'parent' ? () => loadParentData().catch(() => {}) : activeRole === 'student' ? () => loadStudentData().catch(() => {}) : null}
+              onRefresh={activeRole === 'parent' ? loadParentData : activeRole === 'student' ? loadStudentData : null}
               onExportReport={activeRole === 'parent'
                 ? () => exportProfileReport({ childId: selectedParentChildId || child?.id || parentSummary?.student?.id || '' })
                 : activeRole === 'student'
                   ? () => exportProfileReport()
                   : null}
               onRunAIAgent={invokeAIAgent}
+              onCreateChildMessage={persistChildMessage}
               onRefreshCultureWall={canManageCultureWallData ? loadCultureWallData : null}
               onAction={appendOperationLog}
               onNavigatePage={switchPage}

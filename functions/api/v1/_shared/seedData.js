@@ -192,6 +192,19 @@ export const parentReports = [
   }
 ];
 
+export const parentMessages = [
+  {
+    id: 'pm_001',
+    studentId: 's_001',
+    actorRole: 'system',
+    sender: 'AI家校沟通助手',
+    message: '本周学习反馈已整理，可直接发送给家长确认。',
+    tone: '高情商',
+    relatedLessonId: 'lesson_001',
+    createdAt: '2026-06-12T08:00:00.000Z'
+  }
+];
+
 export const organizations = [
   {
     name: 'Aggie速记英语本部',
@@ -332,95 +345,197 @@ export const aiAgents = [
   }
 ];
 
+const admissionsMediaAssets = [
+  {
+    id: 'middle-exam-cram',
+    placement: 'admissions',
+    kind: 'photo',
+    category: 'middle-exam',
+    badge: '中考提分',
+    title: '中考英语冲刺',
+    summary: '暑假提分窗口期，围绕词汇、语法、阅读做集中突破。',
+    description: '暑假提分窗口期，围绕词汇、语法、阅读做集中突破。',
+    tags: ['词汇', '语法', '阅读', '冲刺'],
+    mediaUrl: '/assets/admissions/middle-exam-cram.png',
+    coverUrl: '/assets/admissions/middle-exam-cram.png',
+    src: '/assets/admissions/middle-exam-cram.png',
+    status: '已发布',
+    sortOrder: 10
+  },
+  {
+    id: 'primary-junior-transition',
+    placement: 'admissions',
+    kind: 'photo',
+    category: 'transition',
+    badge: '小升初衔接',
+    title: '小升初英语衔接',
+    summary: '从小学到初中，先把词汇量、语法体系和阅读节奏接起来。',
+    description: '从小学到初中，先把词汇量、语法体系和阅读节奏接起来。',
+    tags: ['衔接期', '体系化', '阅读', '听说'],
+    mediaUrl: '/assets/admissions/primary-junior-transition.png',
+    coverUrl: '/assets/admissions/primary-junior-transition.png',
+    src: '/assets/admissions/primary-junior-transition.png',
+    status: '已发布',
+    sortOrder: 20
+  },
+  {
+    id: 'in-school-new-concept',
+    placement: 'admissions',
+    kind: 'photo',
+    category: 'in-school',
+    badge: '同步提优',
+    title: '课内英语衔接 + 新概念提优',
+    summary: '课内不掉队，同时把新概念英语做成可持续提优路径。',
+    description: '课内不掉队，同时把新概念英语做成可持续提优路径。',
+    tags: ['课内同步', '新概念', '提优', '进阶'],
+    mediaUrl: '/assets/admissions/in-school-new-concept.png',
+    coverUrl: '/assets/admissions/in-school-new-concept.png',
+    src: '/assets/admissions/in-school-new-concept.png',
+    status: '已发布',
+    sortOrder: 30
+  },
+  {
+    id: 'phonics-ipa',
+    placement: 'admissions',
+    kind: 'photo',
+    category: 'foundation',
+    badge: '基础能力',
+    title: '自然拼读 + 国际音标',
+    summary: '用音标和拼读打底，帮孩子建立见词能读、听音能拼的能力。',
+    description: '用音标和拼读打底，帮孩子建立见词能读、听音能拼的能力。',
+    tags: ['自然拼读', '音标', '拼读', '开口'],
+    mediaUrl: '/assets/admissions/phonics-ipa.png',
+    coverUrl: '/assets/admissions/phonics-ipa.png',
+    src: '/assets/admissions/phonics-ipa.png',
+    status: '已发布',
+    sortOrder: 40
+  }
+];
+
+const cultureWallMediaAssets = [
+  {
+    id: 'v-101',
+    placement: 'culture-wall',
+    kind: 'video',
+    title: '高一语法冲刺直播课',
+    description: '围绕高一总复习阶段的关键时态复盘，家长和学生可一并回看。',
+    summary: '围绕高一总复习阶段的关键时态复盘，家长和学生可一并回看。',
+    date: '2026-06-02',
+    uploader: '王老师',
+    mediaUrl: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm',
+    coverUrl: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=900&q=80',
+    src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm',
+    duration: '08:16',
+    status: '已发布',
+    sortOrder: 110,
+    tags: ['课堂视频', '语法', '复盘']
+  },
+  {
+    id: 'v-102',
+    placement: 'culture-wall',
+    kind: 'video',
+    title: '小升初阅读训练营',
+    description: '展示课前预习、课堂互动与错题复盘流程。',
+    summary: '展示课前预习、课堂互动与错题复盘流程。',
+    date: '2026-05-31',
+    uploader: '林老师',
+    mediaUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    coverUrl: 'https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=900&q=80',
+    src: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    duration: '12:10',
+    status: '已发布',
+    sortOrder: 120,
+    tags: ['课堂视频', '阅读', '训练营']
+  },
+  {
+    id: 'p-201',
+    placement: 'culture-wall',
+    kind: 'photo',
+    title: '期中阶段展示课',
+    description: '学员分组活动与口语展示',
+    summary: '学员分组活动与口语展示',
+    date: '2026-06-01',
+    uploader: '项目运营组',
+    mediaUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',
+    src: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',
+    status: '已发布',
+    sortOrder: 130,
+    tags: ['课堂照片', '展示课']
+  },
+  {
+    id: 'p-202',
+    placement: 'culture-wall',
+    kind: 'photo',
+    title: 'AI作业批改课堂',
+    description: '老师一对一点评 + 全班引导练习',
+    summary: '老师一对一点评 + 全班引导练习',
+    date: '2026-05-30',
+    uploader: '王老师',
+    mediaUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=900&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=900&q=80',
+    src: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=900&q=80',
+    status: '已发布',
+    sortOrder: 140,
+    tags: ['课堂照片', 'AI批改']
+  }
+];
+
+export const mediaLibrary = {
+  assets: [...admissionsMediaAssets, ...cultureWallMediaAssets]
+};
+
+const cultureWallTeachers = [
+  {
+    id: 't-301',
+    name: '王老师',
+    title: '小学英语主教',
+    avatar:
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=450&q=80',
+    highlights: ['AI备课效率提升 38%', '3小时内完成5份课堂复盘']
+  },
+  {
+    id: 't-302',
+    name: '李老师',
+    title: '初高中英语专培',
+    avatar:
+      'https://images.unsplash.com/photo-1509395176047-4a66953fd231?auto=format&fit=crop&w=450&q=80',
+    highlights: ['课后反馈提交率 100%', '家长满意度 4.8/5']
+  },
+  {
+    id: 't-303',
+    name: '林老师',
+    title: '阅读与写作负责人',
+    avatar:
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=450&q=80',
+    highlights: ['月度提分 27%', '错题复习闭环覆盖 95%']
+  }
+];
+
+const cultureWallFeedback = [
+  {
+    id: 'f-401',
+    role: '家长反馈',
+    author: '张女士（五年级）',
+    text: '孩子的学习节奏清楚了，不会再因为没反馈找不到方向。'
+  },
+  {
+    id: 'f-402',
+    role: '学生反馈',
+    author: '小宇（五年级）',
+    text: '老师讲的句型例子很像日常对话，记忆起来快多了。'
+  },
+  {
+    id: 'f-403',
+    role: '家长反馈',
+    author: '赵主任（机构）',
+    text: '平台把课后反馈和续费线索自动归类后，我们能更快排优先级。'
+  }
+];
+
 export const cultureWall = {
-  videos: [
-    {
-      id: 'v-101',
-      title: '高一语法冲刺直播课',
-      description: '围绕高一总复习阶段的关键时态复盘，家长和学生可一并回看。',
-      date: '2026-06-02',
-      uploader: '王老师',
-      cover:
-        'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=900&q=80',
-      src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm',
-      duration: '08:16',
-      status: '演示素材'
-    },
-    {
-      id: 'v-102',
-      title: '小升初阅读训练营',
-      description: '展示课前预习、课堂互动与错题复盘流程。',
-      date: '2026-05-31',
-      uploader: '林老师',
-      cover:
-        'https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=900&q=80',
-      src: 'https://www.w3schools.com/html/mov_bbb.mp4',
-      duration: '12:10',
-      status: '演示素材'
-    }
-  ],
-  photos: [
-    {
-      id: 'p-201',
-      title: '期中阶段展示课',
-      description: '学员分组活动与口语展示',
-      date: '2026-06-01',
-      uploader: '项目运营组',
-      src: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80'
-    },
-    {
-      id: 'p-202',
-      title: 'AI作业批改课堂',
-      description: '老师一对一点评 + 全班引导练习',
-      date: '2026-05-30',
-      uploader: '王老师',
-      src: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=900&q=80'
-    }
-  ],
-  teachers: [
-    {
-      id: 't-301',
-      name: '王老师',
-      title: '小学英语主教',
-      avatar:
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=450&q=80',
-      highlights: ['AI备课效率提升 38%', '3小时内完成5份课堂复盘']
-    },
-    {
-      id: 't-302',
-      name: '李老师',
-      title: '初高中英语专培',
-      avatar:
-        'https://images.unsplash.com/photo-1509395176047-4a66953fd231?auto=format&fit=crop&w=450&q=80',
-      highlights: ['课后反馈提交率 100%', '家长满意度 4.8/5']
-    },
-    {
-      id: 't-303',
-      name: '林老师',
-      title: '阅读与写作负责人',
-      avatar:
-        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=450&q=80',
-      highlights: ['月度提分 27%', '错题复习闭环覆盖 95%']
-    }
-  ],
-  feedback: [
-    {
-      id: 'f-401',
-      role: '家长反馈',
-      author: '张女士（五年级）',
-      text: '孩子的学习节奏清楚了，不会再因为没反馈找不到方向。'
-    },
-    {
-      id: 'f-402',
-      role: '学生反馈',
-      author: '小宇（五年级）',
-      text: '老师讲的句型例子很像日话，记忆起来快多了。'
-    },
-    {
-      id: 'f-403',
-      role: '家长反馈',
-      author: '赵主任（机构）',
-      text: '平台把课后反馈和续费线索自动归类后，我们能更快排优先级。'
-    }
-  ]
+  videos: mediaLibrary.assets.filter((item) => item.placement === 'culture-wall' && item.kind === 'video').map((item) => ({ ...item })),
+  photos: mediaLibrary.assets.filter((item) => item.placement === 'culture-wall' && item.kind === 'photo').map((item) => ({ ...item })),
+  teachers: cultureWallTeachers.map((item) => ({ ...item })),
+  feedback: cultureWallFeedback.map((item) => ({ ...item }))
 };

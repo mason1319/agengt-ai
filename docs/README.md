@@ -7,7 +7,7 @@
 | 层级 | 文件 | 用途 | 维护人 | 更新频率 |
 | --- | --- | --- | --- | --- |
 | 主 PRD | `phase1-prd-starmate-english.md` | Phase 1 唯一产品验收源，定义范围、角色、成功目标和不做事项 | 产品负责人 | 每个 Sprint 开始前和范围变更时 |
-| v4.1 内部补充 | `StarMate-PRD-v4.1-internal-CN.md` | 内部机构、课程、课时、收费记录、招生咨询、AI 边界细化 | 产品负责人 | 内部运营规则变化时 |
+| v4.1 内部补充 | `StarMate-PRD-v4.1-internal-CN.md` | 内部机构、课程、课时、缴费记录、统一素材库、招生咨询、AI 边界细化 | 产品负责人 | 内部运营规则变化时 |
 | 架构 | `phase1-architecture-starmate-english.md` | Cloudflare Pages/Functions、D1、R2、鉴权、部署结构 | 架构负责人 | 架构或部署方式变化时 |
 | 设计 | `StarMate-design-v4.1-internal-CN.md` | 页面结构、角色流程、交互状态、控件验收 | 设计负责人 | 页面或交互变更前 |
 | 开发 SOP | `StarMate-dev-SOP-v4.1-CN.md` | 开发顺序、接口先行、门禁、回滚与合并阻塞项 | 技术负责人 | 流程或门禁变化时 |

@@ -108,7 +108,7 @@ SMOKE_ALLOW_SKIP=true npm run stack:verify
    - 状态码：200
    - 期望：`success === true`，`data.teachers` 为数组
 
-16. 机构收费记录列表
+16. 机构缴费记录列表
    - `GET /api/v1/institution/payments?institutionId=inst-star&limit=5`（founder token）
    - 状态码：200
    - 期望：`success === true`，`data.payments` 为数组
