@@ -220,7 +220,7 @@
 
 ### 2. 首页招生模块
 
-把现在的 `ADMISSION_POSTERS` 替换成从适配层读取的数据。
+当前实现已经把首页招生模块迁移到统一素材库，`ADMISSION_POSTERS` 只保留为无数据时的回退。
 
 首页保留：
 
@@ -230,10 +230,11 @@
 - 立即咨询按钮
 
 但所有内容都来自素材库，而不是写死数组。
+当前页面里，首页和学生首页的招生位都复用了同一批 `placement=admissions` 素材。
 
 ### 3. 文化墙模块
 
-把 `CultureWallSection` 和 `CultureWallPage` 的上传逻辑收拢为同一份素材上传能力。
+文化墙上传和读取已经接入统一素材库，`CultureWallSection` 和 `CultureWallPage` 继续沿用同一份上传能力。
 
 文化墙页面继续保留：
 
@@ -327,4 +328,3 @@
 - `docs/ui-control-api-field-map.csv`
 - `docs/ui-control-api-field-map-home-courses-practice-profile-v4.1-CN.md`
 - `docs/unclosed-ui-controls-v4.1-internal-CN.md`
-

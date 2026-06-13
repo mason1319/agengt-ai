@@ -746,7 +746,7 @@ function FounderDashboard({
 
   const exportPaymentRecords = () => {
     if (paymentRows.length === 0) {
-      onAction?.('founder', '收费记录导出失败：当前没有可导出的记录');
+      onAction?.('founder', '缴费记录导出失败：当前没有可导出的记录');
       return;
     }
 
@@ -801,7 +801,7 @@ function FounderDashboard({
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    onAction?.('founder', `导出收费记录：${paymentRows.length} 条`);
+    onAction?.('founder', `导出缴费记录：${paymentRows.length} 条`);
   };
 
   const updateFilters = (patch = {}) => {
@@ -918,7 +918,7 @@ function FounderDashboard({
       <div className="hero-panel">
           <div>
             <h1>经营驾驶舱</h1>
-            <p>课程、课时、收费记录、咨询线索统一在这里管理，关键动作都可回写与审计。</p>
+            <p>课程、课时、缴费记录、咨询线索统一在这里管理，关键动作都可回写与审计。</p>
             <div className="hero-actions">
               <button onClick={requestRefresh}>{refreshText}</button>
             </div>
@@ -995,9 +995,9 @@ function FounderDashboard({
               <span className="status-dot green" />
               <div>
                 <strong>对账口径</strong>
-              <small>课时、收费记录和到课数据已统一接通</small>
+              <small>课时、缴费记录和到课数据已统一接通</small>
               </div>
-              <small className="small-note">课时表项：{summary.lessonAccountSummary?.totalRecords || 0}</small>
+              <small className="small-note">课时账项：{summary.lessonAccountSummary?.totalRecords || 0}</small>
             </div>
             <div className="alert-row">
               <span className="status-dot blue" />
@@ -1094,7 +1094,7 @@ function FounderDashboard({
       </div>
 
       <div className="panel">
-        <PanelTitle icon={BookOpenCheck} title="课程与收费" action={`课程 ${countItems(courses)} / 收费 ${countItems(paymentRows)}`} />
+        <PanelTitle icon={BookOpenCheck} title="课程与缴费" action={`课程 ${countItems(courses)} / 缴费 ${countItems(paymentRows)}`} />
         {countItems(courses) === 0 ? <div className="small-note">{UI_COPY.empty.noCourseData}</div> : null}
         {(courses || []).slice(0, 6).map((course) => (
           <div className="alert-row" key={course.id || `${course.name}-${course.startAt || ''}`}>
@@ -1116,8 +1116,8 @@ function FounderDashboard({
         <div style={{ height: 10 }} />
         <div className="section-headline" style={{ marginTop: 12 }}>
           <div>
-            <span>收费记录</span>
-            <h3>收费记录筛选与导出</h3>
+            <span>缴费记录</span>
+            <h3>缴费记录筛选与导出</h3>
           </div>
           <button className="row-action" onClick={exportPaymentRecords} disabled={paymentRows.length === 0}>
             导出 CSV
@@ -2070,7 +2070,7 @@ function ParentView({
       </div>
 
       <div className="panel">
-        <PanelTitle icon={CreditCard} title="收费记录摘要" action={`已记录 ${paidCount} 笔`} />
+        <PanelTitle icon={CreditCard} title="缴费记录摘要" action={`已记录 ${paidCount} 笔`} />
         {childPaymentRecords.length === 0 ? <div className="small-note">{UI_COPY.empty.noPayments}</div> : null}
         {(childPaymentRecords || []).slice(0, 6).map((record) => (
           <div className="alert-row" key={record.id || record.order_no || `${record.studentId || ''}-${record.paid_at || ''}`}>
@@ -2090,7 +2090,7 @@ function ParentView({
         <div className="hero-chip-row" style={{ marginTop: 10 }}>
           <button
             className="row-action"
-            onClick={() => onAction?.('parent', '家长查看收费记录有疑问，可联系老师/机构')}
+            onClick={() => onAction?.('parent', '家长查看缴费记录有疑问，可联系老师/机构')}
           >
             <MessageCircleHeart size={16} />
             <span>有疑问，联系老师/机构</span>
@@ -2135,7 +2135,7 @@ function ParentView({
         <p className="large-text">{report.summary}</p>
         <div className="small-note">{reportStatus}</div>
         <div className="small-note">
-          收费记录：已记录 {paidCount} 笔，金额 {formatCents(totalPaidCents)}
+          缴费记录：已记录 {paidCount} 笔，金额 {formatCents(totalPaidCents)}
         </div>
       </div>
     </section>
@@ -2164,7 +2164,8 @@ function StudentView({
   onRefreshPublicCourses,
   onNavigatePage,
   onSubmitPathCompletion,
-  onAction
+  onAction,
+  admissionsMedia = []
 }) {
   const normalizeTasks = (source) => {
     const sourceTasks = Array.isArray(source) ? source : [];
@@ -2236,6 +2237,7 @@ function StudentView({
   const historyItems = Array.isArray(reviewHistory) ? reviewHistory : [];
   const mistakeItems = Array.isArray(reviewMistakes) ? reviewMistakes : [];
   const publicCourseList = Array.isArray(publicCourses) ? publicCourses : [];
+  const admissionsPosterList = Array.isArray(admissionsMedia) ? admissionsMedia.slice(0, 4) : [];
   const [pathActionText, setPathActionText] = useState('');
   const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
   const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
@@ -2905,6 +2907,35 @@ function StudentView({
             {publicCoursesLoading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshPublicCourses}
           </button>
         </div>
+        <section className="panel admissions-panel">
+          <div className="section-headline compact">
+            <div>
+              <span>招生海报</span>
+              <h3>可随时更新的前台素材</h3>
+            </div>
+            <button className="row-action ghost" onClick={() => onNavigatePage?.('culture-wall')}>
+              查看成果馆
+            </button>
+          </div>
+          {admissionsPosterList.length > 0 ? (
+            <div className="media-grid photo-grid admissions-poster-grid">
+              {admissionsPosterList.map((item) => (
+                <article className="media-item admissions-poster-card" key={item.id}>
+                  <div className="media-cover photo-cover admissions-poster-cover">
+                    <img src={item.src || item.mediaUrl || item.coverUrl || ''} alt={item.title || '招生海报'} />
+                  </div>
+                  <div className="media-body">
+                    <strong>{item.title || '招生海报'}</strong>
+                    <small>{item.summary || item.description || item.badge || '招生素材'}</small>
+                    <small>{item.category || item.badge || item.placement || 'admissions'}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="small-note">暂无招生海报素材。</div>
+          )}
+        </section>
         <div className="feature-split home-public-layout">
           <div className="panel home-course-panel">
             <div className="home-course-grid">
@@ -5097,6 +5128,7 @@ function HomePage({
   child,
   report,
   cultureWall = {},
+  admissionsMedia = [],
   activeStageMeta,
   roleLabel,
   currentStage,
@@ -5118,6 +5150,7 @@ function HomePage({
   onAction
 }) {
   const learningCards = (lessons.length ? lessons : FALLBACK_DATA.teacherLessons).slice(0, 4);
+  const admissionsPosterList = Array.isArray(admissionsMedia) ? admissionsMedia.slice(0, 4) : [];
   const safeChild = child || {};
   const childName = safeChild.name || safeChild.studentName || safeChild.nickname || '当前学员';
   const remainingHours = Number(safeChild.hoursLeft || safeChild.hoursLeftCount || safeChild.remainingHours || 0);
@@ -5647,6 +5680,35 @@ function HomePage({
             {publicCoursesLoading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshPublicCourses}
           </button>
         </div>
+        <section className="panel admissions-panel">
+          <div className="section-headline compact">
+            <div>
+              <span>招生海报</span>
+              <h3>可随时更新的前台素材</h3>
+            </div>
+            <button className="row-action ghost" onClick={handleOpenCultureWall}>
+              打开素材中心
+            </button>
+          </div>
+          {admissionsPosterList.length > 0 ? (
+            <div className="media-grid photo-grid admissions-poster-grid">
+              {admissionsPosterList.map((item) => (
+                <article className="media-item admissions-poster-card" key={item.id}>
+                  <div className="media-cover photo-cover admissions-poster-cover">
+                    <img src={item.src || item.mediaUrl || item.coverUrl || ''} alt={item.title || '招生海报'} />
+                  </div>
+                  <div className="media-body">
+                    <strong>{item.title || '招生海报'}</strong>
+                    <small>{item.summary || item.description || item.badge || '招生素材'}</small>
+                    <small>{item.category || item.badge || item.placement || 'admissions'}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="small-note">暂无招生海报素材。</div>
+          )}
+        </section>
         <div className="feature-split home-public-layout">
           <section className="panel home-course-panel">
             <div className="section-headline">
@@ -7573,7 +7635,7 @@ function ProfilePage({
             <span>家庭学习总览</span>
             <h3>一页核对课程进展、课时余额与阶段结果</h3>
             <p>
-              课时、课程、阶段报告与家校反馈集中展示，支持课程质量、出勤与收费记录持续追踪。
+              课时、课程、阶段报告与家校反馈集中展示，支持课程质量、出勤与缴费记录持续追踪。
             </p>
             <div className="profile-hero-chip-row">
               <span>学习进度可核对</span>
@@ -7644,7 +7706,7 @@ function ProfilePage({
           <div className="section-headline">
             <div>
               <span>课时账户</span>
-            <h3>课时余额、课程与收费记录一体看板</h3>
+            <h3>课时余额、课程与缴费记录一体看板</h3>
             </div>
           </div>
         <div className="metrics profile-account-metrics">
@@ -7671,7 +7733,7 @@ function ProfilePage({
           />
           <MetricCard
             icon={CreditCard}
-            label="收费记录"
+            label="缴费记录"
             value={`${lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus || '待确认'}`}
             note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已对账'}`}
             tone="purple"
@@ -9105,6 +9167,9 @@ function App() {
   const runtimeLessons = runtimeData.teacherLessons || FALLBACK_DATA.teacherLessons;
   const lessons = (activeRole === 'teacher' ? teacherCourses : teacherCourses.length > 0 ? teacherCourses : runtimeLessons)
     || runtimeLessons;
+  const admissionsMedia = (runtimeData.mediaLibrary?.assets || FALLBACK_DATA.mediaLibrary.assets || [])
+    .filter((item) => `${item.placement || ''}`.trim() === 'admissions' && `${item.kind || ''}`.trim() === 'photo')
+    .map((item) => ({ ...item }));
   const cultureWall = runtimeData.cultureWall || FALLBACK_DATA.cultureWall;
   const canManageCultureWallData = ['founder', 'platform'].includes(activeRole);
   const platformOrgs = runtimeData.organizations || FALLBACK_DATA.organizations;
@@ -10393,6 +10458,7 @@ function App() {
             onSubmitPublicLead={submitPublicLead}
             onSubmitTrialBooking={submitTrialBooking}
             onRefreshPublicCourses={loadPublicCourses}
+            admissionsMedia={admissionsMedia}
             onSubmitPathCompletion={activeRole === 'student' ? submitStudentPath : null}
             onSubmitPracticeReview={activeRole === 'student' ? submitStudentPractice : null}
             onNavigatePage={switchPage}
@@ -10405,6 +10471,7 @@ function App() {
             child={child}
             report={report}
             cultureWall={cultureWall}
+            admissionsMedia={admissionsMedia}
             activeStageMeta={currentStage}
             roleLabel={currentRole?.label || '学生'}
             currentStage={currentStage}

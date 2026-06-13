@@ -94,10 +94,46 @@ function validateUploadFile(kind, file) {
   return '';
 }
 
+function normalizePlacement(value, fallback = 'culture-wall') {
+  const placement = `${value || ''}`.trim();
+  return placement || fallback;
+}
+
+function parseTags(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => `${item || ''}`.trim()).filter(Boolean);
+  }
+
+  const raw = `${value || ''}`.trim();
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => `${item || ''}`.trim()).filter(Boolean);
+    }
+  } catch {
+    // fall through to comma-separated parsing
+  }
+
+  return raw
+    .split(',')
+    .map((item) => `${item || ''}`.trim())
+    .filter(Boolean);
+}
+
+function parseSortOrder(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 async function listAssets(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const kind = `${url.searchParams.get('kind') || ''}`.trim();
+  const placement = normalizePlacement(url.searchParams.get('placement'), '');
   const mediaKey = `${url.searchParams.get('mediaKey') || ''}`.trim();
   const auth = await parseAuthContext(request, env);
   const role = auth?.role || 'founder';
@@ -134,7 +170,7 @@ async function listAssets(context) {
   }
 
   const institutionId = pickInstitutionId(mergedContext, role);
-  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, kind);
+  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, kind, placement);
 
   return jsonResponse({
     success: true,
@@ -186,6 +222,9 @@ async function uploadAssets(context) {
   if (isMultipart) {
     const form = await request.formData();
     const kind = `${form.get('kind') || 'photo'}`.trim();
+    const placement = normalizePlacement(form.get('placement'));
+    const sortOrder = parseSortOrder(form.get('sortOrder'));
+    const tags = parseTags(form.get('tags'));
 
     if (!['video', 'photo', 'teacher', 'feedback'].includes(kind)) {
       return jsonResponse({ success: false, error: 'kind must be video/photo/teacher/feedback' }, 400);
@@ -221,6 +260,9 @@ async function uploadAssets(context) {
           title: `${form.get('title') || file.name}`,
           description: `${form.get('description') || ''}`,
           uploader: `${form.get('uploader') || '平台管理员'}`,
+          placement,
+          sortOrder,
+          tags,
           mediaKey: key,
           mediaUrl,
           coverUrl: kind === 'video' ? mediaUrl : '',
@@ -258,7 +300,7 @@ async function uploadAssets(context) {
         );
       }
 
-      const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId);
+      const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, '', placement);
       return jsonResponse({ success: true, data: { cultureWall: wall } });
     }
 
@@ -273,6 +315,9 @@ async function uploadAssets(context) {
   const kind = `${body.kind}`.trim();
   const title = `${body.title || ''}`.trim();
   const description = `${body.description || ''}`.trim();
+  const placement = normalizePlacement(body.placement);
+  const sortOrder = parseSortOrder(body.sortOrder);
+  const tags = parseTags(body.tags);
 
   try {
     const saved = await insertCultureWallAssetUnsafe(env.DB, {
@@ -282,6 +327,9 @@ async function uploadAssets(context) {
       title,
       description,
       uploader: `${body.uploader || '平台管理员'}`,
+      placement,
+      sortOrder,
+      tags,
       status: `${body.status || '已发布'}`,
       extra: {
         text: `${body.text || ''}`
@@ -291,7 +339,7 @@ async function uploadAssets(context) {
     if (!saved) {
       return jsonResponse({ success: false, error: '保存素材失败' }, 500);
     }
-    } catch (error) {
+  } catch (error) {
     console.error('[culture-wall] upload failed', {
       requestId,
       kind,
@@ -307,7 +355,7 @@ async function uploadAssets(context) {
     );
   }
 
-  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId);
+  const wall = await fetchCultureWallAssetsByInstitution(env.DB, institutionId, '', placement);
   return jsonResponse({ success: true, data: { cultureWall: wall } });
 }
 

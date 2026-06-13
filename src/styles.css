@@ -3113,6 +3113,24 @@ button.ghost,
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admissions-poster-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.admissions-poster-card .admissions-poster-cover {
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 251, 255, 0.96));
+}
+
+.admissions-poster-card .admissions-poster-cover img {
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.admissions-poster-card .media-body strong {
+  font-size: 16px;
+}
+
 .media-item,
 .profile-card,
 .feedback-item {

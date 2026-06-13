@@ -23,7 +23,7 @@ const toInt = (value, fallback = 0) => {
 const CONVERT_STAGE_LABELS = {
   student: '学生创建',
   lessonAccount: '课时账户',
-  paymentRecord: '收费记录',
+  paymentRecord: '缴费记录',
   courseEnrollment: '课程报名'
 };
 
@@ -37,7 +37,7 @@ const buildSegment = (stage, status, message = '') => ({
 const buildCoursePreflightFailure = () => ([
   buildSegment('student', 'skipped', '课程校验未通过，未创建学生'),
   buildSegment('lessonAccount', 'skipped', '课程校验未通过，未创建课时账户'),
-  buildSegment('paymentRecord', 'skipped', '课程校验未通过，未创建收费记录'),
+  buildSegment('paymentRecord', 'skipped', '课程校验未通过，未创建缴费记录'),
   buildSegment('courseEnrollment', 'failed', '课程不存在或不可报名')
 ]);
 
@@ -148,7 +148,7 @@ export async function onRequest(context) {
         segments: [
           buildSegment('student', 'failed', '学生创建失败'),
           buildSegment('lessonAccount', 'skipped', '学生创建失败，未创建课时账户'),
-          buildSegment('paymentRecord', 'skipped', '学生创建失败，未创建收费记录'),
+          buildSegment('paymentRecord', 'skipped', '学生创建失败，未创建缴费记录'),
           buildSegment('courseEnrollment', 'skipped', '学生创建失败，未报名课程')
         ],
         payment: null
@@ -184,7 +184,7 @@ export async function onRequest(context) {
           failedStage: 'courseEnrollment',
           segments: [
             ...segments,
-            buildSegment('paymentRecord', 'skipped', '课程报名失败，未创建收费记录'),
+            buildSegment('paymentRecord', 'skipped', '课程报名失败，未创建缴费记录'),
             buildSegment('courseEnrollment', 'failed', getStageErrorMessage(error, '课程报名失败'))
           ],
           payment: null
@@ -204,7 +204,7 @@ export async function onRequest(context) {
           failedStage: 'courseEnrollment',
           segments: [
             ...segments,
-            buildSegment('paymentRecord', 'skipped', '课程报名失败，未创建收费记录'),
+            buildSegment('paymentRecord', 'skipped', '课程报名失败，未创建缴费记录'),
             buildSegment('courseEnrollment', 'failed', '课程报名未返回记录')
           ],
           payment: null
@@ -240,7 +240,7 @@ export async function onRequest(context) {
           failedStage: 'paymentRecord',
           segments: [
             ...segments,
-            buildSegment('paymentRecord', 'failed', getStageErrorMessage(error, '收费记录创建失败')),
+          buildSegment('paymentRecord', 'failed', getStageErrorMessage(error, '缴费记录创建失败')),
             enrolled && courseId
               ? buildSegment('courseEnrollment', 'success', '已报名课程')
               : buildSegment('courseEnrollment', 'skipped', '未选择课程报名')
@@ -253,8 +253,8 @@ export async function onRequest(context) {
   }
 
   segments.push(payment
-    ? buildSegment('paymentRecord', 'success', `已创建收费记录 ${payment.id || ''}`.trim())
-    : buildSegment('paymentRecord', 'skipped', '未填写收费金额，未创建收费记录'));
+    ? buildSegment('paymentRecord', 'success', `已创建缴费记录 ${payment.id || ''}`.trim())
+    : buildSegment('paymentRecord', 'skipped', '未填写收费金额，未创建缴费记录'));
   segments.push(enrolled && courseId
     ? buildSegment('courseEnrollment', 'success', '已报名课程')
     : buildSegment('courseEnrollment', 'skipped', '未选择课程报名'));

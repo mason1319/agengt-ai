@@ -8,6 +8,7 @@ import {
   aiAgents,
   billingPlans,
   cultureWall,
+  mediaLibrary,
   founderAlerts,
   leadPipeline,
   organizations,
@@ -265,6 +266,9 @@ const buildMockRuntimeData = () => ({
   parentReports: parentReports.map((item) => ({ ...item })),
   parentMessages: parentMessages.map((item) => ({ ...item })),
   organizations: organizations.map((item) => ({ ...item })),
+  mediaLibrary: {
+    assets: mediaLibrary.assets.map((item) => ({ ...item }))
+  },
   cultureWall: {
     ...cultureWall,
     videos: cultureWall.videos.map((item) => ({ ...item })),
@@ -656,6 +660,11 @@ export async function loadRuntimeData({ role, authToken } = {}) {
 
     return mergeRuntimeData(baseData, {
       ...mergedPlatform,
+      mediaLibrary: Array.isArray(data.mediaLibrary?.assets)
+        ? {
+            assets: data.mediaLibrary.assets.map((item) => ({ ...item }))
+          }
+        : baseData.mediaLibrary,
       cultureWall: apiCultureWall,
       organizations: Array.isArray(mergedPlatform.organizations)
         ? mergedPlatform.organizations
@@ -2977,7 +2986,7 @@ export async function convertFounderLead({
         segments: [
           { stage: 'student', label: '学生创建', status: 'success', message: '已创建模拟学生' },
           { stage: 'lessonAccount', label: '课时账户', status: 'skipped', message: '模拟模式未创建课时账户' },
-          { stage: 'paymentRecord', label: '收费记录', status: 'skipped', message: '模拟模式未创建收费记录' },
+          { stage: 'paymentRecord', label: '缴费记录', status: 'skipped', message: '模拟模式未创建缴费记录' },
           { stage: 'courseEnrollment', label: '课程报名', status: `${payload.courseId || ''}` ? 'success' : 'skipped', message: `${payload.courseId || ''}` ? '已报名模拟课程' : '未选择课程' }
         ],
         payment: null

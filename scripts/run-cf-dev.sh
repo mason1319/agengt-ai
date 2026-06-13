@@ -21,6 +21,13 @@ esac
 PORT="${STARMATE_CF_PORT:-8787}"
 INSPECTOR_PORT="${WRANGLER_INSPECTOR_PORT:-9230}"
 
+npx wrangler d1 execute starmate_english --local --file=schema.sql --config wrangler.toml \
+  >/tmp/starmate-d1-seed.log 2>&1 || {
+  echo "D1 seed failed"
+  tail -n 80 /tmp/starmate-d1-seed.log || true
+  exit 1
+}
+
 npx wrangler pages dev dist \
   --port "$PORT" \
   --inspector-port "$INSPECTOR_PORT" \

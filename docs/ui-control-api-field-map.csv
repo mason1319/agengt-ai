@@ -101,10 +101,10 @@ GET,/api/v1/founder/cockpit,创始人驾驶舱,founder.filters.lead-status,selec
 GET,/api/v1/founder/cockpit,创始人驾驶舱,founder.filters.payment-status,select,收费状态筛选,payment_records,status,是,filter
 GET,/api/v1/founder/cockpit,创始人驾驶舱,founder.filters.start-at,date-input,开始日期筛选,attendance_records;payment_records;leads,start_at,是,filter
 GET,/api/v1/founder/cockpit,创始人驾驶舱,founder.filters.end-at,date-input,结束日期筛选,attendance_records;payment_records;leads,end_at,是,filter
-GET,/api/v1/founder/courses,创始人课程与收费,founder.courses.list,table,课程管理列表,courses;course_enrollments;lesson_accounts,id;institution_id;grade;class_type;status;price_cents;enrolled_count,是,loaded
-POST,/api/v1/founder/courses,创始人课程与收费,founder.courses.create,form,创建课程,courses,id;name;grade;class_type;course_type;teacher_id;price_cents;single_period_price;bundle_price;capacity;remaining_seats;start_time;start_date;end_date;weekday;time_slot;schedule;status,是,submitting
-PATCH,/api/v1/founder/courses,创始人课程与收费,founder.courses.update,form,更新课程,courses,id;status;price_cents;remaining_seats;enrolled_count,是,submitting
-GET,/api/v1/founder/payment-records,创始人财务页,founder.payment-records,table,收费记录查询,payment_records,order_no;amount_cents;status;paid_at;course_id;student_id,是,loaded
+GET,/api/v1/founder/courses,创始人课程与缴费,founder.courses.list,table,课程管理列表,courses;course_enrollments;lesson_accounts,id;institution_id;grade;class_type;status;price_cents;enrolled_count,是,loaded
+POST,/api/v1/founder/courses,创始人课程与缴费,founder.courses.create,form,创建课程,courses,id;name;grade;class_type;course_type;teacher_id;price_cents;single_period_price;bundle_price;capacity;remaining_seats;start_time;start_date;end_date;weekday;time_slot;schedule;status,是,submitting
+PATCH,/api/v1/founder/courses,创始人课程与缴费,founder.courses.update,form,更新课程,courses,id;status;price_cents;remaining_seats;enrolled_count,是,submitting
+GET,/api/v1/founder/payment-records,创始人财务页,founder.payment-records,table,缴费记录查询,payment_records,order_no;amount_cents;status;paid_at;course_id;student_id,是,loaded
 GET,/api/v1/founder/lesson-accounts,创始人课时页,founder.lesson-accounts.list,table,查看全部课时账户,lesson_accounts,student_id;purchased_hours;used_hours;hold_hours;remaining_hours;amount_cents;notes;expires_at,是,loaded
 POST,/api/v1/founder/lesson-accounts,创始人课时页,founder.lesson-accounts.adjust,form,新增/调整课时,lesson_accounts,student_id;purchased_hours;amount_cents;reason;expires_at,是,submitting
 GET,/api/v1/founder/ai-usage,创始人AI页,founder.ai-usage.overview,dashboard,查询AI用量与来源,ai_usage;ai_audit_logs,institution_id;agent_code;tokens_used;request_count;source;decision,是,loaded
@@ -127,9 +127,9 @@ PATCH,/api/v1/institution/students,机构学员台,inst.students.update,form,更
 GET,/api/v1/institution/teachers,机构老师台,inst.teachers.list,table,查询机构老师列表,users,institution_id;username;name;phone;email;status,是,loaded
 POST,/api/v1/institution/teachers,机构老师台,inst.teachers.create,form,新增机构老师,users,institution_id;id;username;password;name;phone;email;status,是,submitting
 PATCH,/api/v1/institution/teachers,机构老师台,inst.teachers.update,form,更新机构老师信息,users,id;status;phone;email;name,是,submitting
-GET,/api/v1/institution/payments,机构收费台,inst.payments.list,table,查询机构收费记录,payment_records,institution_id;order_no;plan_code;plan_mode;amount_cents;status;paid_at;expires_at,是,loaded
-POST,/api/v1/institution/payments,机构收费台,inst.payments.create,form,新增机构收费记录,payment_records,institution_id;order_no;user_id;plan_code;plan_mode;period_days;currency;status;amount_cents,是,submitting
-PATCH,/api/v1/institution/payments,机构收费台,inst.payments.update,form,更新机构收费记录,payment_records,id;status;paid_at;starts_at;expires_at,是,submitting
+GET,/api/v1/institution/payments,机构缴费台,inst.payments.list,table,查询机构缴费记录,payment_records,institution_id;order_no;plan_code;plan_mode;amount_cents;status;paid_at;expires_at,是,loaded
+POST,/api/v1/institution/payments,机构缴费台,inst.payments.create,form,新增机构缴费记录,payment_records,institution_id;order_no;user_id;plan_code;plan_mode;period_days;currency;status;amount_cents,是,submitting
+PATCH,/api/v1/institution/payments,机构缴费台,inst.payments.update,form,更新机构缴费记录,payment_records,id;status;paid_at;starts_at;expires_at,是,submitting
 GET,/api/v1/admin/institutions,平台后台,admin.institutions.list,table,机构列表,institutions,id;name;status;plan_code;student_limit;teacher_limit;ai_limit_monthly;subscription_ends_at,是,loaded
 GET,/api/v1/admin/institutions,平台后台,admin.institutions.refresh,button,刷新机构列表,institutions,id;name;status;plan_code;student_limit;teacher_limit;ai_limit_monthly;subscription_ends_at,是,click
 GET,/api/v1/admin/institutions,平台后台,admin.overview.warning-check,button,今日异常机构检查,institutions,id;name;status;plan_code;student_limit;teacher_limit;ai_limit_monthly;subscription_ends_at,是,click

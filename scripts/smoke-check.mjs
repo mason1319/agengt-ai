@@ -255,6 +255,35 @@ async function runPhase2Smoke() {
         })
     },
     {
+      name: 'culture wall admissions placement',
+      ok: () => {
+        const token = roleTokens.founder;
+        if (!token) {
+          if (strictMode || !allowSkip) {
+            throw new Error('founder token unavailable');
+          }
+          printStatus('warn', 'founder token unavailable, skip');
+          return Promise.resolve();
+        }
+
+        return request({
+          method: 'GET',
+          path: '/api/v1/admin/culture-wall?placement=admissions',
+          token,
+          expectStatus: 200
+        }).then((res) => {
+          ensure(res.ok, `http ${res.status}`);
+          ensure(hasJsonSuccess(res.payload), 'response success=false');
+          const photos = res.payload?.data?.cultureWall?.photos || [];
+          ensure(Array.isArray(photos), 'admissions photos missing');
+          ensure(
+            photos.every((item) => `${item.placement || ''}`.trim() === 'admissions'),
+            'admissions placement leaked non-admissions assets'
+          );
+        });
+      }
+    },
+    {
       name: 'public leads list',
       ok: () =>
         request({

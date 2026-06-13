@@ -375,19 +375,32 @@ const normalizeCultureWallRow = (row = {}) => {
   const date = `${row.created_at || ''}`.slice(0, 10);
   const title = `${row.title || ''}`.trim();
   const description = `${row.description || ''}`.trim();
+  const placement = `${payload?.placement || 'culture-wall'}`.trim();
+  const sortOrder = Number(payload?.sortOrder || 0);
+  const tags = Array.isArray(payload?.tags) ? payload.tags : [];
+  const mediaUrl = `${row.media_url || ''}`;
+  const coverUrl = `${row.cover_url || row.media_url || ''}`;
+  const createdAt = `${row.created_at || ''}`;
 
   if (kind === 'video') {
     return {
       id: `${row.id}`,
       kind: 'video',
+      placement,
       title: title || '教学视频',
       description: description || '教学视频',
+      summary: description || title || '教学视频',
       date,
+      createdAt,
       uploader: `${row.uploader || '机构管理员'}`,
-      cover: `${row.cover_url || row.media_url || ''}`,
-      src: `${row.media_url || ''}`,
+      cover: coverUrl,
+      coverUrl,
+      mediaUrl,
+      src: mediaUrl,
       duration: `${row.duration || '--:--'}`,
-      status: `${row.status || '已发布'}`
+      status: `${row.status || '已发布'}`,
+      sortOrder,
+      tags
     };
   }
 
@@ -395,12 +408,19 @@ const normalizeCultureWallRow = (row = {}) => {
     return {
       id: `${row.id}`,
       kind: 'photo',
+      placement,
       title: title || '教学照片',
       description: description || '教学照片',
+      summary: description || title || '教学照片',
       date,
+      createdAt,
       uploader: `${row.uploader || '机构管理员'}`,
-      src: `${row.media_url || ''}`,
-      status: `${row.status || '已发布'}`
+      mediaUrl,
+      src: mediaUrl,
+      coverUrl,
+      status: `${row.status || '已发布'}`,
+      sortOrder,
+      tags
     };
   }
 
@@ -427,6 +447,18 @@ const normalizeCultureWallRow = (row = {}) => {
 
   return null;
 };
+
+const sortMediaItems = (items = []) =>
+  [...items].sort((left, right) => {
+    const orderDiff = Number(left.sortOrder || 0) - Number(right.sortOrder || 0);
+    if (orderDiff !== 0) {
+      return orderDiff;
+    }
+
+    const leftTime = `${left.createdAt || left.date || ''}`;
+    const rightTime = `${right.createdAt || right.date || ''}`;
+    return rightTime.localeCompare(leftTime);
+  });
 
 const normalizeCultureWallRows = (rows = []) => {
   const videos = [];
@@ -457,7 +489,12 @@ const normalizeCultureWallRows = (rows = []) => {
     }
   });
 
-  return { videos, photos, teachers, feedback };
+  return {
+    videos: sortMediaItems(videos),
+    photos: sortMediaItems(photos),
+    teachers,
+    feedback
+  };
 };
 
 function safeParseDb(fn) {
@@ -1434,8 +1471,9 @@ const revokePermissionRaw = async (db, payload = {}) => {
   return row?.meta?.changes >= 0;
 };
 
-const fetchCultureWallAssetsByInstitutionRaw = async (db, institutionId, kind = '') => {
+const fetchCultureWallAssetsByInstitutionRaw = async (db, institutionId, kind = '', placement = '') => {
   const safeKind = `${kind || ''}`.trim();
+  const safePlacement = `${placement || ''}`.trim();
   const bindValues = [institutionId];
   const conditions = [];
 
@@ -1453,7 +1491,17 @@ const fetchCultureWallAssetsByInstitutionRaw = async (db, institutionId, kind = 
   `;
 
   const { results } = await db.prepare(query).bind(...bindValues).all();
-  return normalizeCultureWallRows(results || []);
+  const wall = normalizeCultureWallRows(results || []);
+
+  if (!safePlacement) {
+    return wall;
+  }
+
+  return {
+    ...wall,
+    videos: wall.videos.filter((item) => `${item.placement || ''}`.trim() === safePlacement),
+    photos: wall.photos.filter((item) => `${item.placement || ''}`.trim() === safePlacement)
+  };
 };
 
 const insertCultureWallAssetRaw = async (db, payload = {}) => {
@@ -1467,6 +1515,15 @@ const insertCultureWallAssetRaw = async (db, payload = {}) => {
   const title = `${payload.title || ''}`.trim();
   const description = `${payload.description || ''}`.trim();
   const uploader = `${payload.uploader || '机构管理员'}`.trim();
+  const placement = `${payload.placement || 'culture-wall'}`.trim();
+  const sortOrder = Number(payload.sortOrder || 0);
+  const tags = Array.isArray(payload.tags) ? payload.tags : [];
+  const payloadText = JSON.stringify({
+    placement,
+    sortOrder,
+    tags,
+    extra: payload.extra || {}
+  });
 
   const query = `
     INSERT INTO culture_wall_assets (
@@ -1500,7 +1557,7 @@ const insertCultureWallAssetRaw = async (db, payload = {}) => {
       `${payload.coverUrl || ''}`,
       `${payload.duration || ''}`,
       `${payload.status || '已发布'}`,
-      `${JSON.stringify(payload.extra || {})}`
+      payloadText
     );
 
   await prepared.run();
