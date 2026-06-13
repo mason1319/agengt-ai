@@ -7758,6 +7758,219 @@ button.ghost,
   margin-top: 0;
 }
 
+.home-admission-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(20, 35, 68, 0.08), rgba(255, 255, 255, 0.76));
+  border: 1px solid rgba(20, 35, 68, 0.08);
+}
+
+.home-admission-summary span {
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.home-admission-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.home-poster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admission-poster-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(251, 246, 238, 0.96));
+  border: 1px solid rgba(20, 35, 68, 0.08);
+  box-shadow: 0 16px 34px rgba(20, 35, 68, 0.08);
+}
+
+.admission-poster-card.featured {
+  background: linear-gradient(180deg, rgba(255, 250, 239, 0.96), rgba(247, 251, 255, 0.96));
+}
+
+.admission-poster-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admission-poster-index,
+.admission-poster-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--ink-strong);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(20, 35, 68, 0.08);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admission-poster-index {
+  min-width: 46px;
+  justify-content: center;
+  letter-spacing: 0;
+}
+
+.admission-poster-badge {
+  color: #b06100;
+  background: rgba(255, 235, 204, 0.72);
+}
+
+.admission-poster-frame {
+  display: block;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #0b1630;
+  border: 1px solid rgba(20, 35, 68, 0.08);
+}
+
+.admission-poster-frame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+
+.admission-poster-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.admission-poster-copy strong {
+  color: var(--ink-strong);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.admission-poster-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.admission-poster-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admission-poster-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--ink-strong);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(20, 35, 68, 0.08);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admission-filter-switch {
+  margin: 10px 0 14px;
+}
+
+.admission-filter-switch .small-note {
+  align-self: center;
+  margin-left: 6px;
+}
+
+.admission-poster-actions {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admission-poster-actions .row-action {
+  min-height: 34px;
+  padding-inline: 14px;
+}
+
+.admission-poster-drawer {
+  width: min(840px, 100%);
+}
+
+.admission-poster-drawer-body {
+  grid-template-columns: minmax(280px, 0.96fr) minmax(0, 1.04fr);
+  align-items: start;
+}
+
+.admission-poster-drawer-media {
+  overflow: hidden;
+  border-radius: 22px;
+  background: #0b1630;
+  border: 1px solid rgba(20, 35, 68, 0.08);
+}
+
+.admission-poster-drawer-media img {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  background: #0b1630;
+}
+
+.admission-poster-drawer-copy {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.admission-poster-drawer-summary {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.admission-poster-drawer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admission-poster-drawer-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--ink-strong);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(20, 35, 68, 0.08);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admission-poster-drawer-note {
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(20, 35, 68, 0.05);
+  border: 1px solid rgba(20, 35, 68, 0.08);
+}
+
 .page-banner {
   background:
     radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.52), transparent 8rem),
@@ -10615,6 +10828,26 @@ select {
 
   .culture-wall-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .home-poster-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-admission-summary {
+    padding: 12px 14px;
+  }
+
+  .admission-poster-card {
+    padding: 12px;
+  }
+
+  .admission-poster-drawer-body {
+    grid-template-columns: 1fr;
+  }
+
+  .admission-poster-drawer-media img {
+    max-height: 56vh;
   }
 }
 

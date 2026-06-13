@@ -47,6 +47,7 @@ import AggieMascotArt from './components/AggieMascotArt';
 import MetricCard from './components/MetricCard';
 import PanelTitle from './components/PanelTitle';
 import {
+  COURSE_COPY,
   formatCurrencyCents,
   normalizeCourseClassType,
   normalizeCourseFee
@@ -677,6 +678,103 @@ const AGE_GROUPS = [
   }
 ];
 
+const ADMISSION_POSTERS = [
+  {
+    id: 'middle-exam-cram',
+    src: '/assets/admissions/middle-exam-cram.png',
+    title: '中考英语冲刺',
+    summary: '暑假提分窗口期，围绕词汇、语法、阅读做集中突破。',
+    badge: '中考提分',
+    category: 'middle-exam',
+    tags: ['词汇', '语法', '阅读', '冲刺']
+  },
+  {
+    id: 'primary-junior-transition',
+    src: '/assets/admissions/primary-junior-transition.png',
+    title: '小升初英语衔接',
+    summary: '从小学到初中，先把词汇量、语法体系和阅读节奏接起来。',
+    badge: '小升初衔接',
+    category: 'transition',
+    tags: ['衔接期', '体系化', '阅读', '听说']
+  },
+  {
+    id: 'in-school-new-concept',
+    src: '/assets/admissions/in-school-new-concept.png',
+    title: '课内英语衔接 + 新概念提优',
+    summary: '课内不掉队，同时把新概念英语做成可持续提优路径。',
+    badge: '同步提优',
+    category: 'in-school',
+    tags: ['课内同步', '新概念', '提优', '进阶']
+  },
+  {
+    id: 'phonics-ipa',
+    src: '/assets/admissions/phonics-ipa.png',
+    title: '自然拼读 + 国际音标',
+    summary: '用音标和拼读打底，帮孩子建立见词能读、听音能拼的能力。',
+    badge: '基础能力',
+    category: 'foundation',
+    tags: ['自然拼读', '音标', '拼读', '开口']
+  }
+];
+
+const ADMISSION_FILTERS = [
+  { id: 'all', label: '全部' },
+  { id: 'middle-exam', label: '中考' },
+  { id: 'transition', label: '小升初' },
+  { id: 'in-school', label: '同步提优' },
+  { id: 'foundation', label: '基础能力' }
+];
+
+function filterAdmissionPosters(posters = [], filterId = 'all') {
+  if (filterId === 'all') {
+    return posters;
+  }
+  return posters.filter((poster) => `${poster.category || ''}` === filterId);
+}
+
+function AdmissionPosterDrawer({ poster, onClose, onConsult }) {
+  if (!poster) {
+    return null;
+  }
+
+  return (
+    <div className="drawer-backdrop" role="dialog" aria-modal="true" aria-label={`${poster.title} 详情`}>
+      <aside className="drawer-panel admission-poster-drawer">
+        <div className="drawer-header">
+          <div>
+            <span>{poster.badge}</span>
+            <h3>{poster.title}</h3>
+          </div>
+          <button className="row-action ghost" onClick={onClose}>关闭</button>
+        </div>
+        <div className="drawer-body admission-poster-drawer-body">
+          <div className="admission-poster-drawer-media">
+            <img src={poster.src} alt={poster.title} />
+          </div>
+          <div className="admission-poster-drawer-copy">
+            <p className="admission-poster-drawer-summary">{poster.summary}</p>
+            <div className="admission-poster-drawer-tags">
+              {poster.tags.map((tag) => (
+                <span key={`${poster.id}-${tag}`}>{tag}</span>
+              ))}
+            </div>
+            <div className="admission-poster-drawer-note small-note">
+              选择“立即咨询”会把这张海报的文案带入咨询内容。
+            </div>
+          </div>
+        </div>
+        <div className="drawer-footer">
+          <div className="small-note">海报ID：{poster.id}</div>
+          <div className="hero-chip-row">
+            <button className="row-action ghost" onClick={onClose}>关闭</button>
+            <button className="row-action" onClick={() => onConsult?.(poster)}>立即咨询</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 const OPERATION_LOG_MAX = 14;
 const PLATFORM_TRIAL_ORG_LIMITS = {
   students: 50,
@@ -1077,7 +1175,7 @@ function FounderDashboard({
                 <span className="status-dot green" />
                 <div>
                   <strong>{selectedLead.guardianName || '未填写家长名'}</strong>
-                  <small>{selectedLead.student_grade || selectedLead.studentGrade || '年级待录入'} · {selectedLead.need_summary || selectedLead.needSummary || UI_COPY.empty.noLearningNeed}</small>
+                  <small>{selectedLead.student_grade || selectedLead.studentGrade || COURSE_COPY.gradeFallback} · {selectedLead.need_summary || selectedLead.needSummary || UI_COPY.empty.noLearningNeed}</small>
                 </div>
                 <small className="small-note">{selectedLead.updatedAt || selectedLead.updated_at || selectedLead.createdAt || '刚刚'}</small>
               </div>
@@ -1102,7 +1200,7 @@ function FounderDashboard({
             <div>
               <strong>{getCourseDisplay(course).name}</strong>
               <small>
-                {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {course.status || '课程状态待更新'}
+                {course.grade || COURSE_COPY.gradeFallback} · {normalizeCourseClassType(course)} · {course.status || COURSE_COPY.statusFallback}
               </small>
               <small className="small-note">
                 {normalizeCourseRules(course).scheduleDate} · {normalizeCourseRules(course).attendanceRule}
@@ -1306,7 +1404,7 @@ function TeacherWorkspace({
         closed: false,
         feedbackDone: false,
         exerciseDone: false,
-        status: lesson.status || '待确认',
+        status: lesson.status || COURSE_COPY.statusFallback,
         feedbackText: '',
         exerciseOutput: null,
         feedbackSuggestions: []
@@ -1371,7 +1469,7 @@ function TeacherWorkspace({
     closed: false,
     feedbackDone: false,
     exerciseDone: false,
-    status: '待确认',
+    status: COURSE_COPY.statusFallback,
     feedbackText: '',
     exerciseOutput: null,
     feedbackSuggestions: []
@@ -1523,7 +1621,7 @@ function TeacherWorkspace({
     if (activeState.feedbackDone) {
       setActiveState({
         feedbackDone: false,
-        status: '待确认',
+        status: COURSE_COPY.statusFallback,
         feedbackText: '',
         feedbackSuggestions: []
       });
@@ -1569,7 +1667,7 @@ function TeacherWorkspace({
       setAgentMessage(`AI反馈失败：${error?.message || '服务异常'}`);
       setActiveState({
         feedbackDone: false,
-        status: '待确认',
+        status: COURSE_COPY.statusFallback,
         feedbackText: '',
         feedbackSuggestions: []
       });
@@ -1582,7 +1680,7 @@ function TeacherWorkspace({
     if (activeState.exerciseDone) {
       setActiveState({
         exerciseDone: false,
-        status: activeState.feedbackDone ? '反馈已形成' : '待确认',
+        status: activeState.feedbackDone ? '反馈已形成' : COURSE_COPY.statusFallback,
         exerciseOutput: null
       });
       onAction?.('teacher', `撤销练习：${currentLesson?.student || '当前课程'}`);
@@ -1636,7 +1734,7 @@ function TeacherWorkspace({
       setAgentMessage(`练习生成失败：${error?.message || '服务异常'}`);
       setActiveState({
         exerciseDone: false,
-        status: activeState.feedbackDone ? '反馈已形成' : '待确认',
+        status: activeState.feedbackDone ? '反馈已形成' : COURSE_COPY.statusFallback,
         exerciseOutput: null
       });
     } finally {
@@ -1759,9 +1857,9 @@ function TeacherWorkspace({
                     onAction?.('teacher', `选择课程：${lesson.student}`);
                   }}
                 >
-                  <span>{normalizeCourseTime(lesson, '未安排课程')}</span>
+                  <span>{normalizeCourseTime(lesson, COURSE_COPY.timeFallback)}</span>
                   <strong>{lesson.student}</strong>
-                  <small>{lesson.grade} · {lesson.course} · {normalizeCourseClassType(lesson)}</small>
+                  <small>{lesson.grade || COURSE_COPY.gradeFallback} · {lesson.course || COURSE_COPY.courseNameFallback} · {normalizeCourseClassType(lesson)}</small>
                   <small style={{ marginTop: 5 }}>
                     {normalizeCourseFee(lesson)}
                   </small>
@@ -1769,7 +1867,7 @@ function TeacherWorkspace({
                     {normalizeCourseRules(lesson).scheduleDate} · {normalizeCourseRules(lesson).holdRule}
                   </small>
                   <small className="small-note" style={{ marginTop: 3 }}>
-                    {lessonStates[lesson.id]?.status || '待确认'}
+                    {lessonStates[lesson.id]?.status || COURSE_COPY.statusFallback}
                   </small>
                 </button>
               )))}
@@ -2034,7 +2132,7 @@ function ParentView({
             <div>
               <strong>{getCourseDisplay(course).name}</strong>
               <small>
-                {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
+                {course.grade || COURSE_COPY.gradeFallback} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
               </small>
             </div>
             <small className="small-note">
@@ -2077,7 +2175,7 @@ function ParentView({
             <span className="status-dot blue" />
             <div>
               <strong>{record.order_no || record.orderNo || '订单号待核对'}</strong>
-              <small>{record.status || '已入账'} · {record.paid_at || record.paidAt || '入账时间待更新'}</small>
+              <small>{record.status || '已入账'} · {record.paid_at || record.paidAt || COURSE_COPY.paymentTimeFallback}</small>
             </div>
             <small className="small-note">
               {formatCents(record.amount_cents || record.amountCents || record.amount || 0)}
@@ -2199,6 +2297,10 @@ function StudentView({
   const [taskDrafts, setTaskDrafts] = useState({});
   const [selectedPublicCourseId, setSelectedPublicCourseId] = useState('');
   const [trialGuardianName, setTrialGuardianName] = useState('');
+  const [trialNeedSummary, setTrialNeedSummary] = useState('');
+  const [trialInitialMessage, setTrialInitialMessage] = useState('');
+  const [admissionFilter, setAdmissionFilter] = useState('all');
+  const [selectedAdmissionPosterId, setSelectedAdmissionPosterId] = useState('');
   const [trialLeadId, setTrialLeadId] = useState('');
   const [trialStatusText, setTrialStatusText] = useState('未提交咨询');
   const [trialBusy, setTrialBusy] = useState(false);
@@ -2237,6 +2339,11 @@ function StudentView({
   const mistakeItems = Array.isArray(reviewMistakes) ? reviewMistakes : [];
   const publicCourseList = Array.isArray(publicCourses) ? publicCourses : [];
   const [pathActionText, setPathActionText] = useState('');
+  const visibleAdmissionPosters = useMemo(
+    () => filterAdmissionPosters(ADMISSION_POSTERS, admissionFilter),
+    [admissionFilter]
+  );
+  const selectedAdmissionPoster = ADMISSION_POSTERS.find((poster) => poster.id === selectedAdmissionPosterId) || null;
   const selectedPublicCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
   const selectedPublicCourseDisplay = selectedPublicCourse ? getCourseDisplay(selectedPublicCourse) : null;
   const selectedPublicCourseRules = selectedPublicCourse ? normalizeCourseRules(selectedPublicCourse) : null;
@@ -2263,7 +2370,7 @@ function StudentView({
     return {
       id: course.id || course.courseId || course.course_id || `course-${index}`,
       title: display.name || course.name || course.courseName || course.title || `课程 ${index + 1}`,
-      grade: course.grade || '年级待录入',
+      grade: course.grade || COURSE_COPY.gradeFallback,
       classType: normalizeCourseClassType(course),
       fee: normalizeCourseFee(course),
       time: normalizeCourseTime(course),
@@ -2397,6 +2504,17 @@ function StudentView({
     onAction?.('student', '进入学习练习');
   };
 
+  const handleJumpToConsult = (sourceLabel = '招生海报', consultText = '') => {
+    const consultSection = typeof document !== 'undefined' ? document.getElementById('home-public-consult') : null;
+    consultSection?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    if (consultText) {
+      setTrialNeedSummary((prev) => prev || consultText);
+      setTrialInitialMessage((prev) => prev || consultText);
+    }
+    setTrialStatusText(`已从${sourceLabel}带入咨询意图`);
+    onAction?.('student', `从${sourceLabel}进入试听咨询`);
+  };
+
   const handleOpenPath = async (step) => {
     if (!step) {
       return;
@@ -2459,8 +2577,8 @@ function StudentView({
         institutionId: `${selectedPublicCourse.institutionId || ''}`.trim(),
         guardianName,
         studentGrade,
-        needSummary: `${selectedPublicCourseDisplay?.name || selectedPublicCourse.name || '试听课程'} 咨询`,
-        initialMessage: '我想预约试听',
+        needSummary: trialInitialMessage || trialNeedSummary || `${selectedPublicCourseDisplay?.name || selectedPublicCourse.name || '试听课程'} 咨询`,
+        initialMessage: trialInitialMessage || '我想预约试听',
         courseId: selectedPublicCourseId
       });
       const leadId = `${payload?.data?.lead?.id || payload?.lead?.id || ''}`.trim();
@@ -2886,7 +3004,7 @@ function StudentView({
               <div>
                 <strong>{getCourseDisplay(course).name}</strong>
                 <small>
-                  {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
+                {course.grade || COURSE_COPY.gradeFallback} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
                 </small>
               </div>
               <small className="small-note">{normalizeCourseTime(course)}</small>
@@ -2905,6 +3023,57 @@ function StudentView({
             {publicCoursesLoading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshPublicCourses}
           </button>
         </div>
+        <div className="home-admission-summary">
+          <span>招生海报墙</span>
+          <p>四张招生海报直接嵌入首页，先看项目定位，再往下接公开课程和试听咨询。</p>
+        </div>
+        <div className="scope-switch admission-filter-switch">
+          {ADMISSION_FILTERS.map((item) => (
+            <button
+              key={item.id}
+              className={admissionFilter === item.id ? 'active' : ''}
+              type="button"
+              onClick={() => setAdmissionFilter(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+          <span className="small-note">当前展示 {visibleAdmissionPosters.length}/{ADMISSION_POSTERS.length} 张</span>
+        </div>
+        <div className="home-poster-grid">
+          {visibleAdmissionPosters.map((poster, index) => (
+            <article className={`admission-poster-card${index === 0 ? ' featured' : ''}`} key={poster.id}>
+              <div className="admission-poster-head">
+                <span className="admission-poster-index">{String(index + 1).padStart(2, '0')}</span>
+                <span className="admission-poster-badge">{poster.badge}</span>
+              </div>
+              <a className="admission-poster-frame" href={poster.src} target="_blank" rel="noreferrer" aria-label={`打开${poster.title}`}>
+                <img src={poster.src} alt={poster.title} loading="lazy" />
+              </a>
+              <div className="admission-poster-copy">
+                <strong>{poster.title}</strong>
+                <p>{poster.summary}</p>
+                <div className="admission-poster-tags">
+                  {poster.tags.map((tag) => (
+                    <span key={`${poster.id}-${tag}`}>{tag}</span>
+                  ))}
+                </div>
+                <div className="admission-poster-actions">
+                  <button
+                    className="row-action ghost"
+                    type="button"
+                    onClick={() => setSelectedAdmissionPosterId(poster.id)}
+                  >
+                    查看详情
+                  </button>
+                  <button className="row-action ghost" type="button" onClick={() => handleJumpToConsult(poster.title, poster.summary)}>
+                    立即咨询
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
         <div className="feature-split home-public-layout">
           <div className="panel home-course-panel">
             <div className="home-course-grid">
@@ -2920,7 +3089,7 @@ function StudentView({
                       <span>班型：{display.classType}</span>
                       <span>时间：{display.time}</span>
                     </div>
-                    <small>{course.grade || '年级待录入'} · 可预约试听</small>
+                    <small>{course.grade || COURSE_COPY.gradeFallback} · 可预约试听</small>
                     <button
                       className={isSelected ? 'row-action ghost' : 'row-action'}
                       onClick={() => setSelectedPublicCourseId(`${course.id}`)}
@@ -2932,7 +3101,7 @@ function StudentView({
               })}
             </div>
           </div>
-          <div className="panel encouragement-panel home-consult-panel">
+          <div className="panel encouragement-panel home-consult-panel" id="home-public-consult">
             <div className="section-headline">
               <div>
                 <span>试听咨询</span>
@@ -2945,7 +3114,7 @@ function StudentView({
                   <span className="status-dot blue" />
                   <div>
                     <strong>{selectedPublicCourseDisplay.name}</strong>
-                    <small>{selectedPublicCourse.grade || '年级待录入'} · 班型：{selectedPublicCourseDisplay.classType} · {selectedPublicCourseDisplay.time}</small>
+                    <small>{selectedPublicCourse.grade || COURSE_COPY.gradeFallback} · 班型：{selectedPublicCourseDisplay.classType} · {selectedPublicCourseDisplay.time}</small>
                     <small>{normalizeCourseFee(selectedPublicCourse)} · 课程ID：{selectedPublicCourse.id}</small>
                   </div>
                 </div>
@@ -2985,8 +3154,28 @@ function StudentView({
               <span className="small-note">咨询状态：{trialStatusText}</span>
               <span className="small-note">线索ID：{trialLeadId || '—'}</span>
             </div>
+            <label>
+              <span>咨询内容</span>
+              <textarea
+                value={trialInitialMessage}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setTrialInitialMessage(value);
+                  setTrialNeedSummary(value);
+                }}
+                placeholder="例如：想了解中考冲刺、小升初衔接或自然拼读课程的试听安排"
+              />
+            </label>
           </div>
         </div>
+        <AdmissionPosterDrawer
+          poster={selectedAdmissionPoster}
+          onClose={() => setSelectedAdmissionPosterId('')}
+          onConsult={(poster) => {
+            handleJumpToConsult(poster.title, poster.summary);
+            setSelectedAdmissionPosterId('');
+          }}
+        />
       </section>
     </section>
   );
@@ -3257,7 +3446,7 @@ function PlatformOverview({ platformSummary = {}, organizations = [], onExportRe
           />
           {warningOrganizations.map((org) => {
             const left = daysToDate(org.expires);
-            const leftText = Number.isFinite(left) ? `${Math.max(left, 0)} 天` : '到期日期待更新';
+            const leftText = Number.isFinite(left) ? `${Math.max(left, 0)} 天` : COURSE_COPY.expiryFallback;
             return (
               <div className="small-note" key={org.id || org.name}>
                 {org.name} · {org.plan}（{org.planMode}）· 到期 {org.expires}（还剩 {leftText}）· {org.expiryAction}
@@ -3299,7 +3488,7 @@ function PlatformPlansPage({
           ))}
           <article className="summary-card">
             <strong>当前机构</strong>
-            <span>{platformSummary.currentPlanName || '待确认'}</span>
+            <span>{platformSummary.currentPlanName || UI_COPY.status.pending}</span>
             <small>{platformSummary.studentUsageText || '暂无机构用量摘要'}</small>
             <small>仅作内部策略参考</small>
           </article>
@@ -4697,7 +4886,7 @@ function AgentCenter({
   const quickStats = {
     totalAgents: aiAgents.length,
     executableAgents: aiAgents.filter((agent) => resolveAgentAction(agent, activeRole)).length,
-    latestStatus: selectedRun?.status || '待确认',
+    latestStatus: selectedRun?.status || UI_COPY.status.pending,
     latestType: resolveAgentResultType(selectedRun?.outputSnapshot || {})
   };
 
@@ -5139,7 +5328,14 @@ function HomePage({
   const [consultStatusText, setConsultStatusText] = useState('未提交咨询');
   const [consultBusy, setConsultBusy] = useState(false);
   const [selectedReplyLeadId, setSelectedReplyLeadId] = useState('');
+  const [admissionFilter, setAdmissionFilter] = useState('all');
+  const [selectedAdmissionPosterId, setSelectedAdmissionPosterId] = useState('');
   const publicCourseList = Array.isArray(publicCourses) ? publicCourses : [];
+  const visibleAdmissionPosters = useMemo(
+    () => filterAdmissionPosters(ADMISSION_POSTERS, admissionFilter),
+    [admissionFilter]
+  );
+  const selectedAdmissionPoster = ADMISSION_POSTERS.find((poster) => poster.id === selectedAdmissionPosterId) || null;
   const childProgress = Number(child.progress || report?.progress || report?.doneRate || 0);
   const childMetrics = {
     vocabCount: report?.vocabCount || child?.vocabCount || 1280,
@@ -5254,6 +5450,17 @@ function HomePage({
 
     onNavigatePage?.('culture-wall');
     onAction?.('home', '打开学习成果馆');
+  };
+
+  const handleJumpToConsult = (sourceLabel = '招生海报', consultText = '') => {
+    const consultSection = typeof document !== 'undefined' ? document.getElementById('home-public-consult') : null;
+    consultSection?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    if (consultText) {
+      setConsultNeedSummary((prev) => prev || consultText);
+      setConsultInitialMessage((prev) => prev || consultText);
+    }
+    setHomeActionText(`已从${sourceLabel}跳转到试听咨询。`);
+    onAction?.('home', `从${sourceLabel}跳转到试听咨询`);
   };
 
   const resolveCourseText = (course = {}) => {
@@ -5647,6 +5854,57 @@ function HomePage({
             {publicCoursesLoading ? UI_COPY.loading.refreshing : UI_COPY.actions.refreshPublicCourses}
           </button>
         </div>
+        <div className="home-admission-summary">
+          <span>招生海报墙</span>
+          <p>四张招生海报直接嵌入首页，先看项目定位，再往下接公开课程和试听咨询。</p>
+        </div>
+        <div className="scope-switch admission-filter-switch">
+          {ADMISSION_FILTERS.map((item) => (
+            <button
+              key={item.id}
+              className={admissionFilter === item.id ? 'active' : ''}
+              type="button"
+              onClick={() => setAdmissionFilter(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+          <span className="small-note">当前展示 {visibleAdmissionPosters.length}/{ADMISSION_POSTERS.length} 张</span>
+        </div>
+        <div className="home-poster-grid">
+          {visibleAdmissionPosters.map((poster, index) => (
+            <article className={`admission-poster-card${index === 0 ? ' featured' : ''}`} key={poster.id}>
+              <div className="admission-poster-head">
+                <span className="admission-poster-index">{String(index + 1).padStart(2, '0')}</span>
+                <span className="admission-poster-badge">{poster.badge}</span>
+              </div>
+              <a className="admission-poster-frame" href={poster.src} target="_blank" rel="noreferrer" aria-label={`打开${poster.title}`}>
+                <img src={poster.src} alt={poster.title} loading="lazy" />
+              </a>
+              <div className="admission-poster-copy">
+                <strong>{poster.title}</strong>
+                <p>{poster.summary}</p>
+                <div className="admission-poster-tags">
+                  {poster.tags.map((tag) => (
+                    <span key={`${poster.id}-${tag}`}>{tag}</span>
+                  ))}
+                </div>
+                <div className="admission-poster-actions">
+                  <button
+                    className="row-action ghost"
+                    type="button"
+                    onClick={() => setSelectedAdmissionPosterId(poster.id)}
+                  >
+                    查看详情
+                  </button>
+                  <button className="row-action ghost" type="button" onClick={() => handleJumpToConsult(poster.title, poster.summary)}>
+                    立即咨询
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
         <div className="feature-split home-public-layout">
           <section className="panel home-course-panel">
             <div className="section-headline">
@@ -5668,7 +5926,7 @@ function HomePage({
                       <span className="small-note">{info.grade}</span>
                     </div>
                     <strong>{info.title}</strong>
-                    <p>{info.fee ? `收费标准：${info.fee}` : '收费标准待设置'}</p>
+                    <p>{info.fee ? `收费标准：${info.fee}` : COURSE_COPY.feeFallback}</p>
                     <div className="course-meta-row">
                       <span>班型：{display.classType}</span>
                       <span>时长：{info.duration}</span>
@@ -5686,7 +5944,7 @@ function HomePage({
             </div>
           </section>
 
-          <section className="panel encouragement-panel home-consult-panel">
+          <section className="panel encouragement-panel home-consult-panel" id="home-public-consult">
             <div className="section-headline">
               <div>
                 <span>试听咨询</span>
@@ -5714,10 +5972,10 @@ function HomePage({
                     <div>
                       <strong>{selectedPublicCourseInfo.title}</strong>
                       <small>
-                        {selectedPublicCourseInfo.grade} · 班型：{selectedPublicCourseDisplay?.classType || '待设置'} · 时长：{selectedPublicCourseInfo.duration}
+                        {selectedPublicCourseInfo.grade || COURSE_COPY.gradeFallback} · 班型：{selectedPublicCourseDisplay?.classType || COURSE_COPY.classTypeFallback} · 时长：{selectedPublicCourseInfo.duration}
                       </small>
                       <small>
-                        {selectedPublicCourseInfo.fee ? `收费标准：${selectedPublicCourseInfo.fee}` : '收费标准待设置'} · 课程ID：{selectedPublicCourse.id}
+                        {selectedPublicCourseInfo.fee ? `收费标准：${selectedPublicCourseInfo.fee}` : COURSE_COPY.feeFallback} · 课程ID：{selectedPublicCourse.id}
                       </small>
                     </div>
                   </div>
@@ -5736,7 +5994,7 @@ function HomePage({
                       <small>保留规则：{selectedPublicCourseRules.holdRule}</small>
                     </div>
                     <small className="small-note">
-                      {selectedPublicCourseDisplay?.classType || '班型待设置'} · {selectedPublicCourseDisplay?.time || '时间待设置'}
+                      {selectedPublicCourseDisplay?.classType || COURSE_COPY.classTypeFallback} · {selectedPublicCourseDisplay?.time || COURSE_COPY.timeFallback}
                     </small>
                   </div>
                 </div>
@@ -5784,6 +6042,14 @@ function HomePage({
             </div>
           </section>
         </div>
+        <AdmissionPosterDrawer
+          poster={selectedAdmissionPoster}
+          onClose={() => setSelectedAdmissionPosterId('')}
+          onConsult={(poster) => {
+            handleJumpToConsult(poster.title, poster.summary);
+            setSelectedAdmissionPosterId('');
+          }}
+        />
       </section>
 
       <div className="feature-split">
@@ -5961,14 +6227,14 @@ function CoursesPage({
     : lessons;
   const courseCards = Array.isArray(sourceLessons) && sourceLessons.length > 0
     ? sourceLessons.map((item, index) => ({
-      ...getCourseDisplay(item, '未排课'),
+      ...getCourseDisplay(item, COURSE_COPY.timeFallback),
       sourceLesson: item,
       id: item.id || item.courseId || item.course_id || `course_${index}`,
-      course: item.course || item.name || item.courseName || item.title || '课程项',
+      course: item.course || item.name || item.courseName || item.title || COURSE_COPY.currentCourseFallback,
       topic: item.topic || item.subject || item.course_type || item.type || '综合英语',
-      grade: item.grade || item.gradeAlias || '五年级',
+      grade: item.grade || item.gradeAlias || COURSE_COPY.gradeFallback,
       student: item.student || item.studentName || item.student_name || '当前学员',
-      statusText: item.status || item.statusText || '未开始'
+      statusText: item.status || item.statusText || COURSE_COPY.statusFallback
     }))
     : FALLBACK_DATA.teacherLessons;
   const [selectedId, setSelectedId] = useState(courseCards[0]?.id);
@@ -6434,7 +6700,7 @@ function CoursesPage({
         <div className="metrics course-overview-metrics">
           <MetricCard icon={BookOpenCheck} label="课程总数" value={`${courseCards.length}门`} note="当前可查看课程条目" tone="green" />
           <MetricCard icon={Rocket} label="路径进度" value={`${Math.round(courseProgress)}%`} note={`已解锁 ${completedPathIds.length}/${COURSE_PATH_STEPS.length} 站`} tone="blue" />
-          <MetricCard icon={CalendarDays} label="当前课程" value={currentCourse.course || '未排课'} note={`${currentCourse.grade} · ${currentCourse.classType || '班型待录入'}`} tone="yellow" />
+          <MetricCard icon={CalendarDays} label="当前课程" value={currentCourse.course || COURSE_COPY.currentCourseFallback} note={`${currentCourse.grade || COURSE_COPY.gradeFallback} · ${currentCourse.classType || COURSE_COPY.classTypeFallback}`} tone="yellow" />
           <MetricCard
             icon={ShieldCheck}
             label="课时规则"
@@ -7672,7 +7938,7 @@ function ProfilePage({
           <MetricCard
             icon={CreditCard}
             label="收费记录"
-            value={`${lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus || '待确认'}`}
+            value={`${lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus || COURSE_COPY.paymentStatusFallback}`}
             note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已对账'}`}
             tone="purple"
           />
@@ -7708,11 +7974,11 @@ function ProfilePage({
               <article className="profile-course-card" key={course.id || course.courseId || `${course.name || 'course'}-${index}`}>
                 <span className="profile-course-index">{String(index + 1).padStart(2, '0')}</span>
                 <strong>{course.course || course.courseName || course.title || '课程项'}</strong>
-                <small>{course.grade || '年级待录入'} · {course.classType || '班型待录入'}</small>
+                <small>{course.grade || COURSE_COPY.gradeFallback} · {course.classType || COURSE_COPY.classTypeFallback}</small>
                 <div className="learning-progress-bar profile-course-progress">
                   <span style={{ width: `${Math.min(100, Number(course.progress || course.doneRate || 60))}%` }} />
                 </div>
-                <small>{course.time || '课程时间待确认'}</small>
+                <small>{course.time || COURSE_COPY.timeFallback}</small>
               </article>
             ))}
           </div>
@@ -7826,7 +8092,7 @@ function ProfilePage({
                   <div>
                     <strong>{getCourseDisplay(course).name}</strong>
                     <small>
-                      {course.grade || '年级待录入'} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
+                      {course.grade || COURSE_COPY.gradeFallback} · {normalizeCourseClassType(course)} · {normalizeCourseFee(course)}
                     </small>
                   </div>
                   <small className="small-note">{normalizeCourseTime(course)}</small>

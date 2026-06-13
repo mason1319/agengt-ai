@@ -45,7 +45,7 @@ export const UI_COPY = {
   },
   status: {
     updated: '已更新',
-    pending: '待更新'
+    pending: '待确认'
   }
 };
 
