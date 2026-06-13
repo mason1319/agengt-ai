@@ -783,6 +783,78 @@ const PLATFORM_TRIAL_ORG_LIMITS = {
   aiUsed: 0,
   trialDays: 14
 };
+const PAYMENT_RECORD_EXPORT_COLUMNS = [
+  {
+    key: 'record_id',
+    label: '记录ID',
+    getValue: (record) => record.id || ''
+  },
+  {
+    key: 'order_no',
+    label: '订单号',
+    getValue: (record) => record.orderNo || record.order_no || ''
+  },
+  {
+    key: 'student_name',
+    label: '学员',
+    getValue: (record) => record.studentName || record.student_name || ''
+  },
+  {
+    key: 'student_id',
+    label: '学员ID',
+    getValue: (record) => record.studentId || record.student_id || ''
+  },
+  {
+    key: 'student_grade',
+    label: '年级',
+    getValue: (record) => record.studentGrade || record.student_grade || ''
+  },
+  {
+    key: 'course_name',
+    label: '课程',
+    getValue: (record) => record.courseName || record.course_name || ''
+  },
+  {
+    key: 'course_id',
+    label: '课程ID',
+    getValue: (record) => record.courseId || record.course_id || ''
+  },
+  {
+    key: 'status',
+    label: '收费状态',
+    getValue: (record) => record.status || ''
+  },
+  {
+    key: 'payment_method',
+    label: '支付方式',
+    getValue: (record) => record.paymentMethod || record.payment_method || ''
+  },
+  {
+    key: 'amount_cents',
+    label: '金额(分)',
+    getValue: (record) => record.amountCents || record.amount_cents || 0
+  },
+  {
+    key: 'currency',
+    label: '币种',
+    getValue: (record) => record.currency || ''
+  },
+  {
+    key: 'paid_at',
+    label: '入账时间',
+    getValue: (record) => record.paidAt || record.paid_at || ''
+  },
+  {
+    key: 'created_at',
+    label: '创建时间',
+    getValue: (record) => record.createdAt || record.created_at || ''
+  },
+  {
+    key: 'notes',
+    label: '备注',
+    getValue: (record) => record.notes || ''
+  }
+];
 
 function resolveMenuItems(menuConfig, configKey, fallbackIcons) {
   const list = menuConfig?.[configKey] || [];
@@ -848,44 +920,9 @@ function FounderDashboard({
       return;
     }
 
-    const columns = [
-      ['record_id', '记录ID'],
-      ['order_no', '订单号'],
-      ['student_name', '学员'],
-      ['student_id', '学员ID'],
-      ['student_grade', '年级'],
-      ['course_name', '课程'],
-      ['course_id', '课程ID'],
-      ['status', '收费状态'],
-      ['payment_method', '支付方式'],
-      ['amount_cents', '金额(分)'],
-      ['currency', '币种'],
-      ['paid_at', '入账时间'],
-      ['created_at', '创建时间'],
-      ['notes', '备注']
-    ];
-
-    const header = columns.map((item) => item[1]).join(',');
+    const header = PAYMENT_RECORD_EXPORT_COLUMNS.map((item) => item.label).join(',');
     const csvRows = paymentRows.map((record) =>
-      columns.map(([key]) => {
-        const value = {
-          record_id: record.id || '',
-          order_no: record.orderNo || record.order_no || '',
-          student_name: record.studentName || record.student_name || '',
-          student_id: record.studentId || record.student_id || '',
-          student_grade: record.studentGrade || record.student_grade || '',
-          course_name: record.courseName || record.course_name || '',
-          course_id: record.courseId || record.course_id || '',
-          status: record.status || '',
-          payment_method: record.paymentMethod || record.payment_method || '',
-          amount_cents: record.amountCents || record.amount_cents || 0,
-          currency: record.currency || '',
-          paid_at: record.paidAt || record.paid_at || '',
-          created_at: record.createdAt || record.created_at || '',
-          notes: record.notes || ''
-        }[key];
-        return csvEscape(value);
-      }).join(',')
+      PAYMENT_RECORD_EXPORT_COLUMNS.map((column) => csvEscape(column.getValue(record))).join(',')
     );
 
     const fileName = `founder-payment-records-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -901,6 +938,15 @@ function FounderDashboard({
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     onAction?.('founder', `导出收费记录：${paymentRows.length} 条`);
   };
+
+  const paymentFilterSummary = [
+    filters.paymentStudentId ? `学员ID ${filters.paymentStudentId}` : '',
+    filters.paymentCourseId ? `课程ID ${filters.paymentCourseId}` : '',
+    filters.paymentStatus ? `收费状态 ${filters.paymentStatus}` : '',
+    filters.paymentStartAt ? `开始日期 ${filters.paymentStartAt}` : '',
+    filters.paymentEndAt ? `结束日期 ${filters.paymentEndAt}` : ''
+  ].filter(Boolean);
+  const paymentExportFieldSummary = PAYMENT_RECORD_EXPORT_COLUMNS.map((column) => column.label).join('、');
 
   const updateFilters = (patch = {}) => {
     onFiltersChange?.({
@@ -1218,7 +1264,7 @@ function FounderDashboard({
             <h3>收费记录筛选与导出</h3>
           </div>
           <button className="row-action" onClick={exportPaymentRecords} disabled={paymentRows.length === 0}>
-            导出 CSV
+            导出当前筛选
           </button>
         </div>
         <div className="payment-filter-grid">
@@ -1260,6 +1306,9 @@ function FounderDashboard({
           <span className="small-note">待收：{paymentStatusCounts.pending || 0}</span>
           <span className="small-note">已退：{paymentStatusCounts.refunded || 0}</span>
           <span className="small-note">筛选后：{paymentRows.length} 条</span>
+        </div>
+        <div className="small-note" style={{ marginTop: 8 }}>
+          当前筛选：{paymentFilterSummary.length ? paymentFilterSummary.join(' · ') : '全部记录'} · 导出字段：{paymentExportFieldSummary}
         </div>
         {countItems(paymentRows) === 0 ? <div className="small-note">{UI_COPY.empty.noPaymentRecords}</div> : null}
         {(paymentRows || []).slice(0, 6).map((record) => (
