@@ -55,6 +55,7 @@ import {
 import {
   getCourseDisplay,
   normalizeCourseRules,
+  normalizeCourseStatus,
   normalizeCourseTime
 } from './utils/courseFormatters';
 import { normalizeCultureWallSnapshot } from './utils/cultureWallUpload';
@@ -1248,7 +1249,7 @@ function FounderDashboard({
             <div>
               <strong>{getCourseDisplay(course).name}</strong>
               <small>
-                {course.grade || COURSE_COPY.gradeFallback} · {normalizeCourseClassType(course)} · {course.status || COURSE_COPY.statusFallback}
+                {course.grade || COURSE_COPY.gradeFallback} · {normalizeCourseClassType(course)} · {normalizeCourseStatus(course, '未设置')}
               </small>
               <small className="small-note">
                 {normalizeCourseRules(course).scheduleDate} · {normalizeCourseRules(course).attendanceRule}
@@ -6285,7 +6286,7 @@ function CoursesPage({
       topic: item.topic || item.subject || item.course_type || item.type || '综合英语',
       grade: item.grade || item.gradeAlias || COURSE_COPY.gradeFallback,
       student: item.student || item.studentName || item.student_name || '当前学员',
-      statusText: item.status || item.statusText || COURSE_COPY.statusFallback
+      statusText: normalizeCourseStatus(item, '未设置')
     }))
     : FALLBACK_DATA.teacherLessons;
   const [selectedId, setSelectedId] = useState(courseCards[0]?.id);

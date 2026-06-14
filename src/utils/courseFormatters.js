@@ -16,6 +16,29 @@ export function normalizeCourseTime(course = {}, fallback = COURSE_COPY.timeFall
   return raw || fallback;
 }
 
+export function normalizeCourseStatus(course = {}, fallback = COURSE_COPY.statusFallback) {
+  const raw = `${course.status || course.statusText || ''}`.trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  const normalized = raw.toLowerCase();
+  if (normalized === 'active' || normalized === 'ongoing' || normalized === 'running') {
+    return '进行中';
+  }
+  if (normalized === 'paused' || normalized === 'hold' || normalized === 'suspended') {
+    return '已暂停';
+  }
+  if (normalized === 'closed' || normalized === 'finished' || normalized === 'completed') {
+    return '已结课';
+  }
+  if (normalized === 'draft' || normalized === 'pending') {
+    return '待开启';
+  }
+
+  return raw;
+}
+
 export function getCourseDisplay(course = {}, fallbackTime = COURSE_COPY.timeFallback) {
   return {
     name: `${course.name || course.courseName || course.title || course.course || course.courseTitle || COURSE_COPY.courseNameFallback}`.trim(),

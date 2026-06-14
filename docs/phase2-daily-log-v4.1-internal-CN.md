@@ -271,6 +271,7 @@
 
 - 2026-06-14（Phase 2 课程时间口径再统一）：课程卡时间改用统一格式化
   - 代码：老师端课程卡与个人中心课时卡不再直接透传 `time` 字段，改为统一走 `normalizeCourseTime`
+  - 代码：创始人课程与收费列表中的课程状态改为统一中文枚举，`active / paused / closed` 分别显示为 `进行中 / 已暂停 / 已结课`，空态显示 `未设置`
   - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的课程时间待确认项同步收口为“时间已统一”
   - 校验：`npm run typecheck`、`npm run build` ✅
 
