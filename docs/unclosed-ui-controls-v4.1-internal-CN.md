@@ -99,7 +99,7 @@
 
 | 控件ID | 当前状态 | 仍需收口的点 | 建议 |
 |---|---|---|---|
-| `profile.quick.lesson-account` | 已统一到 `COURSE_COPY.paymentStatusFallback` | 缴费状态、入账时间、课时余额的口径还可以更统一 | 后续把 `paymentStatus`、`paidAmount`、`remainingHours` 改成同一套展示词 |
+| `profile.quick.lesson-account` | 已统一到 `normalizePaymentStatus` | 缴费状态、入账时间、课时余额的口径还可以更统一 | 后续把 `paymentStatus`、`paidAmount`、`remainingHours` 改成同一套展示词 |
 | `profile.course-card.time` | 已统一到 `normalizeCourseTime` | 课程时间字段已接入统一格式化 | 保持课程页与个人中心同一时间口径 |
 | `profile.course-card.empty` | 当前暂无在读课程 | 这是正常空态 | 保持，不再改成错误态 |
 
@@ -110,13 +110,13 @@
 | `teacher.lesson.card.status` | 已统一到共享状态词 | 课卡状态与课时状态还可进一步统一 | 后续把状态词替换成可解释的业务状态 |
 | `teacher.lesson.card.time` | 已统一到 `normalizeCourseTime` | 排课字段已统一格式化 | 保持老师端与个人中心同一时间口径 |
 | `teacher.empty.matching-course` | 当前条件下暂无匹配课程 | 正常空态 | 保留，不再做成报错态 |
-| `founder.lesson-account.payment-status` | 已统一到 `COURSE_COPY.paymentStatusFallback` | 收费记录与课时账户的表达还没完全统一 | 后续把“缴费状态”彻底收口为“收费记录 / 入账状态” |
+| `founder.lesson-account.payment-status` | 已统一到 `normalizePaymentStatus` | 收费记录与课时账户的表达已统一到同一套状态词 | 保持“已收 / 待收 / 已退 / 处理中”四类展示口径 |
 | `founder.payment-records.expiry` | 已统一到 `COURSE_COPY.expiryFallback` | 机构有效期展示仍是次优口径 | 后续改成“到期日 / 续期日”两段式展示 |
 
 ### 8.5 当前结论
 
 - 这轮真正需要继续收口的，不是功能缺失，而是“状态词还散着说”。
-- 目前最值得继续动的仍然是：课时账户缴费状态、练习状态枚举。
+- 目前最值得继续动的仍然是：练习状态枚举。
 - 公开招生海报墙和“查看详情 / 立即咨询”链路已经闭环，不在本轮清单里了。
 
 ### 8.6 本轮已统一的词表项
@@ -124,8 +124,8 @@
 | 控件ID | 新口径 | 说明 |
 |---|---|---|
 | `founder.payment-records.expiry` | `到期日待确认` | 到期提醒统一到“日期待确认”语义 |
-| `profile.quick.lesson-account` | `收费状态待确认` | 课时账户缴费状态已统一到共享 fallback |
+| `profile.quick.lesson-account` | `已收 / 待收 / 已退 / 处理中` | 课时账户缴费状态已统一到共享状态词 |
 | `profile.course-card.time` / `teacher.lesson.card.time` / `student.lesson-card.time` | `时间已统一` | 课程时间统一到同一套格式化函数 |
 | `currentCourse` / `course-overview` | `课程待排课` | 当前课程在无排课时使用同一兜底词 |
 
-> 注：这些项已经统一接入共享常量，页面层不再散落硬编码；后续仍可继续把“待确认”升级为更明确的业务状态枚举。
+> 注：这些项已经统一接入共享状态词，页面层不再散落硬编码；后续仍可继续把“待确认”升级为更明确的业务状态枚举。

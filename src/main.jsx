@@ -50,7 +50,8 @@ import {
   COURSE_COPY,
   formatCurrencyCents,
   normalizeCourseClassType,
-  normalizeCourseFee
+  normalizeCourseFee,
+  normalizePaymentStatus
 } from './utils/formatters';
 import {
   getCourseDisplay,
@@ -1320,7 +1321,7 @@ function FounderDashboard({
             <div>
               <strong>{record.studentName || record.student_name || '匿名学员'}</strong>
               <small>
-                {record.status || '已入账'} · {record.courseName || record.course_name || '课程待核对'} · {record.order_no || record.orderNo || '订单号待核对'}
+                {normalizePaymentStatus(record.status)} · {record.courseName || record.course_name || '课程待核对'} · {record.order_no || record.orderNo || '订单号待核对'}
               </small>
             </div>
             <small className="small-note">
@@ -2227,7 +2228,7 @@ function ParentView({
             <span className="status-dot blue" />
             <div>
               <strong>{record.order_no || record.orderNo || '订单号待核对'}</strong>
-              <small>{record.status || '已入账'} · {record.paid_at || record.paidAt || COURSE_COPY.paymentTimeFallback}</small>
+              <small>{normalizePaymentStatus(record.status)} · {record.paid_at || record.paidAt || COURSE_COPY.paymentTimeFallback}</small>
             </div>
             <small className="small-note">
               {formatCents(record.amount_cents || record.amountCents || record.amount || 0)}
@@ -8008,7 +8009,7 @@ function ProfilePage({
           <MetricCard
             icon={CreditCard}
             label="收费记录"
-            value={`${lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus || COURSE_COPY.paymentStatusFallback}`}
+            value={normalizePaymentStatus(lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus)}
             note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已对账'}`}
             tone="purple"
           />

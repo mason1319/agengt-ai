@@ -52,3 +52,45 @@ export function normalizeCourseFee(course = {}) {
 
   return COURSE_COPY.feeFallback;
 }
+
+export function normalizePaymentStatus(status = '', fallback = '未设置') {
+  const raw = `${status || ''}`.trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  const normalized = raw.toLowerCase();
+  if (
+    normalized === 'paid'
+    || normalized === 'paid_success'
+    || normalized === 'settled'
+    || normalized === 'success'
+    || normalized === 'collected'
+    || normalized === 'received'
+    || normalized.includes('已收')
+    || normalized.includes('已入账')
+  ) {
+    return '已收';
+  }
+  if (
+    normalized === 'pending'
+    || normalized === 'unpaid'
+    || normalized === 'due'
+    || normalized === 'unreceived'
+    || normalized.includes('待收')
+  ) {
+    return '待收';
+  }
+  if (
+    normalized === 'refunded'
+    || normalized === 'refund'
+    || normalized.includes('已退')
+  ) {
+    return '已退';
+  }
+  if (normalized === 'processing' || normalized.includes('处理中')) {
+    return '处理中';
+  }
+
+  return raw;
+}
