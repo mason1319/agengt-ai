@@ -2,6 +2,15 @@
 
 ## 2026-06-14
 
+- 最新复测记录（Phase 2 创始人课程抽屉名称兜底收口）：`founder.course-drawer.name-fallback` 已统一
+  - 修复点：创始人编辑课程抽屉标题在课程名缺失时统一显示 `课程名称待完善`。
+  - 修复点：页面代码不再展示 `未命名课程` 这类内部占位口吻。
+  - 修复点：新增 `scripts/assert-founder-course-drawer-copy.js` 并接入 `npm test`，覆盖抽屉文案和清单记录。
+  - 验证：`npm test` ✅（35/35）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - Browser 验证：`http://127.0.0.1:4176/?role=founder` -> 课程中心 -> 编辑课程抽屉 ✅，旧文案不可见，控制台无错误。
+
 - 最新复测记录（Phase 2 平台机构名称兜底文案收口）：`platform.institution-name.fallback` 已统一
   - 修复点：平台资源用量、AI 用量机构列表和 AI 审计机构筛选中的机构名称缺失兜底统一为 `机构名称待完善`。
   - 修复点：平台机构样例与机构动作反馈也复用 `机构名称待完善`，页面代码不再展示 `机构名称待补齐` / `未命名机构` 这类内部补录口吻。

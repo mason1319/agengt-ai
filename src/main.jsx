@@ -7038,7 +7038,7 @@ function CoursesPage({
             <div className="drawer-header">
               <div>
                 <span>{courseDrawerMode === 'edit' ? '编辑课程' : '新建课程'}</span>
-                <h3>{courseDrawerMode === 'edit' ? courseDraft.name || '未命名课程' : '创建一门新课程'}</h3>
+                <h3>{courseDrawerMode === 'edit' ? courseDraft.name || '课程名称待完善' : '创建一门新课程'}</h3>
               </div>
               <button className="row-action ghost" onClick={closeCourseDrawer}>关闭</button>
             </div>
