@@ -3691,6 +3691,7 @@ function PlatformPlansPage({
 
 function PlatformAiPage({
   organizations = [],
+  activeRole = 'platform',
   sourcePage = 'platform-ai',
   sourcePageLabel = '机构运营智能体中心',
   aiSourceLabel = APP_COPY.simulatedText,
@@ -3743,12 +3744,22 @@ function PlatformAiPage({
   const selectedInstitution = sourceRows.find(
     (item) => item.institutionId === (aiUsageFilters?.institutionId || '')
   );
+  const selectedUsageInstitutionName = selectedInstitution?.institutionName
+    || selectedInstitution?.name
+    || organizations.find((org) => (org.id || org.name) === (aiUsageFilters?.institutionId || ''))?.name
+    || '全部机构';
   const currentWindow = aiUsageData?.window || {};
   const hasDateWindow = !!currentWindow.startAt || !!currentWindow.endAt;
 
   const limitText = hasDateWindow
     ? `${currentWindow.startAt || ''} ~ ${currentWindow.endAt || '现在'}`
     : `${aiUsageFilters?.days || 30}天窗口`;
+  const usageFilterSummary = [
+    `机构：${aiUsageFilters?.institutionId ? selectedUsageInstitutionName : '全部机构'}`,
+    `时间：${limitText}`,
+    `每页：${aiUsageFilters?.limit || 50}`,
+    aiUsageFilters?.includeUsers && aiUsageFilters?.institutionId ? `Top用户：${aiUsageFilters?.userLimit || 20}` : 'Top用户：未开启'
+  ];
 
   const auditRows = Array.isArray(auditData?.items) ? auditData.items : [];
   const currentTotal = Number(auditData?.total || 0);
@@ -3760,6 +3771,17 @@ function PlatformAiPage({
   const [trendAlertThreshold, setTrendAlertThreshold] = useState(35);
   const [sourceMockAlertThreshold, setSourceMockAlertThreshold] = useState(35);
   const [sourceUnknownAlertThreshold, setSourceUnknownAlertThreshold] = useState(15);
+  const selectedAuditInstitutionName = organizations.find((org) => (org.id || org.name) === (auditFilters?.institutionId || ''))?.name
+    || '全部机构';
+  const auditFilterSummary = [
+    `机构：${auditFilters?.institutionId ? selectedAuditInstitutionName : '全部机构'}`,
+    `用户：${auditFilters?.userId || '全部'}`,
+    `动作：${AI_AUDIT_ACTION_OPTIONS.find((option) => option.value === (auditFilters?.action || ''))?.label || '全部动作'}`,
+    `决策：${AI_AUDIT_DECISION_OPTIONS.find((option) => option.value === (auditFilters?.decision || ''))?.label || '全部决策'}`,
+    `时间：${auditFilters?.startAt || '不限'} ~ ${auditFilters?.endAt || '现在'}`,
+    `每页：${auditFilters?.limit || 20}`
+  ];
+  const auditExportSummary = `${auditFilterSummary.join(' · ')} · 当前显示 ${displayCount} / ${currentTotal} 条`;
   const usageSourceKpi = sourceRows.reduce((acc, item) => {
     const sourceCategory = getAIAuditSourceCategory(item.source || aiSourceLabel);
     const requestCount = Number(item.requestsWindow) || Number(item.requests) || Number(item.aiRequests) || 0;
@@ -3829,6 +3851,7 @@ function PlatformAiPage({
     unknownAlertThreshold: sourceUnknownAlertThreshold,
     sourceMixHasRisk
   };
+  const usageExportSummary = `${usageFilterSummary.join(' · ')} · 来源占比：真实模型 ${sourceSummaryForExport.realPercent}% / 备用模型 ${sourceSummaryForExport.mockPercent}% / 未知 ${sourceSummaryForExport.unknownPercent}%`;
   const currentPreset = normalizeProviderPreset(aiProvider, aiBaseUrl, aiModel);
   const [selectedPresetKey, setSelectedPresetKey] = useState(currentPreset.key);
   useEffect(() => {
@@ -3932,68 +3955,56 @@ function PlatformAiPage({
     <section className="role-grid">
       <section className="panel wide agent-hero-panel">
         <div className="agent-hero-copy">
-          <span>AI 学习工作台</span>
-          <h3>AI 学习助手工作台</h3>
+          <span>平台级 AI 资源监控</span>
+          <h3>资源用量与审计留痕</h3>
           <p>
-            把课堂反馈、练习出题、续费风险收口成一个统一入口。
-            先选能力，再执行，再看回填记录，所有动作都保留可追踪结果。
+            聚合机构 AI 用量、模型来源、审计动作和导出范围，确保平台运营能直接看清当前筛选口径。
           </p>
           <div className="agent-hero-kpis">
             <span>当前角色：{getRoleLabel(activeRole || 'student')}</span>
-            <span>可执行能力：{quickStats.executableAgents}/{quickStats.totalAgents}</span>
-            <span>最新结果：{quickStats.latestType}</span>
-            <span>状态：{quickStats.latestStatus}</span>
+            <span>AI 用量机构：{totalInstitutions}</span>
+            <span>审计记录：{displayCount}/{currentTotal}</span>
+            <span>来源风险：{sourceMixHasRisk ? '需关注' : '正常'}</span>
           </div>
         </div>
         <div className="agent-hero-side">
           <div className="agent-hero-focus">
             <div className="agent-hero-focus-head">
               <div>
-                <strong>{selectedAgent?.name || '未选择能力'}</strong>
-                <small>{selectedAgent?.for || '选择智能体能力'}</small>
+                <strong>当前筛选与导出范围</strong>
+                <small>{sourcePageLabel || sourcePage || '资源用量'}</small>
               </div>
-              <span className={`pill tiny ${selectedAgentAction ? 'success' : 'muted'}`}>
-                {selectedAgentAction ? '可执行' : '待选择'}
+              <span className={`pill tiny ${sourceMixHasRisk ? 'warning' : 'success'}`}>
+                {sourceMixHasRisk ? '需复核' : '已同步'}
               </span>
             </div>
-            <p>{selectedAgent?.desc || '选择后可直接执行并查看结果。'}</p>
-            {selectedAgentMeta ? (
-              <div className="agent-hero-meta">
-                <span>输入：{selectedAgentMeta.input}</span>
-                <span>输出：{selectedAgentMeta.output}</span>
-                <span>通道：{selectedAgentMeta.channel}</span>
-              </div>
-            ) : (
-              <div className="agent-hero-meta">
-                <span>输入：按页面上下文自动补全</span>
-                <span>输出：智能体结果</span>
-                <span>通道：智能体服务通道</span>
-              </div>
-            )}
+            <p>{usageExportSummary}</p>
+            <div className="agent-hero-meta">
+              <span>用量：{usageFilterSummary.join(' · ')}</span>
+              <span>审计：{auditFilterSummary.join(' · ')}</span>
+              <span>模型：{aiProvider || 'mock'} / {aiModel || 'mock'}</span>
+            </div>
             <div className="agent-hero-action-row">
               <button
                 className="row-action"
-                onClick={() => {
-                  if (selectedAgentAction) {
-                    triggerAgent(selectedAgent.name, selectedAgentAction);
-                  }
-                }}
-                disabled={!selectedAgentAction || (runningAgentName && runningAgentName !== selectedAgent?.name)}
+                onClick={onRetryAiUsage}
+                disabled={aiUsageLoading}
               >
-                {runningAgentName === selectedAgent?.name ? '执行中...' : selectedAgentAction ? '立即执行' : '未检测到可执行能力'}
+                {aiUsageLoading ? '刷新中...' : '刷新用量'}
               </button>
               <button
                 className="row-action ghost"
-                onClick={() => setSelectedRunId(selectedRun?.id || '')}
+                onClick={onRetryAudit}
+                disabled={auditLoading}
               >
-                查看最近结果
+                {auditLoading ? '刷新中...' : '刷新审计'}
               </button>
             </div>
           </div>
           <div className="agent-hero-chips">
-            <span>口语反馈</span>
-            <span>练习生成</span>
-            <span>续费风险</span>
+            <span>当前筛选</span>
+            <span>导出范围</span>
+            <span>空态提示</span>
             <span>执行留痕</span>
           </div>
         </div>
@@ -4025,14 +4036,14 @@ function PlatformAiPage({
             <small>角色：{getRoleLabel(activeRole || 'student')} · 来源：{aiSourceLabel || APP_COPY.simulatedText}</small>
           </div>
           <div className="metric">
-            <span>可执行任务</span>
-            <strong>{quickStats.totalAgents}</strong>
-            <small>已启用 {quickStats.executableAgents} 个执行路径</small>
+            <span>机构用量</span>
+            <strong>{totalInstitutions}</strong>
+            <small>{limitText} · 当前筛选 {listByUsage.length} 条</small>
           </div>
           <div className="metric">
-            <span>最新回写</span>
-            <strong>{quickStats.latestType}</strong>
-            <small>状态：{quickStats.latestStatus}</small>
+            <span>审计记录</span>
+            <strong>{displayCount}</strong>
+            <small>总计 {currentTotal} 条 · {auditFilters?.limit || 20} 条/页</small>
           </div>
         </div>
         <div className="ai-provider-pills">
@@ -4168,6 +4179,8 @@ function PlatformAiPage({
           </span>
           {aiUsageLoading ? '，正在刷新 AI 用量...' : aiUsageMessage || `，总计 ${totalInstitutions} 家机构，时间范围：${limitText}`}
         </div>
+        <div className="small-note">AI 用量当前筛选：{usageFilterSummary.join(' · ')}</div>
+        <div className="small-note">AI 用量导出范围：{usageExportSummary}</div>
         <div className="metrics ai-source-kpi">
           <article className="metric">
             <div className="metric-icon">
@@ -4321,7 +4334,7 @@ function PlatformAiPage({
 
         <div className="org-table">
           {listByUsage.length === 0 ? (
-            <div className="small-note">未返回 AI 使用数据</div>
+            <div className="small-note">当前筛选无 AI 用量记录，可调整机构或时间范围后刷新</div>
           ) : (
             listByUsage.map((org) => {
               const limit = Number(org.aiLimitMonthly) || Number(org.aiLimit) || 0;
@@ -4501,12 +4514,14 @@ function PlatformAiPage({
               ? auditMessage
               : `共 ${currentTotal} 条，已显示 ${displayCount} 条`}
         </div>
+        <div className="small-note">AI 审计当前筛选：{auditFilterSummary.join(' · ')}</div>
+        <div className="small-note">AI 审计导出范围：{auditExportSummary}</div>
 
         <div className="org-table audit-table">
           {auditLoading && auditRows.length === 0 ? (
             <div className="small-note">正在获取审计日志...</div>
           ) : auditRows.length === 0 ? (
-            <div className="small-note">{UI_COPY.empty.noAuditRecords}</div>
+            <div className="small-note">当前筛选无审计日志，可调整用户、动作、决策或时间范围后刷新</div>
           ) : (
             auditRows.map((item) => (
               <div className="org-row audit-row" key={item.id || `${item.institutionId}-${item.createdAt}`}>
@@ -10104,7 +10119,7 @@ function App() {
       const reportData = payload || {};
       const content = `${reportData.content || ''}`.trim();
   if (!content) {
-        setPlatformAuditMessage('暂无可导出的审计报表');
+        setPlatformAuditMessage('当前筛选下暂无可导出的 AI 审计报表，请调整用户、动作或时间范围后重试');
         return;
       }
 
@@ -10240,6 +10255,7 @@ function App() {
   const platformAiPage = (
       <PlatformAiPage
         organizations={platformOrgs}
+        activeRole={activeRole}
         aiUsageData={platformAiUsageData}
         aiUsageLoading={platformAiUsageLoading}
         aiUsageMessage={platformAiUsageMessage}
@@ -10263,7 +10279,7 @@ function App() {
               : (platformAiUsageData || {});
             const content = `${payload.content || ''}`.trim();
             if (!content) {
-              setPlatformAiUsageMessage('暂无可导出的 AI 用量报表');
+              setPlatformAiUsageMessage('当前筛选下暂无可导出的 AI 用量报表，请调整机构或时间范围后重试');
               return;
             }
 

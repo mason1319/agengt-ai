@@ -2,6 +2,17 @@
 
 ## 2026-06-14
 
+- 最新复测记录（Phase 2 平台 AI 用量/审计状态收口）：`platform.ai-usage-audit.states` 已统一
+  - 修复点：资源用量页补齐 `AI 用量当前筛选 / AI 用量导出范围 / AI 审计当前筛选 / AI 审计导出范围`，筛选条件、导出范围和空态提示同口径展示。
+  - 修复点：AI 用量与 AI 审计导出空结果改为当前筛选语义，不再只显示泛化“暂无可导出”。
+  - 修复点：资源用量页移除误引用智能体中心局部状态，改为展示机构用量、审计记录和来源风险，避免切换到 `资源用量` 后 React 运行时空白。
+  - 修复点：新增 `scripts/assert-platform-ai-usage-audit-states.js` 并接入 `npm test`，覆盖筛选摘要、导出范围、空态文案、导出空结果文案和资源页不依赖智能体中心局部状态。
+  - 验证：`npm test` ✅（35/35）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - Browser 验证：`http://127.0.0.1:4176/?role=platform` -> 资源用量 ✅，四条状态文案和两个空态均可见，控制台无错误。
+  - Playwright 验证：资源用量切页 `pageerror=0`，四条状态文案全部命中。
+
 - 最新复测记录（Phase 2 平台试用/到期动作口径收口）：`platform.expiry.actions` 已统一
   - 修复点：平台机构管理、机构状态总览、机构策略总览统一使用 `转正式运营 / 延长试用期 / 转只读观察 / 冻结新操作`。
   - 修复点：`ORG_STATUS_DEFAULTS` / `ORG_ACTIONS_BY_STATUS` 增加统一动作词表与策略文案 helper，页面不再直接渲染散落的到期策略词。
