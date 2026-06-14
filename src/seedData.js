@@ -142,7 +142,7 @@ export const organizations = [
     aiLimit: 10000,
     expires: '2027-06-04',
     status: '正常',
-    expiryAction: '到期转只读，保留历史'
+    expiryAction: '转只读观察，保留历史数据，暂停新增业务操作'
   },
   {
     name: '青禾英语工作室',
@@ -156,7 +156,7 @@ export const organizations = [
     aiLimit: 300,
     expires: '2026-06-18',
     status: '试用中',
-    expiryAction: '到期后冻结 + 提示开通'
+    expiryAction: '冻结新操作，待转正式运营'
   },
   {
     name: '启航中考英语',
@@ -170,7 +170,7 @@ export const organizations = [
     aiLimit: 2000,
     expires: '2026-06-01',
     status: '已到期',
-    expiryAction: '到期后只读'
+    expiryAction: '转只读观察，待转正式运营'
   }
 ];
 
@@ -181,7 +181,7 @@ export const billingPlans = [
     priceYearly: '免费',
     period: '试用14天',
     desc: '适合新机构体验核心流程',
-    features: ['50名学员', '3名老师', 'AI 300次/月', '到期只读/冻结策略']
+    features: ['50名学员', '3名老师', 'AI 300次/月', '到期转只读观察或冻结新操作']
   },
   {
     name: '基础版',

@@ -1,5 +1,15 @@
 # StarMate Phase 2 日志（内部版）
 
+## 2026-06-14
+
+- 最新复测记录（Phase 2 平台试用/到期动作口径收口）：`platform.expiry.actions` 已统一
+  - 修复点：平台机构管理、机构状态总览、机构策略总览统一使用 `转正式运营 / 延长试用期 / 转只读观察 / 冻结新操作`。
+  - 修复点：`ORG_STATUS_DEFAULTS` / `ORG_ACTIONS_BY_STATUS` 增加统一动作词表与策略文案 helper，页面不再直接渲染散落的到期策略词。
+  - 修复点：种子机构数据同步到统一策略文案，未闭环控件清单新增 `platform.expiry.actions` 收口记录。
+  - 验证：`npm test` ✅（35/35）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+
 ## 2026-06-12
 
 - 最新复测记录（Phase2 首页 AI 咨询回执收口）：`home.send-ai-reply` 补齐可见输入区与失败提示

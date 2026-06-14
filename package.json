@@ -53,7 +53,7 @@
     "audit:security": "node ./scripts/audit-security.js",
     "lint": "node ./scripts/lint-stub.js",
     "typecheck": "node ./scripts/typecheck-stub.js",
-    "test": "node ./scripts/assert-student-trial-booking-time.js && node ./scripts/assert-empty-error-states.js && node ./scripts/assert-lesson-account-display.js && node ./scripts/assert-teacher-lesson-business-status.js && node ./scripts/assert-expiry-renewal-display.js && node ./scripts/test-stub.js"
+    "test": "node ./scripts/assert-student-trial-booking-time.js && node ./scripts/assert-empty-error-states.js && node ./scripts/assert-lesson-account-display.js && node ./scripts/assert-teacher-lesson-business-status.js && node ./scripts/assert-expiry-renewal-display.js && node ./scripts/assert-platform-expiry-action-copy.js && node ./scripts/test-stub.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",

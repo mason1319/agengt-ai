@@ -72,21 +72,79 @@ export const ORG_STATUS = {
   expired: '已到期'
 };
 
+export const PLATFORM_EXPIRY_ACTION_COPY = {
+  convert: {
+    label: '转正式运营',
+    policy: '开通正式套餐后解除试用限制'
+  },
+  extend: {
+    label: '延长试用期',
+    policy: '保留试用状态并更新到期日'
+  },
+  readonly: {
+    label: '转只读观察',
+    policy: '保留历史数据，暂停新增业务操作'
+  },
+  freeze: {
+    label: '冻结新操作',
+    policy: '保留历史数据，禁止新增课程、线索和课时动作'
+  }
+};
+
+export const PLATFORM_EXPIRY_POLICY_TEXT = {
+  [ORG_STATUS.normal]: `${PLATFORM_EXPIRY_ACTION_COPY.readonly.label}，${PLATFORM_EXPIRY_ACTION_COPY.readonly.policy}`,
+  [ORG_STATUS.trial]: `${PLATFORM_EXPIRY_ACTION_COPY.freeze.label}，待${PLATFORM_EXPIRY_ACTION_COPY.convert.label}`,
+  [ORG_STATUS.expired]: `${PLATFORM_EXPIRY_ACTION_COPY.readonly.label}，待${PLATFORM_EXPIRY_ACTION_COPY.convert.label}`
+};
+
+export function getPlatformExpiryActionLabel(action = {}) {
+  const actionKey = `${action.actionKey || ''}`.trim();
+  if (actionKey && PLATFORM_EXPIRY_ACTION_COPY[actionKey]) {
+    return PLATFORM_EXPIRY_ACTION_COPY[actionKey].label;
+  }
+  if (action.targetStatus === ORG_STATUS.normal) {
+    return PLATFORM_EXPIRY_ACTION_COPY.convert.label;
+  }
+  if (action.targetStatus === ORG_STATUS.trial) {
+    return PLATFORM_EXPIRY_ACTION_COPY.extend.label;
+  }
+  if (action.targetStatus === ORG_STATUS.expired) {
+    return PLATFORM_EXPIRY_ACTION_COPY.freeze.label;
+  }
+  return `${action.label || UI_COPY.status.pending}`.trim();
+}
+
+export function getPlatformExpiryPolicyText(item = {}) {
+  const status = `${item.status || ''}`.trim();
+  const normalizedPolicy = `${item.expiryAction || PLATFORM_EXPIRY_POLICY_TEXT[status] || PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.trial]}`.trim();
+
+  if (normalizedPolicy.includes(PLATFORM_EXPIRY_ACTION_COPY.freeze.label)) {
+    return PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.trial];
+  }
+  if (normalizedPolicy.includes(PLATFORM_EXPIRY_ACTION_COPY.readonly.label)) {
+    return status === ORG_STATUS.normal ? PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.normal] : PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.expired];
+  }
+  if (normalizedPolicy.includes(PLATFORM_EXPIRY_ACTION_COPY.convert.label)) {
+    return `${PLATFORM_EXPIRY_ACTION_COPY.convert.label}，${PLATFORM_EXPIRY_ACTION_COPY.convert.policy}`;
+  }
+  return PLATFORM_EXPIRY_POLICY_TEXT[status] || normalizedPolicy;
+}
+
 export const ORG_STATUS_DEFAULTS = {
   [ORG_STATUS.normal]: {
     planMode: '月付',
-    expiryAction: '到期转只读，保留历史',
+    expiryAction: PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.normal],
     dayOffset: 30
   },
   [ORG_STATUS.trial]: {
     plan: '体验版',
     planMode: '试用',
-    expiryAction: '到期转只读',
+    expiryAction: PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.trial],
     dayOffset: 14
   },
   [ORG_STATUS.expired]: {
     planMode: '已到期',
-    expiryAction: '到期后只读',
+    expiryAction: PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.expired],
     dayOffset: -3
   }
 };
@@ -94,34 +152,40 @@ export const ORG_STATUS_DEFAULTS = {
 export const ORG_ACTIONS_BY_STATUS = {
   [ORG_STATUS.normal]: [
     {
-      label: '更新配置',
+      actionKey: 'readonly',
+      label: PLATFORM_EXPIRY_ACTION_COPY.readonly.label,
       targetStatus: ORG_STATUS.normal,
       patch: {
-        expiryAction: '到期转只读，保留历史'
+        expiryAction: PLATFORM_EXPIRY_POLICY_TEXT[ORG_STATUS.normal]
       }
     },
     {
-      label: '停用',
+      actionKey: 'freeze',
+      label: PLATFORM_EXPIRY_ACTION_COPY.freeze.label,
       targetStatus: ORG_STATUS.expired
     }
   ],
   [ORG_STATUS.trial]: [
     {
-      label: '转正式',
+      actionKey: 'convert',
+      label: PLATFORM_EXPIRY_ACTION_COPY.convert.label,
       targetStatus: ORG_STATUS.normal
     },
     {
-      label: '延长试用',
+      actionKey: 'extend',
+      label: PLATFORM_EXPIRY_ACTION_COPY.extend.label,
       targetStatus: ORG_STATUS.trial
     }
   ],
   [ORG_STATUS.expired]: [
     {
-      label: '续费恢复',
+      actionKey: 'convert',
+      label: PLATFORM_EXPIRY_ACTION_COPY.convert.label,
       targetStatus: ORG_STATUS.normal
     },
     {
-      label: '试用演练',
+      actionKey: 'extend',
+      label: PLATFORM_EXPIRY_ACTION_COPY.extend.label,
       targetStatus: ORG_STATUS.trial
     }
   ]

@@ -76,6 +76,8 @@ import {
 } from './data/learningContent';
 import {
   APP_COPY,
+  getPlatformExpiryActionLabel,
+  getPlatformExpiryPolicyText,
   MENU_CONFIG,
   ORG_ACTIONS_BY_STATUS,
   ORG_STATUS,
@@ -3379,7 +3381,8 @@ function PlatformAdmin({
         patch.expires = nextDate(today, defaults.dayOffset);
       }
       delete patch.dayOffset;
-      onAction?.('platform', `执行机构动作：${action.label}`);
+      const actionLabel = getPlatformExpiryActionLabel(action);
+      onAction?.('platform', `执行机构动作：${actionLabel}`);
 
       if (typeof onApplyOrgAction === 'function') {
         await onApplyOrgAction(org, action, patch);
@@ -3395,12 +3398,12 @@ function PlatformAdmin({
       <span className="org-actions">
         {actions.map((action) => (
           <button
-            key={action.label}
+            key={getPlatformExpiryActionLabel(action)}
             className="row-action"
             onClick={() => applyOrgAction(action)}
             disabled={actionBusyOrgId && ((actionBusyOrgId === (org.id || org.name)))}
           >
-            {action.label}
+            {getPlatformExpiryActionLabel(action)}
           </button>
         ))}
       </span>
@@ -3436,7 +3439,7 @@ function PlatformAdmin({
           aiLimit: PLATFORM_TRIAL_ORG_LIMITS.aiLimit,
           expires: expireDate.toISOString().slice(0, 10),
           status: ORG_STATUS.trial,
-          expiryAction: '到期后冻结，待开通月费/年费',
+          expiryAction: getPlatformExpiryPolicyText({ status: ORG_STATUS.trial }),
           createdAt: today.toISOString(),
           updatedAt: today.toISOString()
         };
@@ -3502,7 +3505,7 @@ function PlatformAdmin({
                 {org.status}
               </span>
               <div className="small-note" style={{ justifySelf: 'end', textAlign: 'right' }}>
-                到期策略：{org.expiryAction}
+                到期策略：{getPlatformExpiryPolicyText(org)}
               </div>
               {getOrgActions(org)}
             </div>
@@ -3515,8 +3518,8 @@ function PlatformAdmin({
         <ul className="check-list">
           <li><Check size={16} /> 每条业务数据绑定 institutionId</li>
           <li><Check size={16} /> 学生、老师、AI次数超额自动提示并降级处理</li>
-          <li><Check size={16} /> 到期机构自动转为只读/冻结（平台可配置）</li>
-          <li><Check size={16} /> 平台管理员保留跨机构审计与停用权限</li>
+          <li><Check size={16} /> 到期机构按策略进入“转只读观察”或“冻结新操作”</li>
+          <li><Check size={16} /> 平台管理员保留跨机构审计与冻结新操作权限</li>
         </ul>
       </div>
     </section>
@@ -3566,7 +3569,7 @@ function PlatformOverview({ platformSummary = {}, organizations = [], onExportRe
         <MetricCard icon={Building2} label="机构数" value={organizations.length} note="平台总机构" />
         <MetricCard icon={Crown} label="正常运营" value={normalCount} note="未到期机构" />
         <MetricCard icon={BadgeCheck} label="试用中" value={trialCount} note="14 天窗口期" />
-        <MetricCard icon={AlertTriangle} label="已到期" value={expiredCount} note="被冻结/待恢复" tone="red" />
+        <MetricCard icon={AlertTriangle} label="已到期" value={expiredCount} note="冻结新操作 / 待转正式运营" tone="red" />
       </div>
 
       <div className="panel wide">
@@ -3589,7 +3592,7 @@ function PlatformOverview({ platformSummary = {}, organizations = [], onExportRe
             <small>已到期机构</small>
           </div>
         </div>
-        <div className="platform-snapshot-note">到期提醒自动提示，过期后转只读并保留历史审核记录。</div>
+        <div className="platform-snapshot-note">到期提醒自动提示，过期后按策略进入转只读观察或冻结新操作，并保留历史审核记录。</div>
       </div>
 
       {warningOrganizations.length > 0 ? (
@@ -3604,7 +3607,7 @@ function PlatformOverview({ platformSummary = {}, organizations = [], onExportRe
             const leftText = Number.isFinite(left) ? `${Math.max(left, 0)} 天` : COURSE_COPY.expiryFallback;
             return (
               <div className="small-note" key={org.id || org.name}>
-                {org.name} · {org.plan}（{org.planMode}）· 到期 {org.expires}（还剩 {leftText}）· {org.expiryAction}
+                {org.name} · {org.plan}（{org.planMode}）· 到期 {org.expires}（还剩 {leftText}）· {getPlatformExpiryPolicyText(org)}
               </div>
             );
           })}
@@ -3637,7 +3640,7 @@ function PlatformPlansPage({
             <article className="summary-card" key={status}>
               <strong>{status}</strong>
               <span>{defaults.plan || defaults.planMode || '试用/正式'}</span>
-              <small>{defaults.expiryAction || '到期后只读'}</small>
+              <small>{getPlatformExpiryPolicyText({ ...defaults, status })}</small>
               <small>试用期：{defaults.dayOffset || 0} 天</small>
             </article>
           ))}
@@ -3655,7 +3658,7 @@ function PlatformPlansPage({
         <ul className="check-list">
           {actionEntries.map(([status, actions]) => (
             <li key={status}>
-              <Check size={16} /> {status}：{actions.map((action) => action.label).join(' / ')}
+              <Check size={16} /> {status}：{actions.map((action) => getPlatformExpiryActionLabel(action)).join(' / ')}
             </li>
           ))}
         </ul>
