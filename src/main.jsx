@@ -3670,7 +3670,7 @@ function PlatformPlansPage({
           {groupedOrganizations.flatMap((group) => group.items.map((org) => (
             <div className="org-row" key={`${group.status}-${org.id || org.name}`}>
               <div>
-                <strong>{org.name || '未命名机构'}</strong>
+                <strong>{org.name || '机构名称待完善'}</strong>
                 <small>状态：{org.status || group.status || 'trial'} · 套餐：{org.plan || '体验版'}</small>
                 <small>到期：{org.expires || '未设置'} · 机构ID：{org.id || '—'}</small>
               </div>

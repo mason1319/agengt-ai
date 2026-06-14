@@ -132,7 +132,7 @@ export function getPlatformExpiryPolicyText(item = {}) {
 
 export function getPlatformOrgActionResultText({ org = {}, action = {}, patch = {} } = {}) {
   const actionLabel = getPlatformExpiryActionLabel(action);
-  const name = `${org.name || patch.name || org.id || patch.id || '未命名机构'}`.trim();
+  const name = `${org.name || patch.name || org.id || patch.id || '机构名称待完善'}`.trim();
   const nextStatus = `${patch.status || org.status || ORG_STATUS.trial}`.trim();
   const policyText = getPlatformExpiryPolicyText({ ...org, ...patch, status: nextStatus });
   return `已执行${actionLabel}：${name}，状态已更新为${nextStatus}，到期策略：${policyText}`;

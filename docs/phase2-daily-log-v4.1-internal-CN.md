@@ -4,7 +4,7 @@
 
 - 最新复测记录（Phase 2 平台机构名称兜底文案收口）：`platform.institution-name.fallback` 已统一
   - 修复点：平台资源用量、AI 用量机构列表和 AI 审计机构筛选中的机构名称缺失兜底统一为 `机构名称待完善`。
-  - 修复点：页面代码不再展示 `机构名称待补齐` 这类内部补录口吻。
+  - 修复点：平台机构样例与机构动作反馈也复用 `机构名称待完善`，页面代码不再展示 `机构名称待补齐` / `未命名机构` 这类内部补录口吻。
   - 修复点：新增 `scripts/assert-platform-institution-fallback-copy.js` 并接入 `npm test`，覆盖旧文案清理和清单记录。
   - 验证：`npm test` ✅（35/35）
   - 验证：`npm run typecheck` ✅
