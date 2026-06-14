@@ -54,6 +54,7 @@
 | `founder.courses.create` | 课程与收费 | 已有创建/编辑抽屉与保存流程 | 新建课程会同步到课程库与公开课程列表 | 保留当前抽屉式编辑，不再新增独立页面 |
 | `founder.course-drawer.name-fallback` | 课程与收费 | 编辑课程抽屉名称兜底已统一为 `课程名称待完善` | 已收口 | 不再展示 `未命名课程` 这类内部占位口吻 |
 | `founder.lesson-accounts.adjust` | 课时账户 | 已补调整表单与最近记录展示 | 继续保留原因必填与最新调整回显 | 复用现有课时账户表，不另起调整页 |
+| `founder.leads.guardian-fallback` | 咨询线索 | 家长姓名缺失兜底已统一为 `家长姓名待完善` | 已收口 | 不再展示 `未填写家长名` 这类表单字段口吻 |
 | `founder.leads.convert` | 线索转学生 | 可建学生/收费记录/课程报名 | 已返回分段结果并支持逐项失败展示 | 保留当前分段反馈，不再扩新增量流程 |
 | `founder.payment-records` | 收费记录 | 已有学员 / 课程 / 日期筛选与 CSV 导出 | 导出字段与页面展示口径一致，页面补充当前筛选与导出字段说明 | 保持当前筛选和导出口径，不再新增动作 |
 | `home.risk-scan` | 首页续费风险 | AI 可生成续费建议 | 已可把高风险学员自动转成 `intervention` 跟进任务 | 复用现有干预任务表，保留人工确认入口 |
@@ -142,6 +143,7 @@
 | `student.lesson-card.status` | `已完成 / 进行中 / 未开始` | 课程卡状态统一到三态口径 |
 | `currentCourse` / `course-overview` | `课程待排课` | 当前课程在无排课时使用同一兜底词 |
 | `founder.course-drawer.name-fallback` | `课程名称待完善` | 创始人编辑课程抽屉在名称缺失时使用统一兜底，不再显示“未命名课程” |
+| `founder.leads.guardian-fallback` | `家长姓名待完善` | 创始人咨询线索列表与详情统一家长姓名缺失兜底 |
 | `platform.expiry.actions` | `转正式运营 / 延长试用期 / 转只读观察 / 冻结新操作` | 平台机构动作按钮、风险预警和策略总览统一到同一套到期动作口径 |
 | `platform.action.execution-feedback` | `已执行{动作}：{机构}，状态已更新为{状态}，到期策略：{策略}` | 平台机构动作结果提示与最近操作日志共用同一反馈文案 |
 | `platform.ai-usage-audit.states` | `AI 用量当前筛选 / AI 用量导出范围 / AI 审计当前筛选 / AI 审计导出范围` | 平台资源用量与审计日志的筛选、导出和空态提示同口径 |

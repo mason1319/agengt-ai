@@ -1183,7 +1183,7 @@ function FounderDashboard({
             <React.Fragment key={leadId}>
               <div className={`pipeline-row ${isSelected ? 'active' : ''}`} onClick={() => setSelectedLeadId(leadId)}>
                 <span>{lead.status || 'new'}</span>
-                <strong>{lead.guardianName || '未填写家长名'}</strong>
+                <strong>{lead.guardianName || '家长姓名待完善'}</strong>
                 <small>{lead.student_grade || lead.studentGrade || '五年级'}</small>
                 <span className="pipeline-row-actions">
                   <button
@@ -1231,7 +1231,7 @@ function FounderDashboard({
               <div className="alert-row">
                 <span className="status-dot green" />
                 <div>
-                  <strong>{selectedLead.guardianName || '未填写家长名'}</strong>
+                  <strong>{selectedLead.guardianName || '家长姓名待完善'}</strong>
                   <small>{selectedLead.student_grade || selectedLead.studentGrade || COURSE_COPY.gradeFallback} · {selectedLead.need_summary || selectedLead.needSummary || UI_COPY.empty.noLearningNeed}</small>
                 </div>
                 <small className="small-note">{selectedLead.updatedAt || selectedLead.updated_at || selectedLead.createdAt || '刚刚'}</small>

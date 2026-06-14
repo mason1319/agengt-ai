@@ -2,6 +2,15 @@
 
 ## 2026-06-14
 
+- 最新复测记录（Phase 2 创始人线索家长姓名兜底收口）：`founder.leads.guardian-fallback` 已统一
+  - 修复点：创始人咨询线索列表与线索详情中，家长姓名缺失时统一显示 `家长姓名待完善`。
+  - 修复点：页面代码不再展示 `未填写家长名` 这类表单字段口吻。
+  - 修复点：新增 `scripts/assert-founder-lead-guardian-copy.js` 并接入 `npm test`，覆盖线索列表、详情和清单记录。
+  - 验证：`npm test` ✅（35/35）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - Browser 验证：`http://127.0.0.1:4176/?role=founder` -> 咨询线索 ✅，页面正常，旧文案不可见，控制台无错误。
+
 - 最新复测记录（Phase 2 创始人课程抽屉名称兜底收口）：`founder.course-drawer.name-fallback` 已统一
   - 修复点：创始人编辑课程抽屉标题在课程名缺失时统一显示 `课程名称待完善`。
   - 修复点：页面代码不再展示 `未命名课程` 这类内部占位口吻。
