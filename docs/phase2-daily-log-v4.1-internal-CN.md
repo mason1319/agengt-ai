@@ -299,6 +299,12 @@
   - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 的当前结论收窄为仅剩试听预约时间选择
   - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
 
+- 2026-06-14（Phase 2 试听预约时间收口）：学生端试听预约补齐可选时间
+  - 代码：学生端主入口新增 `试听预约时间` 的 `datetime-local` 控件
+  - 代码：预约提交优先使用用户选择时间，未选择时继续默认安排明日同一时段，并补无效时间提示
+  - 代码：新增 `scripts/assert-student-trial-booking-time.js`，防止后续回退成固定时间
+  - 校验：`npm test` ✅（含 35/35 smoke）、`npm run typecheck` ✅、`npm run build` ✅、Chrome 桌面/移动视口回归 ✅
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录

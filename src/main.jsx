@@ -2382,6 +2382,7 @@ function StudentView({
   const [trialGuardianName, setTrialGuardianName] = useState('');
   const [trialNeedSummary, setTrialNeedSummary] = useState('');
   const [trialInitialMessage, setTrialInitialMessage] = useState('');
+  const [trialBookingTime, setTrialBookingTime] = useState('');
   const [admissionFilter, setAdmissionFilter] = useState('all');
   const [selectedAdmissionPosterId, setSelectedAdmissionPosterId] = useState('');
   const [trialLeadId, setTrialLeadId] = useState('');
@@ -2685,6 +2686,14 @@ function StudentView({
       setTrialStatusText('请先提交咨询，之后可预约试听');
       return;
     }
+    const parsedBookingTime = trialBookingTime ? new Date(trialBookingTime) : null;
+    if (parsedBookingTime && Number.isNaN(parsedBookingTime.getTime())) {
+      setTrialStatusText('请选择有效的试听预约时间');
+      return;
+    }
+    const selectedBookingTime = parsedBookingTime
+      ? parsedBookingTime.toISOString()
+      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     setTrialBusy(true);
     setTrialStatusText('试听预约提交中...');
     try {
@@ -2692,7 +2701,7 @@ function StudentView({
         leadId: trialLeadId,
         institutionId: `${selectedPublicCourse.institutionId || ''}`.trim(),
         courseId: selectedPublicCourseId,
-        reservedAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        reservedAt: selectedBookingTime,
         durationMinutes: 60,
         sourceChannel: 'student_home'
       });
@@ -3225,6 +3234,15 @@ function StudentView({
               <span>家长姓名</span>
               <input value={trialGuardianName} onChange={(event) => setTrialGuardianName(event.target.value)} />
             </label>
+            <label>
+              <span>试听预约时间</span>
+              <input
+                type="datetime-local"
+                value={trialBookingTime}
+                onChange={(event) => setTrialBookingTime(event.target.value)}
+              />
+            </label>
+            <div className="small-note" style={{ marginTop: 8 }}>未选择时默认安排明日同一时段</div>
             <div className="hero-chip-row" style={{ marginTop: 8 }}>
               <button className="row-action" onClick={handleSubmitTrialLead} disabled={publicLeadSubmitting || trialBusy}>
                 {publicLeadSubmitting || trialBusy ? '提交中...' : '提交咨询'}
