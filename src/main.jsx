@@ -3717,7 +3717,7 @@ function PlatformAiPage({
 }) {
   const fallbackUsageRows = organizations.map((org) => ({
     institutionId: org.id || org.name || '',
-    institutionName: org.name || '机构名称待补齐',
+    institutionName: org.name || '机构名称待完善',
     plan: org.plan || '体验版',
     planCode: org.planCode || 'trial',
     aiLimitMonthly: Number(org.aiLimit) || 0,
@@ -4118,7 +4118,7 @@ function PlatformAiPage({
             <option value="">全部机构</option>
             {organizations.map((org) => (
               <option key={org.id || org.name} value={org.id || ''}>
-                {org.name || org.id || '机构名称待补齐'}
+                {org.name || org.id || '机构名称待完善'}
               </option>
             ))}
           </select>
@@ -4343,7 +4343,7 @@ function PlatformAiPage({
               return (
                 <div className="org-row" key={org.institutionId || org.id || org.name || org.institutionName || 'ai-usage'}>
                 <div>
-                  <strong>{org.institutionName || org.name || '机构名称待补齐'}</strong>
+                  <strong>{org.institutionName || org.name || '机构名称待完善'}</strong>
                   <small>{org.plan || '体验版'}（{org.planMode || '月付'}） · 已用 {used} / 上限 {limit}</small>
                   <small>
                     请求数 {Number(org.requestsWindow) || 0} · 上次使用 {org.lastUsedAt || '—'} · 来源
@@ -4450,7 +4450,7 @@ function PlatformAiPage({
             <option value="">全部机构</option>
             {organizations.map((org) => (
               <option key={org.id || org.name} value={org.id || ''}>
-                {org.name || org.id || '机构名称待补齐'}
+                {org.name || org.id || '机构名称待完善'}
               </option>
             ))}
           </select>

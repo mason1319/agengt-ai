@@ -2,6 +2,15 @@
 
 ## 2026-06-14
 
+- 最新复测记录（Phase 2 平台机构名称兜底文案收口）：`platform.institution-name.fallback` 已统一
+  - 修复点：平台资源用量、AI 用量机构列表和 AI 审计机构筛选中的机构名称缺失兜底统一为 `机构名称待完善`。
+  - 修复点：页面代码不再展示 `机构名称待补齐` 这类内部补录口吻。
+  - 修复点：新增 `scripts/assert-platform-institution-fallback-copy.js` 并接入 `npm test`，覆盖旧文案清理和清单记录。
+  - 验证：`npm test` ✅（35/35）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - Browser 验证：`http://127.0.0.1:4176/?role=platform` -> 资源用量 ✅，页面不空白，旧 fallback 未出现在可见文本，控制台无错误。
+
 - 最新复测记录（Phase 2 平台 AI 用量/审计状态收口）：`platform.ai-usage-audit.states` 已统一
   - 修复点：资源用量页补齐 `AI 用量当前筛选 / AI 用量导出范围 / AI 审计当前筛选 / AI 审计导出范围`，筛选条件、导出范围和空态提示同口径展示。
   - 修复点：AI 用量与 AI 审计导出空结果改为当前筛选语义，不再只显示泛化“暂无可导出”。
