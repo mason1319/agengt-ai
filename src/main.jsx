@@ -2645,12 +2645,12 @@ function StudentView({
 
   const handleSubmitTrialLead = async () => {
     if (!onSubmitPublicLead || !selectedPublicCourse) {
-      setTrialStatusText('请先选择试听课程');
+      setTrialStatusText('请选择试听课程后继续');
       return;
     }
     const guardianName = `${trialGuardianName || ''}`.trim();
     if (!guardianName) {
-      setTrialStatusText('请填写家长姓名');
+      setTrialStatusText('请填写家长姓名后继续');
       return;
     }
     setTrialBusy(true);
@@ -2678,11 +2678,11 @@ function StudentView({
 
   const handleSubmitTrialBooking = async () => {
     if (!onSubmitTrialBooking || !selectedPublicCourse) {
-      setTrialStatusText('请先选择试听课程');
+      setTrialStatusText('请选择试听课程后继续');
       return;
     }
     if (!trialLeadId) {
-      setTrialStatusText('请先提交咨询，再预约试听');
+      setTrialStatusText('请先提交咨询，之后可预约试听');
       return;
     }
     setTrialBusy(true);
@@ -3203,7 +3203,7 @@ function StudentView({
                 </div>
               </div>
             ) : (
-              <div className="small-note">请先选择试听课程</div>
+              <div className="small-note">请选择试听课程后继续</div>
             )}
             {selectedPublicCourse && selectedPublicCourseRules ? (
               <div className="alert-list" style={{ marginBottom: 10 }}>
@@ -3232,6 +3232,9 @@ function StudentView({
               <button className="row-action" onClick={handleSubmitTrialBooking} disabled={!trialLeadId || trialBusy}>
                 提交试听预约
               </button>
+            </div>
+            <div className="small-note" style={{ marginTop: 8 }}>
+              {trialLeadId ? '已提交咨询，可继续预约试听' : '补充咨询内容后即可提交试听预约'}
             </div>
             <div className="hero-chip-row" style={{ marginTop: 8 }}>
               <span className="small-note">咨询状态：{trialStatusText}</span>
@@ -5613,7 +5616,7 @@ function HomePage({
       return;
     }
     if (!consultLeadId) {
-      setConsultStatusText('请先补充咨询内容后再提交试听预约');
+      setConsultStatusText('补充咨询内容后即可提交试听预约');
       return;
     }
     const selectedCourse = publicCourseList.find((course) => `${course.id}`.trim() === `${selectedPublicCourseId}`);
@@ -6064,7 +6067,7 @@ function HomePage({
                   </div>
                 </div>
               ) : (
-                <div className="small-note" style={{ marginTop: 10 }}>请先选择试听课程</div>
+                <div className="small-note" style={{ marginTop: 10 }}>请选择试听课程后继续</div>
               )}
               {selectedPublicCourse && selectedPublicCourseRules ? (
                 <div className="alert-list" style={{ marginTop: 10 }}>

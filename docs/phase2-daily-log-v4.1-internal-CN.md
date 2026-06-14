@@ -287,6 +287,12 @@
   - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的 `student.lesson-card.status` 已改为已收口
   - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
 
+- 2026-06-14（Phase 2 试听表单引导词收口）：公开试听提示语统一成同一套表达
+  - 代码：试听咨询与试听预约在缺课程、缺家长姓名、缺咨询内容时统一提示为更中性的继续式引导
+  - 代码：学生页试听区与公开咨询入口都改成 `请选择试听课程后继续`
+  - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的 `student.trial.form` 已改为已收口
+  - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录

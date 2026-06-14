@@ -83,9 +83,9 @@
 | 控件ID | 当前状态 | 仍需收口的点 | 建议 |
 |---|---|---|---|
 | `student.lesson-card.status` | 已统一到三态状态词 | 课程卡状态已稳定到“已完成 / 进行中 / 未开始”三态 | 保持三态口径，不再直接透出裸词 |
-| `student.lesson-card.time` | 已统一到 `COURSE_COPY.timeFallback` | 课程时间字段与排课时间字段尚未完全统一 | 后续在课程数据源层统一 `start_time` / `time` / `schedule` 的优先级 |
+| `student.lesson-card.time` | 已统一到 `normalizeCourseTime` | 课程时间字段已接入统一格式化 | 保持课程页、首页与个人中心同一时间口径 |
 | `student.public-course.empty` | 公开课程为空时显示“当前暂无可公开课程” | 这是正常空态，但容易和“数据没接上”混淆 | 后续保留空态文案，同时加一个“刷新课程”后的同步提示 |
-| `student.trial.form` | 试听咨询需要先选课程、再补内容 | 表单逻辑已闭环，但文案入口仍有多个相似提示 | 后续把“请先选择试听课程 / 请先补充咨询内容”合并为同一套引导词 |
+| `student.trial.form` | 试听咨询需要先选课程、再补内容 | 表单逻辑已闭环，提示词已统一到同一套引导语 | 保持“请选择试听课程后继续 / 补充咨询内容后即可提交试听预约” |
 
 ### 8.2 练习页
 
@@ -117,7 +117,7 @@
 ### 8.5 当前结论
 
 - 这轮真正需要继续收口的，不是功能缺失，而是“状态词还散着说”。
-- 目前最值得继续动的仍然是：课程时间字段与试听表单引导词。
+- 目前最值得继续动的仍然是：试听预约时间选择与课程详情规则展示。
 - 公开招生海报墙和“查看详情 / 立即咨询”链路已经闭环，不在本轮清单里了。
 
 ### 8.6 本轮已统一的词表项
@@ -127,6 +127,7 @@
 | `founder.payment-records.expiry` | `到期日待确认` | 到期提醒统一到“日期待确认”语义 |
 | `profile.quick.lesson-account` | `已收 / 待收 / 已退 / 处理中` | 课时账户缴费状态已统一到共享状态词 |
 | `profile.course-card.time` / `teacher.lesson.card.time` / `student.lesson-card.time` | `时间已统一` | 课程时间统一到同一套格式化函数 |
+| `student.trial.form` | `请选择试听课程后继续 / 补充咨询内容后即可提交试听预约` | 试听表单引导词已统一 |
 | `practice.review.history` / `practice.review.mistakes` | `已完成 / 进行中 / 待复习` | 复盘历史与薄弱项状态统一到共享映射 |
 | `student.lesson-card.status` | `已完成 / 进行中 / 未开始` | 课程卡状态统一到三态口径 |
 | `currentCourse` / `course-overview` | `课程待排课` | 当前课程在无排课时使用同一兜底词 |
