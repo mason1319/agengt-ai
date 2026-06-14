@@ -317,6 +317,12 @@
   - 代码：新增 `scripts/assert-lesson-account-display.js` 并接入 `npm test`
   - 校验：`npm test` ✅（含 35/35 smoke）、`npm run typecheck` ✅、`npm run build` ✅
 
+- 2026-06-14（Phase 2 老师课卡业务状态收口）：课卡状态从三态升级为动作口径
+  - 代码：老师端新增 `getLessonBusinessStatus`，根据课堂闭环、反馈同步、练习下发状态生成业务状态
+  - 代码：课卡展示 `待课前准备 / 反馈待同步 / 练习待下发 / 课堂已闭环` 等状态，选中课程汇总展示下一步动作
+  - 代码：新增 `scripts/assert-teacher-lesson-business-status.js` 并接入 `npm test`
+  - 校验：`npm test` ✅（含 35/35 smoke）、`npm run typecheck` ✅、`npm run build` ✅
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录

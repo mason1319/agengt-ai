@@ -1507,6 +1507,44 @@ function TeacherWorkspace({
     }
     return '未开始';
   };
+  const getLessonBusinessStatus = (lesson) => {
+    const state = lessonStates[lesson.id] || {};
+    const baseStatus = getLessonCardStatusLabel(lesson);
+    if (state.closed) {
+      return {
+        label: '课堂已闭环',
+        detail: '到课、反馈与练习均已完成归档'
+      };
+    }
+    if (state.feedbackDone && !state.exerciseDone) {
+      return {
+        label: '练习待下发',
+        detail: '课堂反馈已同步，下一步下发练习'
+      };
+    }
+    if (!state.feedbackDone && state.exerciseDone) {
+      return {
+        label: '反馈待同步',
+        detail: '练习已下发，下一步同步家校反馈'
+      };
+    }
+    if (state.feedbackDone || state.exerciseDone || baseStatus === '进行中') {
+      return {
+        label: '课堂推进中',
+        detail: '课堂执行中，继续补齐反馈与练习'
+      };
+    }
+    if (baseStatus === '已暂停') {
+      return {
+        label: '排课已暂停',
+        detail: '当前课程暂停，需确认后再继续执行'
+      };
+    }
+    return {
+      label: '待课前准备',
+      detail: '等待上课确认、到课记录和课后动作'
+    };
+  };
 
   useEffect(() => {
     if (!showAuthorizedOnly) {
@@ -1952,7 +1990,7 @@ function TeacherWorkspace({
                     {normalizeCourseRules(lesson).scheduleDate} · {normalizeCourseRules(lesson).holdRule}
                   </small>
                   <small className="small-note" style={{ marginTop: 3 }}>
-                    {getLessonCardStatusLabel(lesson)}
+                    {getLessonBusinessStatus(lesson).label}
                   </small>
                 </button>
               )))}
@@ -2036,7 +2074,7 @@ function TeacherWorkspace({
         </div>
         {agentMessage ? <div className="small-note" style={{ marginTop: 8 }}>{agentMessage}</div> : null}
         <div className="small-note" style={{ marginTop: 10 }}>
-          {activeState.closed ? '已完成' : '未完成'} · 反馈：{activeState.feedbackDone ? '已完成' : '待完成'} · 练习：{activeState.exerciseDone ? '已完成' : '待完成'} · 今日已完成：{closedCount}/{closedTotal}课
+          {getLessonBusinessStatus(currentLesson).detail} · 反馈：{activeState.feedbackDone ? '已同步' : '待同步'} · 练习：{activeState.exerciseDone ? '已下发' : '待下发'} · 今日已闭环：{closedCount}/{closedTotal}课
         </div>
       </div>
 
