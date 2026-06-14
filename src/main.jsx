@@ -7660,12 +7660,30 @@ function ProfilePage({
   };
   const lessonAccountSummary = lessonAccount?.summary || {};
   const lessonAccountSource = `${lessonAccountSourceLabel || '课时账户接口'}`.trim();
+  const lessonAccountHasData = [
+    lessonAccountSummary.studentName,
+    lessonAccount.studentId,
+    lessonAccount.remainingHours,
+    lessonAccount.paymentStatus,
+    lessonAccount.paidAmount,
+    lessonAccountSummary.remaining,
+    lessonAccountSummary.remaining_hours,
+    lessonAccountSummary.paymentStatus,
+    lessonAccountSummary.paidAmount
+  ].some((value) => value !== undefined && value !== null && `${value}`.trim() !== '');
+  const isLessonAccountSyncing = lessonAccountSyncState === '同步中...';
 
   useEffect(() => {
+    if (!lessonAccountHasData) {
+      setLessonAccountSyncAt('');
+      setLessonAccountSyncState('待同步');
+      return;
+    }
+
     const nextAt = new Date().toLocaleString('zh-CN', { hour12: false });
     setLessonAccountSyncAt(nextAt);
     setLessonAccountSyncState('已同步');
-  }, [lessonAccount, lessonAccountSourceLabel]);
+  }, [lessonAccountHasData, lessonAccountSourceLabel]);
 
   const refreshLessonAccount = async () => {
     if (typeof onRefresh !== 'function') {
@@ -8001,10 +8019,10 @@ function ProfilePage({
             <small>{lessonAccountSummary.studentName || child.name || '当前学员'} · 最近同步后再看课时、收费和保留状态</small>
           </div>
           <div className="profile-sync-meta">
-            <span className="small-note">最近同步：{lessonAccountSyncAt || '刚刚'}</span>
+            <span className="small-note">最近同步：{lessonAccountSyncAt || '待同步'}</span>
             <span className="small-note">{lessonAccountSyncState}</span>
-            <button className="row-action ghost" onClick={() => void refreshLessonAccount()}>
-              重新同步
+            <button className="row-action ghost" onClick={() => void refreshLessonAccount()} disabled={isLessonAccountSyncing}>
+              {isLessonAccountSyncing ? '同步中...' : '重新同步'}
             </button>
           </div>
         </div>
