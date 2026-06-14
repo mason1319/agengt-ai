@@ -51,6 +51,7 @@ import {
   formatCurrencyCents,
   normalizeLessonHours,
   normalizePaidAmount,
+  normalizeExpiryRenewalDates,
   normalizeCourseClassType,
   normalizeCourseFee,
   normalizePaymentStatus,
@@ -1318,20 +1319,26 @@ function FounderDashboard({
           当前筛选：{paymentFilterSummary.length ? paymentFilterSummary.join(' · ') : '全部记录'} · 导出字段：{paymentExportFieldSummary}
         </div>
         {countItems(paymentRows) === 0 ? <div className="small-note">{UI_COPY.empty.noPaymentRecords}</div> : null}
-        {(paymentRows || []).slice(0, 6).map((record) => (
-          <div className="alert-row" key={record.id || record.order_no || `${record.studentId || ''}-${record.paid_at || ''}`}>
-            <span className="status-dot blue" />
-            <div>
-              <strong>{record.studentName || record.student_name || '匿名学员'}</strong>
-              <small>
-                {normalizePaymentStatus(record.status)} · {record.courseName || record.course_name || '课程待核对'} · {record.order_no || record.orderNo || '订单号待核对'}
+        {(paymentRows || []).slice(0, 6).map((record) => {
+          const expiryRenewalDisplay = normalizeExpiryRenewalDates(record);
+          return (
+            <div className="alert-row" key={record.id || record.order_no || `${record.studentId || ''}-${record.paid_at || ''}`}>
+              <span className="status-dot blue" />
+              <div>
+                <strong>{record.studentName || record.student_name || '匿名学员'}</strong>
+                <small>
+                  {normalizePaymentStatus(record.status)} · {record.courseName || record.course_name || '课程待核对'} · {record.order_no || record.orderNo || '订单号待核对'}
+                </small>
+                <small className="small-note">
+                  {expiryRenewalDisplay.dueText} · {expiryRenewalDisplay.renewalText}
+                </small>
+              </div>
+              <small className="small-note">
+                {formatCents(record.amount_cents || record.amountCents || 0)} · {record.paidAt || record.paid_at || record.createdAt || ''}
               </small>
             </div>
-            <small className="small-note">
-              {formatCents(record.amount_cents || record.amountCents || 0)} · {record.paidAt || record.paid_at || record.createdAt || ''}
-            </small>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="panel">
