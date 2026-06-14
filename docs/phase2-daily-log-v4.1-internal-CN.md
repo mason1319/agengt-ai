@@ -2,6 +2,16 @@
 
 ## 2026-06-14
 
+- 最新复测记录（Phase 2 平台 AI 用量空结果文案收口）：`platform.ai-usage-audit.states` 已补充
+  - 修复点：`UI_COPY.empty.noAiUsageRecords` 从后端返回口径改为 `当前筛选无 AI 用量记录`。
+  - 修复点：AI 用量查询空结果提示统一为 `当前筛选下暂无 AI 用量记录，可调整机构或时间范围后刷新`，不再展示 `本次查询未返回 AI 用量数据`。
+  - 修复点：扩展 `scripts/assert-platform-ai-usage-audit-states.js`，覆盖配置兜底、查询空结果提示和旧文案清理。
+  - 验证：`node ./scripts/assert-platform-ai-usage-audit-states.js` ✅
+  - 验证：`npm test` ✅（35/35）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` ✅
+  - Browser 验证：`http://127.0.0.1:4176/?role=platform` -> 资源用量 ✅，新筛选/空结果文案可见，旧“未返回”文案不可见，控制台无错误。
+
 - 最新复测记录（Phase 2 创始人线索家长姓名兜底收口）：`founder.leads.guardian-fallback` 已统一
   - 修复点：创始人咨询线索列表与线索详情中，家长姓名缺失时统一显示 `家长姓名待完善`。
   - 修复点：页面代码不再展示 `未填写家长名` 这类表单字段口吻。

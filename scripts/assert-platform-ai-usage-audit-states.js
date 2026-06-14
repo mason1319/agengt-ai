@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const main = readFileSync('src/main.jsx', 'utf8');
+const appConfig = readFileSync('src/config/appConfig.js', 'utf8');
 const docs = readFileSync('docs/unclosed-ui-controls-v4.1-internal-CN.md', 'utf8');
 
 const pageStart = main.indexOf('function PlatformAiPage(');
@@ -50,6 +51,13 @@ const checks = [
   {
     label: 'AI usage empty state names current filters',
     pass: platformAiPage.includes('当前筛选无 AI 用量记录，可调整机构或时间范围后刷新')
+  },
+  {
+    label: 'AI usage no-data copy avoids backend return wording',
+    pass: appConfig.includes("noAiUsageRecords: '当前筛选无 AI 用量记录'")
+      && appBlock.includes("setPlatformAiUsageMessage('当前筛选下暂无 AI 用量记录，可调整机构或时间范围后刷新')")
+      && !main.includes('本次查询未返回 AI 用量数据')
+      && !appConfig.includes('AI 用量数据未返回')
   },
   {
     label: 'AI audit empty state names current filters',

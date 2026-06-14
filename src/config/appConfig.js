@@ -39,7 +39,7 @@ export const UI_COPY = {
     noAttendanceRecords: '到课记录未生成',
     noExceptions: '未检测到异常记录',
     noAuditRecords: '审计记录未生成',
-    noAiUsageRecords: 'AI 用量数据未返回',
+    noAiUsageRecords: '当前筛选无 AI 用量记录',
     noFeaturedContent: '学习档案精选内容未发布',
     noUpdates: '近期学习记录未生成'
   },

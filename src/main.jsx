@@ -10090,7 +10090,7 @@ function App() {
         ...normalizedFilters
       }));
       if (usageRows.length === 0) {
-        setPlatformAiUsageMessage('本次查询未返回 AI 用量数据');
+        setPlatformAiUsageMessage('当前筛选下暂无 AI 用量记录，可调整机构或时间范围后刷新');
       }
     } catch (error) {
       setPlatformAiUsageMessage(error?.message || 'AI 用量加载失败');
