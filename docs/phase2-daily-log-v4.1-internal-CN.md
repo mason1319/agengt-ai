@@ -20,6 +20,15 @@
   - 验证：`npm run build` / `npm run web:local` ✅
   - Browser 验证：`http://127.0.0.1:4176/?role=platform` -> 机构管理 -> 转正式运营 ✅，成功提示、机构状态、最近操作日志均可见；本地预览无后端时显示“本地已回填，云端同步失败：404 Not Found”。
 
+- 最新发布记录（Phase 2 平台机构动作执行反馈上线）：Cloudflare Pages 已发布
+  - Preview 部署：`https://3b4fa703.starmate-english-saas.pages.dev`（Source `f54ee5f`，Branch `codex/phase2-p2-1-course-drawer`）。
+  - Production 部署：`https://886d278a.starmate-english-saas.pages.dev`（通过 `--branch main` 发布当前构建）。
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://3b4fa703.starmate-english-saas.pages.dev` ✅（35/35）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://886d278a.starmate-english-saas.pages.dev` ✅（35/35）
+  - 线上严格验收：`SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://aggieai.me` ✅（35/35）
+  - 线上严格验收：`SMOKE_TIMEOUT_MS=30000 SMOKE_STRICT_AUTH=true SMOKE_ALLOW_SKIP=false bash ./scripts/smoke-check.sh https://www.aggieai.me` ✅（35/35）
+  - 生产 API 专项验收：`PATCH https://aggieai.me/api/v1/admin/institutions` ✅，`inst-star` 返回 `after.status=normal`、`after.planCode=standard`，二次 GET 确认持久化正常。
+
 ## 2026-06-12
 
 - 最新复测记录（Phase2 首页 AI 咨询回执收口）：`home.send-ai-reply` 补齐可见输入区与失败提示
