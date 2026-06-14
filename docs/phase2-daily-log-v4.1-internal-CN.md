@@ -305,6 +305,12 @@
   - 代码：新增 `scripts/assert-student-trial-booking-time.js`，防止后续回退成固定时间
   - 校验：`npm test` ✅（含 35/35 smoke）、`npm run typecheck` ✅、`npm run build` ✅、Chrome 桌面/移动视口回归 ✅
 
+- 2026-06-14（Phase 2 空态/错误态区分）：公开课程与练习任务空态收口
+  - 代码：学生端公开课程新增 `publicCoursesMessage`，接口失败时显示“公开课程加载失败，可点击刷新课程重试”
+  - 代码：练习页新增 `practiceDataMessage`，学生数据失败且任务为空时显示“今日任务加载失败，可点击刷新任务重试”
+  - 代码：新增 `scripts/assert-empty-error-states.js` 并接入 `npm test`
+  - 校验：`npm test` ✅（含 35/35 smoke）、`npm run typecheck` ✅、`npm run build` ✅
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录

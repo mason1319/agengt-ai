@@ -2339,6 +2339,7 @@ function StudentView({
   onSubmitVoiceAssess,
   publicCourses = [],
   publicCoursesLoading = false,
+  publicCoursesMessage = '',
   publicLeadSubmitting = false,
   onSubmitPublicLead,
   onSubmitTrialBooking,
@@ -3169,7 +3170,10 @@ function StudentView({
         <div className="feature-split home-public-layout">
           <div className="panel home-course-panel">
             <div className="home-course-grid">
-              {publicCourseList.length === 0 && !publicCoursesLoading ? <div className="small-note">{UI_COPY.empty.noPublicCourses}</div> : null}
+              {publicCoursesMessage && !publicCoursesLoading ? (
+                <div className="small-note">公开课程加载失败，可点击刷新课程重试</div>
+              ) : null}
+              {publicCourseList.length === 0 && !publicCoursesLoading && !publicCoursesMessage ? <div className="small-note">{UI_COPY.empty.noPublicCourses}</div> : null}
               {publicCourseList.slice(0, 3).map((course) => {
                 const display = getCourseDisplay(course);
                 const isSelected = `${course.id}`.trim() === `${selectedPublicCourseId}`;
@@ -7084,6 +7088,7 @@ function PracticePage({
   studentTodayTasks = [],
   studentReviewHistory = [],
   studentReviewMistakes = [],
+  practiceDataMessage = '',
   onRunAIAgent,
   onResetChallenge,
   onSubmitPracticeReview,
@@ -7117,6 +7122,9 @@ function PracticePage({
           done: `${item.status || ''}`.trim() === 'done' || `${item.status || ''}`.trim() === 'submitted',
           note: item.note || item.transcript || item.topic || '跟读 + 复述'
         }));
+      }
+      if (practiceDataMessage) {
+        return [];
       }
     }
 
@@ -7505,6 +7513,9 @@ function PracticePage({
             <div>
               <span>今日任务</span>
               <h3>{tasks.length > 0 ? `完成进度 ${completed}/${tasks.length}` : '暂无待执行任务'}</h3>
+              {practiceDataMessage && tasks.length === 0 ? (
+                <div className="small-note">今日任务加载失败，可点击刷新任务重试</div>
+              ) : null}
             </div>
           </div>
           <div className="mission-grid">
@@ -8885,6 +8896,7 @@ function App() {
   const [platformAiUsageMessage, setPlatformAiUsageMessage] = useState('');
   const [publicCourses, setPublicCourses] = useState([]);
   const [publicCoursesLoading, setPublicCoursesLoading] = useState(false);
+  const [publicCoursesMessage, setPublicCoursesMessage] = useState('');
   const [publicLeadSubmitting, setPublicLeadSubmitting] = useState(false);
   const [publicLeadReplyLoading, setPublicLeadReplyLoading] = useState(false);
   const [studentTodayTasks, setStudentTodayTasks] = useState([]);
@@ -9166,6 +9178,7 @@ function App() {
   const selectedParentChildId = parentSelectedChildId || (parentChildren[0]?.studentId || parentChildren[0]?.id || parentChildren[0]?.student?.id || '');
 
   const loadPublicCourses = async () => {
+    setPublicCoursesMessage('');
     if (!isApiMode()) {
       setPublicCourses((runtimeData.teacherLessons || FALLBACK_DATA.teacherLessons).slice(0, 10));
       return;
@@ -9178,6 +9191,10 @@ function App() {
       });
       const list = Array.isArray(payload?.data?.courses) ? payload.data.courses : [];
       setPublicCourses(list);
+    } catch (error) {
+      setPublicCoursesMessage(error?.message || '公开课程加载失败');
+      setPublicCourses([]);
+      throw error;
     } finally {
       setPublicCoursesLoading(false);
     }
@@ -10444,6 +10461,7 @@ function App() {
             onSubmitVoiceAssess={submitStudentVoice}
             publicCourses={publicCourses}
             publicCoursesLoading={publicCoursesLoading}
+            publicCoursesMessage={publicCoursesMessage}
             publicLeadSubmitting={publicLeadSubmitting}
             onSubmitPublicLead={submitPublicLead}
             onSubmitTrialBooking={submitTrialBooking}
@@ -10546,6 +10564,7 @@ function App() {
             studentTodayTasks={studentTodayTasks}
             studentReviewHistory={studentReviewHistory}
             studentReviewMistakes={studentReviewMistakes}
+            practiceDataMessage={studentDataMessage}
             report={report}
             onRunAIAgent={activeRole !== 'platform' ? invokeAIAgent : null}
             onResetChallenge={activeRole !== 'platform' ? invokeAIAgent : null}
