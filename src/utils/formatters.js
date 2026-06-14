@@ -16,6 +16,34 @@ export function formatCurrencyCents(value = 0) {
   return `¥${((Number(value) || 0) / 100).toFixed(2)}`;
 }
 
+export function normalizeLessonHours(value = 0, fallback = '课时待确认') {
+  const normalized = Number(value);
+  if (!Number.isFinite(normalized)) {
+    return fallback;
+  }
+  const rounded = Math.round(normalized * 100) / 100;
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)} 节`;
+}
+
+export function normalizePaidAmount(value = '', fallback = '收费金额未录入') {
+  const raw = `${value ?? ''}`.trim();
+  if (!raw) {
+    return fallback;
+  }
+  if (/^¥/.test(raw) || /元$/.test(raw)) {
+    return raw;
+  }
+
+  const normalized = Number(raw);
+  if (!Number.isFinite(normalized)) {
+    return raw;
+  }
+  if (Math.abs(normalized) >= 100 && Number.isInteger(normalized)) {
+    return formatCurrencyCents(normalized);
+  }
+  return Number.isInteger(normalized) ? `${normalized}元` : `¥${normalized.toFixed(2)}`;
+}
+
 export function normalizeCourseClassType(course = {}) {
   const raw = `${course.class_type || course.classType || course.groupType || course.mode || ''}`.trim().toLowerCase();
   if (!raw) {

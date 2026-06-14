@@ -100,7 +100,7 @@
 
 | 控件ID | 当前状态 | 仍需收口的点 | 建议 |
 |---|---|---|---|
-| `profile.quick.lesson-account` | 已统一到 `normalizePaymentStatus` | 缴费状态、入账时间、课时余额的口径还可以更统一 | 后续把 `paymentStatus`、`paidAmount`、`remainingHours` 改成同一套展示词 |
+| `profile.quick.lesson-account` | 已统一到 `normalizePaymentStatus`、`normalizePaidAmount`、`normalizeLessonHours` | 收费状态、收费金额、剩余课时已统一展示口径 | 保持“收费记录 / 收费金额未录入 / 剩余课时 x 节”表达 |
 | `profile.course-card.time` | 已统一到 `normalizeCourseTime` | 课程时间字段已接入统一格式化 | 保持课程页与个人中心同一时间口径 |
 | `profile.course-card.empty` | 当前暂无在读课程 | 这是正常空态 | 保持，不再改成错误态 |
 
@@ -117,7 +117,7 @@
 ### 8.5 当前结论
 
 - 这轮真正需要继续收口的，不是功能缺失，而是“状态词还散着说”。
-- 公开课程空态与练习任务空态已和加载失败区分；下一轮优先看课时账户金额/余额字段的展示口径。
+- 课时账户金额/余额字段已统一；下一轮优先看老师端课卡状态是否需要升级成更明确业务状态。
 - 公开招生海报墙和“查看详情 / 立即咨询”链路已经闭环，不在本轮清单里了。
 
 ### 8.6 本轮已统一的词表项
@@ -126,6 +126,7 @@
 |---|---|---|
 | `founder.payment-records.expiry` | `到期日待确认` | 到期提醒统一到“日期待确认”语义 |
 | `profile.quick.lesson-account` | `已收 / 待收 / 已退 / 处理中` | 课时账户缴费状态已统一到共享状态词 |
+| `profile.quick.lesson-account.amount-hours` / `founder.lesson-account.hours` | `收费金额未录入 / 剩余课时 x 节 / 入账课时 x 节` | 个人中心与创始人端课时账户金额、余额、入账课时已接入共享格式化 |
 | `profile.course-card.time` / `teacher.lesson.card.time` / `student.lesson-card.time` | `时间已统一` | 课程时间统一到同一套格式化函数 |
 | `student.trial.form` | `请选择试听课程后继续 / 补充咨询内容后即可提交试听预约` | 试听表单引导词已统一 |
 | `student.trial.booking-time` | `试听预约时间 / 未选择时默认安排明日同一时段` | 学生端主入口已支持选择试听预约时间，未填时保留默认兜底 |

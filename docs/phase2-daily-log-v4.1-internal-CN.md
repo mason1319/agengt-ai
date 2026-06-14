@@ -311,6 +311,12 @@
   - 代码：新增 `scripts/assert-empty-error-states.js` 并接入 `npm test`
   - 校验：`npm test` ✅（含 35/35 smoke）、`npm run typecheck` ✅、`npm run build` ✅
 
+- 2026-06-14（Phase 2 课时账户展示口径收口）：金额与课时数统一格式化
+  - 代码：新增 `normalizeLessonHours` 与 `normalizePaidAmount`，统一课时和收费金额展示
+  - 代码：个人中心课时账户、创始人课时对账不再直接透出 `paidAmount / remainingHours` 原值
+  - 代码：新增 `scripts/assert-lesson-account-display.js` 并接入 `npm test`
+  - 校验：`npm test` ✅（含 35/35 smoke）、`npm run typecheck` ✅、`npm run build` ✅
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录

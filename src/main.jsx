@@ -49,6 +49,8 @@ import PanelTitle from './components/PanelTitle';
 import {
   COURSE_COPY,
   formatCurrencyCents,
+  normalizeLessonHours,
+  normalizePaidAmount,
   normalizeCourseClassType,
   normalizeCourseFee,
   normalizePaymentStatus,
@@ -1371,8 +1373,8 @@ function FounderDashboard({
               <strong>最近调整</strong>
               <small>
                 {recentLessonAdjustment.studentName || recentLessonAdjustment.student_name || recentLessonAdjustment.studentId || '未知学员'}
-                {' '}· 购课 {recentLessonAdjustment.purchased_hours || recentLessonAdjustment.purchasedHours || 0}
-                {' '}· 剩余 {recentLessonAdjustment.remaining_hours || recentLessonAdjustment.remainingHours || 0}
+                {' '}· 入账课时 {normalizeLessonHours(recentLessonAdjustment?.purchased_hours || recentLessonAdjustment?.purchasedHours || 0)}
+                {' '}· 剩余课时 {normalizeLessonHours(recentLessonAdjustment?.remaining_hours || recentLessonAdjustment?.remainingHours || 0)}
               </small>
             </div>
             <small className="small-note">
@@ -1387,11 +1389,11 @@ function FounderDashboard({
             <div>
               <strong>{account.studentName || account.student_name || '未知学员'}</strong>
               <small>
-                购课 {account.purchased_hours || account.purchasedHours || 0} · 已用 {account.used_hours || account.usedHours || 0} · 保留 {account.hold_hours || account.holdHours || 0}
+                入账课时 {normalizeLessonHours(account?.purchased_hours || account?.purchasedHours || 0)} · 已用 {normalizeLessonHours(account?.used_hours || account?.usedHours || 0)} · 保留 {normalizeLessonHours(account?.hold_hours || account?.holdHours || 0)}
               </small>
             </div>
             <div className="small-note" style={{ textAlign: 'right' }}>
-              <div>剩余 {account.remaining_hours || account.remainingHours || 0}</div>
+              <div>剩余课时 {normalizeLessonHours(account?.remaining_hours || account?.remainingHours || 0)}</div>
               <div>{account.notes || account.reason || '无调整原因'}</div>
             </div>
           </div>
@@ -7723,6 +7725,8 @@ function ProfilePage({
       || lessonAccount?.summary?.remaining_hours
       || 0
   );
+  const lessonHoursText = normalizeLessonHours(lessonHours);
+  const lessonAccountPaidAmountText = normalizePaidAmount(lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '');
   const courseCount = Array.isArray(childCourses) ? childCourses.length : 0;
   const cultureWallCounts = {
     videos: Array.isArray(cultureWall.videos) ? cultureWall.videos.length : 0,
@@ -7858,7 +7862,7 @@ function ProfilePage({
     {
       id: 'hours',
       label: '剩余课时',
-      value: `${lessonHours} 节`,
+      value: lessonHoursText,
       note: '课时到账与消耗已同步'
     },
     {
@@ -8039,7 +8043,7 @@ function ProfilePage({
               <strong>本周学习概况</strong>
               <p>{report.summary}</p>
               <div className="hero-chip-row">
-                <span className="small-note">剩余课时 {lessonHours} 节</span>
+                <span className="small-note">剩余课时 {lessonHoursText}</span>
                 <span className="small-note">本周上课 3 节</span>
               </div>
             </div>
@@ -8058,7 +8062,7 @@ function ProfilePage({
           <MetricCard
             icon={CalendarDays}
             label="剩余课时"
-            value={`${lessonHours}节`}
+            value={lessonHoursText}
             note="课时余额与消耗同步更新"
             tone="blue"
           />
@@ -8080,7 +8084,7 @@ function ProfilePage({
             icon={CreditCard}
             label="收费记录"
             value={normalizePaymentStatus(lessonAccount?.summary?.paymentStatus || lessonAccount?.paymentStatus)}
-            note={`${lessonAccount?.summary?.paidAmount || lessonAccount?.paidAmount || '课时与收费已对账'}`}
+            note={lessonAccountPaidAmountText}
             tone="purple"
           />
         </div>
