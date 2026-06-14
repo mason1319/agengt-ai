@@ -2,6 +2,7 @@ import {
   APP_COPY,
   MENU_CONFIG,
   ORG_ACTIONS_BY_STATUS,
+  ORG_STATUS,
   ORG_STATUS_DEFAULTS
 } from '../config/appConfig';
 import {
@@ -222,30 +223,25 @@ export const buildInstitutionPatchPayload = ({ org, action }) => {
     basePatch.status = normalizeStatusForApi(targetStatus, 'trial');
   }
 
-  if (action?.label === '延长试用') {
+  const actionKey = `${action?.actionKey || ''}`.trim();
+
+  if (actionKey === 'extend') {
     basePatch.action = 'extend_trial';
     return basePatch;
   }
 
-  if (action?.label === '停用') {
+  if (actionKey === 'freeze') {
     basePatch.action = 'suspend';
     return basePatch;
   }
 
-  if (action?.label === '试用演练') {
-    basePatch.action = 'downgrade';
-    basePatch.status = 'trial';
-    basePatch.planCode = 'trial';
-    return basePatch;
-  }
-
-  if (action?.label === '转正式') {
-    basePatch.action = 'upgrade';
-    return basePatch;
-  }
-
-  if (action?.label === '续费恢复') {
+  if (actionKey === 'readonly') {
     basePatch.action = 'activate';
+    return basePatch;
+  }
+
+  if (actionKey === 'convert') {
+    basePatch.action = org?.status === ORG_STATUS.expired ? 'activate' : 'upgrade';
     return basePatch;
   }
 

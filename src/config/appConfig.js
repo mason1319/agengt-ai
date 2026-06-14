@@ -130,6 +130,14 @@ export function getPlatformExpiryPolicyText(item = {}) {
   return PLATFORM_EXPIRY_POLICY_TEXT[status] || normalizedPolicy;
 }
 
+export function getPlatformOrgActionResultText({ org = {}, action = {}, patch = {} } = {}) {
+  const actionLabel = getPlatformExpiryActionLabel(action);
+  const name = `${org.name || patch.name || org.id || patch.id || '未命名机构'}`.trim();
+  const nextStatus = `${patch.status || org.status || ORG_STATUS.trial}`.trim();
+  const policyText = getPlatformExpiryPolicyText({ ...org, ...patch, status: nextStatus });
+  return `已执行${actionLabel}：${name}，状态已更新为${nextStatus}，到期策略：${policyText}`;
+}
+
 export const ORG_STATUS_DEFAULTS = {
   [ORG_STATUS.normal]: {
     planMode: '月付',

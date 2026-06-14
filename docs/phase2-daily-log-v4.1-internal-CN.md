@@ -10,6 +10,16 @@
   - 验证：`npm run typecheck` ✅
   - 验证：`npm run build` ✅
 
+- 最新复测记录（Phase 2 平台机构动作执行反馈收口）：`platform.action.execution-feedback` 已统一
+  - 修复点：机构动作执行后统一回写成功提示、最近操作日志和机构列表回填，避免点击后只静默刷新。
+  - 修复点：机构动作接口 payload 改为按 `actionKey` 映射 `extend_trial / suspend / upgrade / activate`，不再依赖按钮中文旧文案。
+  - 修复点：本地种子机构补稳定 id，避免本地预览动作反馈出现 institutionId 缺失。
+  - 修复点：新增断言覆盖成功提示、日志写入、动作映射、旧 label 分支清理和本地种子机构 id。
+  - 验证：`npm test` ✅（35/35）
+  - 验证：`npm run typecheck` ✅
+  - 验证：`npm run build` / `npm run web:local` ✅
+  - Browser 验证：`http://127.0.0.1:4176/?role=platform` -> 机构管理 -> 转正式运营 ✅，成功提示、机构状态、最近操作日志均可见；本地预览无后端时显示“本地已回填，云端同步失败：404 Not Found”。
+
 ## 2026-06-12
 
 - 最新复测记录（Phase2 首页 AI 咨询回执收口）：`home.send-ai-reply` 补齐可见输入区与失败提示

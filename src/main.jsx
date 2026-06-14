@@ -78,6 +78,7 @@ import {
   APP_COPY,
   getPlatformExpiryActionLabel,
   getPlatformExpiryPolicyText,
+  getPlatformOrgActionResultText,
   MENU_CONFIG,
   ORG_ACTIONS_BY_STATUS,
   ORG_STATUS,
@@ -3381,8 +3382,6 @@ function PlatformAdmin({
         patch.expires = nextDate(today, defaults.dayOffset);
       }
       delete patch.dayOffset;
-      const actionLabel = getPlatformExpiryActionLabel(action);
-      onAction?.('platform', `执行机构动作：${actionLabel}`);
 
       if (typeof onApplyOrgAction === 'function') {
         await onApplyOrgAction(org, action, patch);
@@ -3392,6 +3391,7 @@ function PlatformAdmin({
       setOrgs((prev) =>
         prev.map((item) => ((item.id || item.name) === (org.id || org.name) ? { ...item, ...patch } : item))
       );
+      onAction?.('platform', getPlatformOrgActionResultText({ org, action, patch }));
     };
 
     return (
@@ -9819,6 +9819,11 @@ function App() {
     };
 
     const token = initTokenRef.current;
+    const successText = getPlatformOrgActionResultText({
+      org,
+      action,
+      patch: localPatch
+    });
     setPlatformActionMessage('');
     setPlatformActionOrgId(organizationId);
 
@@ -9830,6 +9835,8 @@ function App() {
             (item.id || item.name) === organizationId ? { ...item, ...localPatch } : item
           )
         }));
+        setPlatformActionMessage(successText);
+        appendOperationLog('platform', successText);
         return;
       }
 
@@ -9857,6 +9864,8 @@ function App() {
             (item.id || item.name) === updated.id ? updated : item
           )
         }));
+        setPlatformActionMessage(successText);
+        appendOperationLog('platform', successText);
       } else {
         const refreshed = await loadRuntimeData({
           role: activeRole,
@@ -9865,10 +9874,14 @@ function App() {
         setRuntimeData({
           ...refreshed
         });
+        setPlatformActionMessage(successText);
+        appendOperationLog('platform', successText);
       }
     } catch (error) {
       onFailureFallback();
-      setPlatformActionMessage(error?.message || '机构操作失败，请稍后再试');
+      const fallbackText = `${successText}（本地已回填，云端同步失败：${sanitizeOperationText(error?.message || '请稍后重试')}）`;
+      setPlatformActionMessage(fallbackText);
+      appendOperationLog('platform', fallbackText);
     } finally {
       setPlatformActionOrgId('');
     }

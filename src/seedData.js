@@ -131,6 +131,7 @@ export const parentMessages = [
 
 export const organizations = [
   {
+    id: 'org_main',
     name: 'Aggie速记英语本部',
     plan: '标准版',
     planMode: '年付',
@@ -145,6 +146,7 @@ export const organizations = [
     expiryAction: '转只读观察，保留历史数据，暂停新增业务操作'
   },
   {
+    id: 'org_trial',
     name: '青禾英语工作室',
     plan: '体验版',
     planMode: '试用',
@@ -159,6 +161,7 @@ export const organizations = [
     expiryAction: '冻结新操作，待转正式运营'
   },
   {
+    id: 'org_expired',
     name: '启航中考英语',
     plan: '基础版',
     planMode: '月付',
