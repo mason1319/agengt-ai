@@ -1476,6 +1476,35 @@ function TeacherWorkspace({
   const exceptionList = showCurrentExceptionOnly
     ? exceptions.filter((item) => `${item.courseId || ''}`.trim() === `${currentLesson.id || ''}`.trim())
     : exceptions;
+  const getLessonCardStatusLabel = (lesson) => {
+    const state = lessonStates[lesson.id] || {};
+    if (state.closed) {
+      return '已完成';
+    }
+    if (state.feedbackDone || state.exerciseDone) {
+      return '进行中';
+    }
+    const raw = `${state.status || lesson.status || ''}`.trim().toLowerCase();
+    if (!raw) {
+      return '未开始';
+    }
+    if (raw === 'active' || raw === 'ongoing' || raw === 'running') {
+      return '进行中';
+    }
+    if (raw === 'paused' || raw === 'hold' || raw === 'suspended') {
+      return '已暂停';
+    }
+    if (raw === 'closed' || raw === 'finished' || raw === 'completed' || raw === 'done') {
+      return '已完成';
+    }
+    if (raw.includes('进行中') || raw.includes('已完成') || raw.includes('未开始') || raw.includes('已锁定')) {
+      return raw;
+    }
+    if (raw.includes('待') || raw.includes('暂')) {
+      return '未开始';
+    }
+    return '未开始';
+  };
 
   useEffect(() => {
     if (!showAuthorizedOnly) {
@@ -1921,7 +1950,7 @@ function TeacherWorkspace({
                     {normalizeCourseRules(lesson).scheduleDate} · {normalizeCourseRules(lesson).holdRule}
                   </small>
                   <small className="small-note" style={{ marginTop: 3 }}>
-                    {lessonStates[lesson.id]?.status || COURSE_COPY.statusFallback}
+                    {getLessonCardStatusLabel(lesson)}
                   </small>
                 </button>
               )))}

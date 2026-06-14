@@ -281,6 +281,12 @@
   - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的 `practice.review.history` / `practice.review.mistakes` 已改为已收口
   - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
 
+- 2026-06-14（Phase 2 学生课程卡状态收口）：老师端课程卡状态压成三态口径
+  - 代码：老师课程卡底部状态改为由 `lessonStates` 派生，统一显示 `已完成 / 进行中 / 未开始`
+  - 代码：课程卡不再直接透出原始 `lesson.status`，保留内部状态用于回写
+  - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的 `student.lesson-card.status` 已改为已收口
+  - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录
