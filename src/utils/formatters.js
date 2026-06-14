@@ -94,3 +94,48 @@ export function normalizePaymentStatus(status = '', fallback = '未设置') {
 
   return raw;
 }
+
+export function normalizeReviewStatus(status = '', fallback = '已回填', kind = 'history') {
+  const raw = `${status || ''}`.trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  const normalized = raw.toLowerCase();
+  if (
+    normalized === 'done'
+    || normalized === 'completed'
+    || normalized === 'complete'
+    || normalized === 'submitted'
+    || normalized === 'graded'
+    || normalized === 'reviewed'
+    || normalized === 'finished'
+    || normalized === 'success'
+    || normalized === 'ok'
+    || normalized.includes('已完成')
+    || normalized.includes('已提交')
+    || normalized.includes('已回填')
+    || normalized.includes('已批改')
+  ) {
+    return '已完成';
+  }
+  if (
+    normalized === 'pending'
+    || normalized === 'todo'
+    || normalized === 'draft'
+    || normalized === 'unstarted'
+    || normalized.includes('待复习')
+  ) {
+    return kind === 'mistake' ? '待复习' : '进行中';
+  }
+  if (
+    normalized === 'processing'
+    || normalized === 'running'
+    || normalized === 'in_progress'
+    || normalized.includes('进行中')
+  ) {
+    return '进行中';
+  }
+
+  return raw;
+}

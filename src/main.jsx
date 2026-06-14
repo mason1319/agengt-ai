@@ -51,7 +51,8 @@ import {
   formatCurrencyCents,
   normalizeCourseClassType,
   normalizeCourseFee,
-  normalizePaymentStatus
+  normalizePaymentStatus,
+  normalizeReviewStatus
 } from './utils/formatters';
 import {
   getCourseDisplay,
@@ -3026,7 +3027,7 @@ function StudentView({
             {historyItems.slice(0, 4).map((item, index) => (
               <div className="data-card" key={`${item.id || item.taskId || `history-${index}`}`}>
                 <strong>{item.title || item.taskName || item.task_type || `记录 ${index + 1}`}</strong>
-                <small>{item.status || item.state || 'completed'} · {item.score ?? 0} 分</small>
+                <small>{normalizeReviewStatus(item.status || item.state, '已回填', 'history')} · {item.score ?? 0} 分</small>
                 <div className="small-note">{item.answer || item.result || item.note || item.transcript || '已完成提交'}</div>
               </div>
             ))}
@@ -3042,7 +3043,7 @@ function StudentView({
             {mistakeItems.slice(0, 4).map((item, index) => (
               <div className="data-card" key={`${item.id || item.taskId || `mistake-${index}`}`}>
                 <strong>{item.title || item.taskName || `弱项 ${index + 1}`}</strong>
-                <small>{item.score ?? 0} 分 · {item.status || '待复习'}</small>
+                <small>{item.score ?? 0} 分 · {normalizeReviewStatus(item.status, '待复习', 'mistake')}</small>
                 <div className="small-note">{item.answer || item.note || item.topic || '建议重新听读一遍并重复提交。'}</div>
               </div>
             ))}
@@ -7586,7 +7587,7 @@ function PracticePage({
                     <strong>{item.title || item.taskName || item.task_type || '练习复盘'}</strong>
                     <p>{item.result || item.note || item.topic || item.summary || '完成后会自动写回记录。'}</p>
                   </div>
-                  <span>{item.status || item.tag || '已回填'}</span>
+                  <span>{normalizeReviewStatus(item.status || item.tag, '已回填', 'history')}</span>
                 </article>
               ))
             ) : (

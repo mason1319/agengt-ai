@@ -275,6 +275,12 @@
   - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的课程时间待确认项同步收口为“时间已统一”
   - 校验：`npm run typecheck`、`npm run build` ✅
 
+- 2026-06-14（Phase 2 练习复盘状态收口）：练习历史与薄弱项状态统一映射
+  - 代码：练习页最近复盘、错题弱项、家长/学生复盘历史统一接入 `normalizeReviewStatus`
+  - 代码：`done / completed / submitted / pending / processing` 等状态码在页面侧改为 `已完成 / 进行中 / 待复习`
+  - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的 `practice.review.history` / `practice.review.mistakes` 已改为已收口
+  - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录
