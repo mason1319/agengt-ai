@@ -293,6 +293,12 @@
   - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的 `student.trial.form` 已改为已收口
   - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
 
+- 2026-06-14（Phase 2 公开课程规则展示优化）：公开课程卡与试听摘要补齐时间和时长层次
+  - 代码：公开课程卡文案将 `时长` 改为 `课程时长`，试听摘要增加 `上课时间` 说明
+  - 代码：试听详情区继续展示上课日期、到课规则、保留规则，时长与时间不再混写
+  - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 的当前结论收窄为仅剩试听预约时间选择
+  - 校验：待补 `npm run typecheck`、`npm run build` 和浏览器回归
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录

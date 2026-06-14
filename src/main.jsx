@@ -6015,7 +6015,7 @@ function HomePage({
                     <p>{info.fee ? `收费标准：${info.fee}` : COURSE_COPY.feeFallback}</p>
                     <div className="course-meta-row">
                       <span>班型：{display.classType}</span>
-                      <span>时长：{info.duration}</span>
+                      <span>课程时长：{info.duration}</span>
                     </div>
                     <small>可报名名额：{course.capacityLeft || course.capacity || '—'}</small>
                     <button
@@ -6055,17 +6055,20 @@ function HomePage({
                 <div className="alert-list" style={{ marginTop: 10 }}>
                   <div className="alert-row">
                     <span className="status-dot blue" />
-                    <div>
-                      <strong>{selectedPublicCourseInfo.title}</strong>
-                      <small>
-                        {selectedPublicCourseInfo.grade || COURSE_COPY.gradeFallback} · 班型：{selectedPublicCourseDisplay?.classType || COURSE_COPY.classTypeFallback} · 时长：{selectedPublicCourseInfo.duration}
-                      </small>
-                      <small>
-                        {selectedPublicCourseInfo.fee ? `收费标准：${selectedPublicCourseInfo.fee}` : COURSE_COPY.feeFallback} · 课程ID：{selectedPublicCourse.id}
-                      </small>
-                    </div>
+                  <div>
+                    <strong>{selectedPublicCourseInfo.title}</strong>
+                    <small>
+                        {selectedPublicCourseInfo.grade || COURSE_COPY.gradeFallback} · 班型：{selectedPublicCourseDisplay?.classType || COURSE_COPY.classTypeFallback} · 课程时长：{selectedPublicCourseInfo.duration}
+                    </small>
+                    <small>
+                      {selectedPublicCourseInfo.fee ? `收费标准：${selectedPublicCourseInfo.fee}` : COURSE_COPY.feeFallback} · 课程ID：{selectedPublicCourse.id}
+                    </small>
+                    <small>
+                      上课时间：{selectedPublicCourseDisplay?.time || COURSE_COPY.timeFallback}
+                    </small>
                   </div>
                 </div>
+              </div>
               ) : (
                 <div className="small-note" style={{ marginTop: 10 }}>请选择试听课程后继续</div>
               )}
@@ -6073,17 +6076,17 @@ function HomePage({
                 <div className="alert-list" style={{ marginTop: 10 }}>
                   <div className="alert-row">
                     <span className="status-dot green" />
-                    <div>
-                      <strong>课程详情</strong>
-                      <small>上课日期：{selectedPublicCourseRules.scheduleDate}</small>
-                      <small>到课规则：{selectedPublicCourseRules.attendanceRule}</small>
-                      <small>保留规则：{selectedPublicCourseRules.holdRule}</small>
-                    </div>
-                    <small className="small-note">
-                      {selectedPublicCourseDisplay?.classType || COURSE_COPY.classTypeFallback} · {selectedPublicCourseDisplay?.time || COURSE_COPY.timeFallback}
-                    </small>
+                  <div>
+                    <strong>课程详情</strong>
+                    <small>上课日期：{selectedPublicCourseRules.scheduleDate}</small>
+                    <small>到课规则：{selectedPublicCourseRules.attendanceRule}</small>
+                    <small>保留规则：{selectedPublicCourseRules.holdRule}</small>
                   </div>
+                  <small className="small-note">
+                    {selectedPublicCourseDisplay?.classType || COURSE_COPY.classTypeFallback} · {selectedPublicCourseDisplay?.time || COURSE_COPY.timeFallback}
+                  </small>
                 </div>
+              </div>
               ) : null}
               <label>
                 <span>咨询内容</span>
@@ -6348,6 +6351,7 @@ function CoursesPage({
   const currentCourse = courseCards.find((item) => item.id === selectedId) || courseCards[0];
   const currentPath = COURSE_PATH_STEPS.find((item) => item.id === selectedPathId) || COURSE_PATH_STEPS[1];
   const reviewSummary = studentReviewSummary?.summary || studentReviewSummary || {};
+  const currentCourseDuration = `${currentCourse?.sourceLesson?.duration || currentCourse?.sourceLesson?.durationText || currentCourse?.sourceLesson?.durationMinutes || '90分钟/次'}`.trim();
   const deriveCompletedPathIds = useMemo(() => {
     const collected = [];
     const items = Array.isArray(studentReviewHistory) ? studentReviewHistory : [];
@@ -6720,6 +6724,10 @@ function CoursesPage({
             <p>{currentCourse.time}</p>
           </div>
           <div className="detail-bubble">
+            <strong>课程时长</strong>
+            <p>{currentCourseDuration}</p>
+          </div>
+          <div className="detail-bubble">
             <strong>班型</strong>
             <p>{currentCourse.classType}</p>
           </div>
@@ -6786,7 +6794,7 @@ function CoursesPage({
         <div className="metrics course-overview-metrics">
           <MetricCard icon={BookOpenCheck} label="课程总数" value={`${courseCards.length}门`} note="当前可查看课程条目" tone="green" />
           <MetricCard icon={Rocket} label="路径进度" value={`${Math.round(courseProgress)}%`} note={`已解锁 ${completedPathIds.length}/${COURSE_PATH_STEPS.length} 站`} tone="blue" />
-          <MetricCard icon={CalendarDays} label="当前课程" value={currentCourse.course || COURSE_COPY.currentCourseFallback} note={`${currentCourse.grade || COURSE_COPY.gradeFallback} · ${currentCourse.classType || COURSE_COPY.classTypeFallback}`} tone="yellow" />
+          <MetricCard icon={CalendarDays} label="当前课程" value={currentCourse.course || COURSE_COPY.currentCourseFallback} note={`${currentCourse.grade || COURSE_COPY.gradeFallback} · ${currentCourse.classType || COURSE_COPY.classTypeFallback} · ${currentCourseDuration}`} tone="yellow" />
           <MetricCard
             icon={ShieldCheck}
             label="课时规则"
