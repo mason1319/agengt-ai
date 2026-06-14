@@ -280,6 +280,11 @@
   - 清单：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中 `culture-wall.prepare-upload-photo`、`platform.practice` 已改为已收口
   - 校验：`npm run typecheck`、`npm run build`、`npm run stack:verify` ✅（35/35）
 
+- 2026-06-14（Phase 2 成果馆上传流收口）：图片 / 视频上传改为共用 hook
+  - 代码：成果馆图片与视频上传流程抽到 `useCultureWallUpload`，进度、失败态、重试入口与上传后自动收起逻辑统一
+  - 代码：`CultureWallSection` 与 `CultureWallPage` 现在共用同一套上传状态机，图片成功后更新页面内容，视频失败时保留文件并可直接重试
+  - 验证：`npm run typecheck`、`npm run build`、浏览器中上传图片成功、上传视频触发 404 后出现“重试上传”按钮 ✅
+
 - 2026-06-13（Phase 2 个人中心课程上下文闭环）：`profile.quick.courses` 携带孩子 / 课程上下文
   - 代码：个人中心“课程与课表”入口现在会把 `childId` 和 `selectedCourseId` 一起带到课程页
   - 页面：课程页顶部显示当前孩子上下文，便于后续核对课表与课程明细

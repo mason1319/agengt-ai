@@ -57,6 +57,8 @@ import {
   normalizeCourseRules,
   normalizeCourseTime
 } from './utils/courseFormatters';
+import { normalizeCultureWallSnapshot } from './utils/cultureWallUpload';
+import { useCultureWallUpload } from './hooks/useCultureWallUpload';
 import {
   ACHIEVEMENT_ITEMS,
   COURSE_PATH_STEPS,
@@ -8228,92 +8230,23 @@ function ProfilePage({
   );
 }
 
-const CULTURE_WALL_UPLOAD_RULES = {
-  photo: {
-    label: '图片',
-    maxBytes: 12 * 1024 * 1024
-  },
-  video: {
-    label: '视频',
-    maxBytes: 120 * 1024 * 1024
-  }
-};
-
-const formatUploadBytes = (bytes) => {
-  const size = Number(bytes || 0);
-  if (!Number.isFinite(size) || size <= 0) {
-    return '0 KB';
-  }
-  if (size < 1024) {
-    return `${size} B`;
-  }
-  if (size < 1024 * 1024) {
-    return `${Math.max(1, Math.round(size / 1024))} KB`;
-  }
-  return `${(size / 1024 / 1024).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
-};
-
-const validateCultureWallUpload = (kind, file) => {
-  const rule = CULTURE_WALL_UPLOAD_RULES[kind];
-  if (!rule) {
-    return '素材类型不支持';
-  }
-
-  const mimeType = `${file?.type || ''}`.toLowerCase();
-  const size = Number(file?.size || 0);
-
-  if (!file || typeof file.arrayBuffer !== 'function') {
-    return '未选择可上传的文件';
-  }
-
-  if (kind === 'photo' && !mimeType.startsWith('image/')) {
-    return '图片只能上传 image 类型文件';
-  }
-
-  if (kind === 'video' && !mimeType.startsWith('video/')) {
-    return '视频只能上传 video 类型文件';
-  }
-
-  if (size <= 0) {
-    return '文件大小不能为 0';
-  }
-
-  if (size > rule.maxBytes) {
-    return `${rule.label}大小不能超过 ${formatUploadBytes(rule.maxBytes)}`;
-  }
-
-  return '';
-};
-
 function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onAction, ...sectionProps }) {
-  const [videos, setVideos] = useState(() =>
-    (data.videos || []).map((item) => ({
-      ...item,
-      kind: 'video',
-      status: item.status || '已上传'
-    }))
-  );
-  const [photos, setPhotos] = useState(() =>
-    (data.photos || []).map((item) => ({
-      ...item,
-      kind: 'photo'
-    }))
-  );
-  const [teachers, setTeachers] = useState(() =>
-    (data.teachers || []).map((item) => ({
-      ...item
-    }))
-  );
-  const [feedbacks, setFeedbacks] = useState(() =>
-    (data.feedback || []).map((item) => ({
-      ...item
-    }))
-  );
+  const initialSnapshot = normalizeCultureWallSnapshot(data);
+  const [videos, setVideos] = useState(() => initialSnapshot.videos);
+  const [photos, setPhotos] = useState(() => initialSnapshot.photos);
+  const [teachers, setTeachers] = useState(() => initialSnapshot.teachers);
+  const [feedbacks, setFeedbacks] = useState(() => initialSnapshot.feedbacks);
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
-  const pendingUploadRef = useRef(null);
-  const uploadResetTimerRef = useRef(null);
-  const [uploadTask, setUploadTask] = useState(null);
+  const {
+    uploadTask,
+    retryUpload,
+    createUploadChangeHandler
+  } = useCultureWallUpload({
+    canEdit,
+    onUploadAsset,
+    onAction
+  });
   const counts = {
     videos: videos.length,
     photos: photos.length,
@@ -8326,185 +8259,26 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
   ][0] || '素材待上传';
 
   useEffect(() => {
-    setVideos(
-      (data.videos || []).map((item) => ({
-        ...item,
-        kind: 'video',
-        status: item.status || '已上传'
-      }))
-    );
-    setPhotos(
-      (data.photos || []).map((item) => ({
-        ...item,
-        kind: 'photo'
-      }))
-    );
-    setTeachers(
-      (data.teachers || []).map((item) => ({
-        ...item
-      }))
-    );
-    setFeedbacks(
-      (data.feedback || []).map((item) => ({
-        ...item
-      }))
-    );
+    const snapshot = normalizeCultureWallSnapshot(data);
+    setVideos(snapshot.videos);
+    setPhotos(snapshot.photos);
+    setTeachers(snapshot.teachers);
+    setFeedbacks(snapshot.feedbacks);
   }, [data]);
-
-  const resetUploadTask = () => {
-    if (uploadResetTimerRef.current) {
-      clearTimeout(uploadResetTimerRef.current);
-      uploadResetTimerRef.current = null;
+  const appendUpload = (kind, controlId) => createUploadChangeHandler({
+    kind,
+    controlId,
+    onSuccess: (nextWall) => {
+      if (!nextWall) {
+        return;
+      }
+      const snapshot = normalizeCultureWallSnapshot(nextWall);
+      setVideos(snapshot.videos);
+      setPhotos(snapshot.photos);
+      setTeachers(snapshot.teachers);
+      setFeedbacks(snapshot.feedbacks);
     }
-    setUploadTask(null);
-    pendingUploadRef.current = null;
-  };
-
-  const startUploadTask = (kind, file) => {
-    const rule = CULTURE_WALL_UPLOAD_RULES[kind];
-    const task = {
-      kind,
-      fileName: file.name,
-      fileSize: file.size || 0,
-      label: rule?.label || '素材',
-      progress: 0,
-      status: 'uploading',
-      message: `正在上传${rule?.label || '素材'}：${file.name}`
-    };
-    pendingUploadRef.current = { kind, file };
-    setUploadTask(task);
-    return task;
-  };
-
-  const updateUploadProgress = (progress) => {
-    setUploadTask((current) => {
-      if (!current || current.status !== 'uploading') {
-        return current;
-      }
-
-      return {
-        ...current,
-        progress: Math.max(current.progress || 0, Math.min(99, progress))
-      };
-    });
-  };
-
-  const submitUpload = async ({ kind, file, controlId }) => {
-    const validationMessage = validateCultureWallUpload(kind, file);
-    if (validationMessage) {
-      pendingUploadRef.current = null;
-      setUploadTask({
-        kind,
-        fileName: file?.name || '未知文件',
-        fileSize: file?.size || 0,
-        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
-        progress: 0,
-        status: 'error',
-        message: validationMessage
-      });
-      onAction?.(controlId, `上传失败：${validationMessage}`);
-      return;
-    }
-
-    startUploadTask(kind, file);
-    onAction?.(controlId, `开始上传：${kind === 'photo' ? '图片素材' : '教学视频'}（${file.name}）`);
-
-    if (typeof onUploadAsset !== 'function') {
-      pendingUploadRef.current = null;
-      const message = '上传服务暂不可用';
-      setUploadTask({
-        kind,
-        fileName: file.name,
-        fileSize: file.size || 0,
-        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
-        progress: 0,
-        status: 'error',
-        message: `上传失败：${message}`
-      });
-      onAction?.(controlId, `上传失败：${message}`);
-      return;
-    }
-
-    try {
-      const nextWall = await onUploadAsset({
-        kind,
-        file,
-        uploader: '当前管理员',
-        onProgress: ({ progress }) => updateUploadProgress(progress || 0)
-      });
-
-      if (nextWall && nextWall.videos) {
-        setVideos((nextWall.videos || []).map((item) => ({ ...item, kind: 'video', status: item.status || '已上传' })));
-      }
-      if (nextWall && nextWall.photos) {
-        setPhotos((nextWall.photos || []).map((item) => ({ ...item, kind: 'photo' })));
-      }
-      if (nextWall && nextWall.teachers) {
-        setTeachers((nextWall.teachers || []).map((item) => ({ ...item })));
-      }
-      if (nextWall && nextWall.feedback) {
-        setFeedbacks((nextWall.feedback || []).map((item) => ({ ...item })));
-      }
-
-      setUploadTask({
-        kind,
-        fileName: file.name,
-        fileSize: file.size || 0,
-        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
-        progress: 100,
-        status: 'success',
-        message: `上传完成：${file.name}`
-      });
-      onAction?.(controlId, '上传完成');
-      if (uploadResetTimerRef.current) {
-        clearTimeout(uploadResetTimerRef.current);
-      }
-      uploadResetTimerRef.current = setTimeout(() => {
-        if (pendingUploadRef.current?.file === file) {
-          resetUploadTask();
-        }
-      }, 1400);
-    } catch (error) {
-      const message = error?.message || '请求失败';
-      setUploadTask({
-        kind,
-        fileName: file.name,
-        fileSize: file.size || 0,
-        label: CULTURE_WALL_UPLOAD_RULES[kind]?.label || '素材',
-        progress: 0,
-        status: 'error',
-        message: `上传失败：${message}`
-      });
-      onAction?.(controlId, `上传失败：${message}`);
-    }
-  };
-
-  const retryUpload = async () => {
-    const pending = pendingUploadRef.current;
-    if (!pending || !canEdit) {
-      return;
-    }
-
-    await submitUpload({
-      kind: pending.kind,
-      file: pending.file,
-      controlId: pending.kind === 'photo' ? 'culture-wall.prepare-upload-photo' : 'culture-wall.prepare-upload-video'
-    });
-  };
-
-  const appendUpload = (kind, controlId) => async (evt) => {
-    const file = evt.target.files?.[0];
-    if (!file || !canEdit) {
-      if (file && !canEdit) {
-        onAction?.(controlId, '当前账号无权限上传');
-      }
-      evt.target.value = '';
-      return;
-    }
-
-    await submitUpload({ kind, file, controlId });
-    evt.target.value = '';
-  };
+  });
 
   return (
     <section className="panel wide culture-wall" {...sectionProps}>
@@ -8557,7 +8331,7 @@ function CultureWallSection({ data = {}, canEdit = false, onUploadAsset, onActio
             <span style={{ width: `${Math.max(0, Math.min(100, uploadTask.progress || 0))}%` }} />
           </div>
           <small>{uploadTask.message}</small>
-          {uploadTask.status === 'error' && pendingUploadRef.current?.file ? (
+          {uploadTask.status === 'error' && uploadTask.canRetry ? (
             <div className="culture-upload-retry">
               <button className="row-action ghost" onClick={() => void retryUpload()}>
                 重试上传
@@ -8735,19 +8509,26 @@ function CultureWallPage({
 }) {
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
-  const pendingUploadRef = useRef(null);
-  const uploadResetTimerRef = useRef(null);
-  const [uploadTask, setUploadTask] = useState(null);
+  const {
+    uploadTask,
+    retryUpload,
+    createUploadChangeHandler
+  } = useCultureWallUpload({
+    canEdit: canEditCultureWall,
+    onUploadAsset: onUploadCultureAsset,
+    onAction
+  });
 
+  const normalizedCultureWall = normalizeCultureWallSnapshot(cultureWall);
   const counts = {
-    videos: Array.isArray(cultureWall.videos) ? cultureWall.videos.length : 0,
-    photos: Array.isArray(cultureWall.photos) ? cultureWall.photos.length : 0,
-    teachers: Array.isArray(cultureWall.teachers) ? cultureWall.teachers.length : 0,
-    feedback: Array.isArray(cultureWall.feedback) ? cultureWall.feedback.length : 0
+    videos: normalizedCultureWall.videos.length,
+    photos: normalizedCultureWall.photos.length,
+    teachers: normalizedCultureWall.teachers.length,
+    feedback: normalizedCultureWall.feedbacks.length
   };
   const latestMedia = [
-    ...(Array.isArray(cultureWall.videos) ? cultureWall.videos : []),
-    ...(Array.isArray(cultureWall.photos) ? cultureWall.photos : [])
+    ...(normalizedCultureWall.videos || []),
+    ...(normalizedCultureWall.photos || [])
   ].find((item) => item?.date || item?.updatedAt || item?.createdAt) || null;
   const cultureHeroCards = [
     {
@@ -8776,115 +8557,6 @@ function CultureWallPage({
     }
   ];
 
-  const resetUploadTask = () => {
-    if (uploadResetTimerRef.current) {
-      clearTimeout(uploadResetTimerRef.current);
-      uploadResetTimerRef.current = null;
-    }
-    setUploadTask(null);
-    pendingUploadRef.current = null;
-  };
-
-  const updateUploadProgress = (progress) => {
-    setUploadTask((current) => {
-      if (!current || current.status !== 'uploading') {
-        return current;
-      }
-
-      return {
-        ...current,
-        progress: Math.max(current.progress || 0, Math.min(99, progress))
-      };
-    });
-  };
-
-  const submitUpload = async ({ kind, file, controlId }) => {
-    const validationMessage = validateCultureWallUpload(kind, file);
-    const rule = CULTURE_WALL_UPLOAD_RULES[kind];
-    if (validationMessage) {
-      pendingUploadRef.current = null;
-      setUploadTask({
-        kind,
-        fileName: file?.name || '未知文件',
-        fileSize: file?.size || 0,
-        label: rule?.label || '素材',
-        progress: 0,
-        status: 'error',
-        message: validationMessage
-      });
-      onAction?.(controlId, `上传失败：${validationMessage}`);
-      return;
-    }
-
-    pendingUploadRef.current = { kind, file };
-    setUploadTask({
-      kind,
-      fileName: file.name,
-      fileSize: file.size || 0,
-      label: rule?.label || '素材',
-      progress: 0,
-      status: 'uploading',
-      message: `正在上传${rule?.label || '素材'}：${file.name}`
-    });
-    onAction?.(controlId, `开始上传：${kind === 'photo' ? '图片素材' : '教学视频'}（${file.name}）`);
-
-    if (typeof onUploadCultureAsset !== 'function') {
-      pendingUploadRef.current = null;
-      const message = '上传服务暂不可用';
-      setUploadTask({
-        kind,
-        fileName: file.name,
-        fileSize: file.size || 0,
-        label: rule?.label || '素材',
-        progress: 0,
-        status: 'error',
-        message: `上传失败：${message}`
-      });
-      onAction?.(controlId, `上传失败：${message}`);
-      return;
-    }
-
-    try {
-      const nextWall = await onUploadCultureAsset({
-        kind,
-        file,
-        uploader: '当前管理员',
-        onProgress: ({ progress }) => updateUploadProgress(progress || 0)
-      });
-
-      onAction?.(controlId, nextWall ? `上传完成：${file.name}` : '上传完成：本次未返回同步数据');
-      setUploadTask({
-        kind,
-        fileName: file.name,
-        fileSize: file.size || 0,
-        label: rule?.label || '素材',
-        progress: 100,
-        status: 'success',
-        message: `上传完成：${file.name}`
-      });
-      if (uploadResetTimerRef.current) {
-        clearTimeout(uploadResetTimerRef.current);
-      }
-      uploadResetTimerRef.current = setTimeout(() => {
-        if (pendingUploadRef.current?.file === file) {
-          resetUploadTask();
-        }
-      }, 1400);
-    } catch (error) {
-      const message = error?.message || '请求失败';
-      setUploadTask({
-        kind,
-        fileName: file.name,
-        fileSize: file.size || 0,
-        label: rule?.label || '素材',
-        progress: 0,
-        status: 'error',
-        message: `上传失败：${message}`
-      });
-      onAction?.(controlId, `上传失败：${message}`);
-    }
-  };
-
   const refreshCultureWall = async (controlId, message) => {
     if (typeof onRefreshCultureWall !== 'function') {
       onAction?.(controlId, `${message || '数据刷新'}失败：服务暂不可用`);
@@ -8901,15 +8573,10 @@ function CultureWallPage({
     }
   };
 
-  const triggerUpload = (kind, controlId) => async (evt) => {
-    const file = evt.target.files?.[0];
-    if (!file || !canEditCultureWall) {
-      return;
-    }
-
-    await submitUpload({ kind, file, controlId });
-    evt.target.value = '';
-  };
+  const triggerUpload = (kind, controlId) => createUploadChangeHandler({
+    kind,
+    controlId
+  });
 
   return (
     <div className="product-page">
@@ -8975,15 +8642,9 @@ function CultureWallPage({
             <span style={{ width: `${Math.max(0, Math.min(100, uploadTask.progress || 0))}%` }} />
           </div>
           <small>{uploadTask.message}</small>
-          {uploadTask.status === 'error' && pendingUploadRef.current?.file ? (
+          {uploadTask.status === 'error' && uploadTask.canRetry ? (
             <div className="culture-upload-retry">
-              <button className="row-action ghost" onClick={() => void submitUpload({
-                kind: pendingUploadRef.current?.kind,
-                file: pendingUploadRef.current?.file,
-                controlId: pendingUploadRef.current?.kind === 'photo'
-                  ? 'culture-wall.prepare-upload-photo'
-                  : 'culture-wall.prepare-upload-video'
-              })}>
+              <button className="row-action ghost" onClick={() => void retryUpload()}>
                 重试上传
               </button>
               <span className="small-note">保留上一次选择的文件，可直接重试。</span>
