@@ -6874,7 +6874,7 @@ function CoursesPage({
                 <strong>{lesson.course}</strong>
                 <p>{lesson.topic}</p>
                 <small>{lesson.grade} · {lesson.classType} · {lesson.fee}</small>
-                <small className="small-note">{lesson.student} · {lesson.time}</small>
+                <small className="small-note">{lesson.student} · {normalizeCourseTime(lesson)}</small>
                 {activeRole === 'founder' ? <small className="small-note">点击可编辑</small> : null}
               </button>
             ))}
@@ -8047,7 +8047,7 @@ function ProfilePage({
                 <div className="learning-progress-bar profile-course-progress">
                   <span style={{ width: `${Math.min(100, Number(course.progress || course.doneRate || 60))}%` }} />
                 </div>
-                <small>{course.time || COURSE_COPY.timeFallback}</small>
+                <small>{normalizeCourseTime(course)}</small>
               </article>
             ))}
           </div>

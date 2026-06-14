@@ -269,6 +269,11 @@
   - 校验：`npm run typecheck`、`npm run build` ✅
   - 浏览器验证：`http://127.0.0.1:4176` 个人中心可见“数据来源 / 最近同步 / 重新同步”，同步条显示 `学生课时账户接口` 与最新时间戳；点击重新同步后时间更新
 
+- 2026-06-14（Phase 2 课程时间口径再统一）：课程卡时间改用统一格式化
+  - 代码：老师端课程卡与个人中心课时卡不再直接透传 `time` 字段，改为统一走 `normalizeCourseTime`
+  - 代码：`docs/unclosed-ui-controls-v4.1-internal-CN.md` 中的课程时间待确认项同步收口为“时间已统一”
+  - 校验：`npm run typecheck`、`npm run build` ✅
+
 - 2026-06-13（Phase 2 个人中心家校沟通闭环）：`profile.generate-feedback` 落库和回读
   - 代码：新增 `parent_messages` 数据表与 `GET/POST /api/v1/parent/child/:id/messages`，个人中心生成家校沟通稿后可写入家校消息记录
   - 代码：个人中心家校沟通区现在会读取最新消息并在生成后刷新回读，学生 / 家长两端都能看到最新记录
